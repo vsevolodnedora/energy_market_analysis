@@ -28,7 +28,7 @@ jobs:
           ACCESS_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
         run: |
           from github import Github
-          import datetime
+          import datetimel
           import requests
           import os
 
@@ -38,6 +38,9 @@ jobs:
           # Repository where the new files are added
           repo = g.get_repo("vsevolodnedora/epex_de_collector")
           contents = repo.get_contents("data/DE-LU/DayAhead_MRC")
+
+          # Repository to update or create files
+          dest_repo = g.get_repo("vsevolodnedora/energy_market_analysis")
 
           # Today's date to check against the latest file
           today = datetime.date.today().isoformat()
