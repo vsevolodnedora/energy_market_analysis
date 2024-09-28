@@ -30,6 +30,7 @@ jobs:
           from github import Github
           import datetime
           import requests
+          import os
 
           # Initialize GitHub
           g = Github(os.getenv('ACCESS_TOKEN'))
