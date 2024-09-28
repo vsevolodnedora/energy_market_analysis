@@ -32,7 +32,7 @@ jobs:
           import requests
 
           # Initialize GitHub
-          g = Github("ACCESS_TOKEN")
+          g = Github(os.getenv('ACCESS_TOKEN'))
 
           # Repository where the new files are added
           repo = g.get_repo("vsevolodnedora/epex_de_collector")
