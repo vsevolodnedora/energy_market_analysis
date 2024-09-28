@@ -1,0 +1,53 @@
+name: Sync New Files
+
+on:
+  schedule:
+    - cron: '0 * * * *' # Runs every hour, adjust as needed
+
+jobs:
+  check-and-copy-new-file:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.x'
+
+      - name: Install PyGithub
+        run: pip install PyGithub
+
+      - name: Copy file from external repository
+        env:
+          ACCESS_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+        run: |
+          from github import Github
+          import datetime
+          import requests
+
+          # Initialize GitHub
+          g = Github("ACCESS_TOKEN")
+
+          # Repository where the new files are added
+          repo = g.get_repo("vsevolodnedora/epex_de_collector")
+          contents = repo.get_contents("data/DE-LU/DayAhead_MRC")
+
+          # Today's date to check against the latest file
+          today = datetime.date.today().isoformat()
+
+          for content in contents:
+              if today in content.name:
+                  file_content = requests.get(content.download_url).text
+                  with open(content.name, 'w') as file:
+                      file.write(file_content)
+
+                  # Use the GitHub API to create a commit
+                  repo = g.get_repo("vsevolodnedora/energy_market_analysis")
+                  with open(content.name, 'rb') as file:
+                      repo.create_file(path=content.path, message="Sync new file", content=file.read(), branch="main")
+
+          print("Files synced successfully.")
+        shell: python
