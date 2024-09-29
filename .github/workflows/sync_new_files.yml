@@ -2,8 +2,8 @@ name: Sync New Files
 
 on:
   push:
-    branches:
-      - main  # Assuming you want to trigger on pushes to the main branch
+#    branches:
+#     - main  # Assuming you want to trigger on pushes to the main branch
   schedule:
     - cron: "0 */3 * * *" # Runs every 3 hour, adjust as needed
 
