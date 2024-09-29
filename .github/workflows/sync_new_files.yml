@@ -28,7 +28,7 @@ jobs:
           ACCESS_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
         run: |
           from github import Github
-          import datetimel
+          import datetime
           import requests
           import os
 
