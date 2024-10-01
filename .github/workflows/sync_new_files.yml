@@ -3,8 +3,10 @@ name: Sync New Files
 on:
   schedule:
     - cron: "0 */3 * * *" # Runs every 3 hour, adjust as needed
-
+  push: # Trigger this workflow on push events
+  
 jobs:
+  # ---------------------------------------------------------------	
   check-and-copy-new-file:
     runs-on: ubuntu-latest
 
@@ -62,3 +64,13 @@ jobs:
                       )
           print("Files synced successfully.")
         shell: python
+        
+  # --------------------------------------------------------------------------
+  another-job:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' # Conditionally run this job only on push events
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Execute a script
+        run: echo "This is a job that only runs on push events"
