@@ -3,8 +3,9 @@ name: Sync New Files
 on:
   schedule:
     - cron: "0 */3 * * *" # Runs every 3 hour, adjust as needed
-  push: # Trigger this workflow on push events
-  
+  push: 
+    paths:
+      - 'data/**'
 jobs:
   # ---------------------------------------------------------------	
   check-and-copy-new-file:
