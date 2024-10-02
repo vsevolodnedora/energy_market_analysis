@@ -5,6 +5,8 @@ name = "pypi"
 
 [packages]
 requests = "*"
+pyarrow = "*"
+fastparquet = "*"
 lxml = "*"
 pandas = "*"
 user-agent = "*"
