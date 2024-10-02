@@ -10,6 +10,9 @@ fastparquet = "*"
 lxml = "*"
 pandas = "*"
 user-agent = "*"
+retry-requests = "*"
+requests-cache = "*"
+openmeteo-requests = "*"
 
 [dev-packages]
 

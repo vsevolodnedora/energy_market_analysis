@@ -8,6 +8,10 @@ from glob import glob
 import pandas as pd
 
 from .collect_data_smard import DataEnergySMARD
+from .collect_data_openmeteo import (
+    get_weather_data_from_api_forecast,get_weather_data_from_api,process_weather_quantities
+)
+from .locations import locations
 
 def collect(today:pd.Timestamp,update:bool,crop_original:pd.Timestamp or None,horizon_size:int,data_dir:str):
 
@@ -57,6 +61,17 @@ def collect(today:pd.Timestamp,update:bool,crop_original:pd.Timestamp or None,ho
     # --------- COLLECT ELECTRICITY PRICES DATA ----------------------------
 
     # --------- COLLECT WEATHERDATA ----------------------------------------
+    df_om_hist = get_weather_data_from_api(start_date, today-timedelta(hours=12), locations)
+    df_om_forecast = get_weather_data_from_api_forecast(locations=locations)
+    if not df_om_forecast.columns.equals(df_om_hist.columns):
+        print("! Error. Column mismatch between historical and forecasted weather!")
+    df_om = pd.concat([df_om_hist, df_om_forecast[df_om_hist.columns]], ignore_index=True)
+    df_om.drop_duplicates(subset='date', keep='last', inplace=True)
+    df_om=process_weather_quantities(df_om,locations)
+    df_om.set_index('date', inplace=True)
+    df_om.to_parquet(data_dir+'upd_openweather.parquet')
+    print(f"Openweather data is successfully collected in {data_dir}upd_openweather.parquet")
+
 
 def parse_epexspot(raw_datadir:str, datadir:str):
     # updated data from epex-spot (date is in ECT)
