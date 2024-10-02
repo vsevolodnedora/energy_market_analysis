@@ -1,0 +1,30 @@
+name: Update
+
+on:
+  push:
+    paths:
+      - 'data/**'
+jobs:
+  update_data:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' # Conditionally run this job only on push events
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11.5'
+          cache: 'pipenv'
+      - name: Install pipenv
+        run: curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
+      - name: collect
+        run: pipenv install && pipenv run python main.py
+      - name: Commit updated data
+        run: |
+          git config --global user.name 'Collect Bot'
+          git config --global user.email 'noreply@nedora.digital'
+          git add .
+          git commit -m "Add data for today"
+          git pull -r
+          git push
