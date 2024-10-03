@@ -1,19 +1,88 @@
 import pandas as pd
+import os
 from datetime import datetime, timedelta
 
-from data_modules.collect_data import collect, parse_epexspot
+from data_modules.collect_data import collect_from_api, parse_epexspot, collate_and_update
 
 if __name__ == '__main__':
 
-    update:bool = True
+    update: bool = True
+    start_date = None # if update -- none, infer from last dataset
+    data_dir='./database/'
+    horizon_size = 3*24 # update and forecast window
     today = pd.Timestamp(datetime.today()).tz_localize(tz='UTC')
-    crop_original = pd.Timestamp(today - timedelta(days=365))
-    # crop_original = pd.Timestamp(datetime(year=2023, month=1, day=1), tz='UTC')
+    today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
+    end_date = today + timedelta(hours=horizon_size)
 
-    horizon_size = 3*24 # hours
 
-    # ------------- Collect updated data ----------------
-    parse_epexspot(raw_datadir='./data/DE-LU/DayAhead_MRC/', datadir='./database/')
-    # collect data from api
-    collect(today=today,update=update,crop_original=crop_original,horizon_size=horizon_size,
-            data_dir='./database/')
+    # updated dataset if needed
+    df_original = pd.read_parquet(data_dir+'latest.parquet')
+    first_timestamp = pd.Timestamp(df_original.dropna(how='any',inplace=False).first_valid_index())
+    last_timestamp = pd.Timestamp(df_original.dropna(how='any',inplace=False).last_valid_index())
+    print(f"Latest data loaded: Data from {first_timestamp} to {last_timestamp}")
+    if last_timestamp >= end_date:
+        print(f"Original data is up to date (>={end_date})")
+        update = False
+    start_date = last_timestamp - timedelta(hours=horizon_size) # to override previous forecasts
+    print(f"Start_date={start_date} today={today} end_date={end_date}")
+    if update:
+        print("Updating data")
+        parse_epexspot(raw_datadir='./data/DE-LU/DayAhead_MRC/', datadir=data_dir,
+                       start_date=start_date, end_date=end_date)
+        collect_from_api(today=today, start_date=start_date, end_date=end_date, data_dir=data_dir)
+
+        collate_and_update(df_original=df_original, start_date=start_date, data_dir=data_dir)
+
+
+
+    # # ----------------------- LOAD DATA & SET TIMES ---------------------
+    # today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
+    # # crop_original = crop_original.normalize() + pd.DateOffset(hours=crop_original.hour)
+    # if update:
+    #     # load the file to update
+    #     if os.path.isfile(data_dir+'latest.parquet'):
+    #         df_original = pd.read_parquet(data_dir+'latest.parquet')
+    #     elif os.path.isfile(data_dir+'original.parquet'):
+    #         df_original = pd.read_parquet(data_dir+'original.parquet')
+    #     else:
+    #         raise FileNotFoundError(f"File in {data_dir}latest.parquet "
+    #                                 f"or {data_dir}original.parquet does not exist")
+    #
+    #     # remove previous forecasts
+    #     df_original = df_original[:(today-timedelta(hours=horizon_size))]
+    #
+    #     # check frequency
+    #     time_diffs = df_original.index.to_series().diff().dropna().unique()
+    #     if (time_diffs == '1 hours').all():
+    #         df_original = df_original.asfreq('h')
+    #
+    #     # get start and end of the dataframe
+    #     first_timestamp = pd.Timestamp(df_original.dropna(how='any',inplace=False).first_valid_index())
+    #     last_timestamp = pd.Timestamp(df_original.dropna(how='any',inplace=False).last_valid_index())
+    #     print(f"Original data loaded: Data from {first_timestamp} to {last_timestamp}")
+    #     if (last_timestamp.normalize() + pd.DateOffset(hours=today.hour)) >= today - timedelta(hours=horizon_size):
+    #         print("Original data is up to date. No updates required")
+    #         update = False
+    #     # crop for speed
+    #     # if crop_original:
+    #     #     df_original = df_original.loc[crop_original:]
+    #     #     print(f"Crop original data to start from {crop_original}")
+    #     # last data is expected to have forecast, so move 2 horizon_sizes back
+    #     start_date = last_timestamp - timedelta(hours=horizon_size) # to override previous forecasts
+    # else:
+    #     start_date = today - timedelta(days=365) #  new data for 1 yesr
+    # end_date = today + timedelta(hours=horizon_size)
+    # print(f"Start_date={start_date} today={today} end_date={end_date}")
+    #
+    # # ------------- COLLECT | COLLATE | IMPUTE ----------------
+    # if update:
+    #     parse_epexspot(raw_datadir='./data/DE-LU/DayAhead_MRC/', datadir=data_dir,
+    #                    start_date=start_date, end_date=end_date)
+    #     collect_from_api(today=today, start_date=start_date, end_date=end_date, data_dir=data_dir)
+    #
+    #     # read collected .parquet files and collate with latest full dataset, clean, impute
+    #     collate_data(df_original=df_original,start_date=start_date,data_dir='./database/')
+
+
+    # ------------- MACHINE LEARNING MODEL ----------------
+    z =1
