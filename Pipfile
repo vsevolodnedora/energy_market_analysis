@@ -4,6 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+pytz = "*"
 holidays = "*"
 requests = "*"
 pyarrow = "*"
@@ -14,9 +15,13 @@ user-agent = "*"
 retry-requests = "*"
 requests-cache = "*"
 openmeteo-requests = "*"
+numpy = "*"
+matplotlib = "*"
+scikit-learn = "*"
+torch = "*"
 
 [dev-packages]
 
 [requires]
 python_version = "3.11"
-python_full_version = "3.11.5"
+#python_full_version = "3.11.5"
