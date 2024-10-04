@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
         collate_and_update(df_original=df_original, start_date=start_date, data_dir=data_dir)
 
-
+    #
 
     # # ----------------------- LOAD DATA & SET TIMES ---------------------
     # today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
