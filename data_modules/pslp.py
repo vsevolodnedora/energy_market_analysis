@@ -1,11 +1,13 @@
 from typing import Optional, Union
-
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
 import holidays
+import pandas as pd
+from datetime import datetime, timedelta
 
-def get_pslp_category( date: Union[str, pd.Timestamp], weekday: Optional[int] = None, holiday: Optional[bool] = None, country_code: Optional[str] = "DE") -> int:
+import numpy as np
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+def get_pslp_category( date: Union[str, pd.Timestamp], weekday: Optional[int] = None,
+                       holiday: Optional[bool] = None, country_code: Optional[str] = "DE") -> int:
     """
     Get PSLP category from date, weekday information, and holiday information.
 
@@ -27,9 +29,7 @@ def get_pslp_category( date: Union[str, pd.Timestamp], weekday: Optional[int] = 
     int
         The PSLP category.
     """
-    if isinstance(
-            date, str
-    ):  # Convert string-type date to datetime object if necessary.
+    if isinstance( date, str ):  # Convert string-type date to datetime object if necessary.
         date = pd.to_datetime(date)
 
     if weekday is None:  # Assign weekday if not given.
@@ -37,7 +37,6 @@ def get_pslp_category( date: Union[str, pd.Timestamp], weekday: Optional[int] = 
 
     if holiday is None:  # Assign holiday category if not given.
         holiday = date in holidays.country_holidays(country_code)
-        # TODO: Make mapping of ENTSO-E to holidays country codes.
 
     # Special treatment for Christmas Eve and New Year's Eve as Saturdays.
     if date.day in {24, 31} and date.month == 12 and weekday != 6:
@@ -71,16 +70,9 @@ def _assign_pslp_categories( df: pd.DataFrame, country_code: Optional[str] = "DE
             Integer PSLP categories for each point datetime index.
     """
     # Return PSLP categories calculated using list comprehension.
-    df_pslp_categories = pd.DataFrame.from_dict(
-        {
-            "pslp_category": [
-                get_pslp_category(
-                    date, weekday, date in holidays.country_holidays(country_code)
-                )
-                for date, weekday in zip(df.index.date, df.index.weekday)
-            ]
-        },
-    ).astype("category")
+    df_pslp_categories = pd.DataFrame.from_dict( {
+        "pslp_category": [ get_pslp_category( date, weekday, date in holidays.country_holidays(country_code) )
+                for date, weekday in zip(df.index.date, df.index.weekday) ] } ).astype("category")
     df_pslp_categories.index = df.index
     return df_pslp_categories
 
@@ -277,14 +269,3 @@ def calculate_pslps( df: pd.DataFrame, start_date:pd.Timestamp,
                 print(f"Failed {i_date}/{len(unique_dates)} with {e}")
     df_pslp.reset_index('date',inplace=True)
     return df_pslp
-
-def crop_dataframe_to_last_full_day(df: pd.DataFrame) -> pd.DataFrame:
-    # Identify the last date
-    last_datetime = df['date'].iloc[-1]
-
-    # Check if the last entry is not at 23:00
-    if last_datetime.hour != 23:
-        last_date = last_datetime.normalize()  # This sets the time to 00:00 of the last day
-        # Set all values for the last day to NaN
-        df.loc[df['date'].dt.date == last_date.date(), 'value'] = np.nan
-    return df

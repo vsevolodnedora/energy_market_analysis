@@ -7,43 +7,15 @@ from datetime import datetime, timedelta
 from glob import glob
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, mean_absolute_percentage_error
 
 from .collect_data_smard import DataEnergySMARD
 from .collect_data_openmeteo import (
     get_weather_data_from_api_forecast,get_weather_data_from_api,process_weather_quantities
 )
-from .impute_pslp import calculate_pslps
+from .pslp import calculate_pslps
 from .locations import locations
-
-nan_parquet=123456.123456
-
-def concat_timeseries(df1:pd.DataFrame, df2:pd.DataFrame):
-    """
-    Concatenate two dataframes with timeseries data along the 'date' column.
-    In case of overlapping 'date', prefer values from df2 unless they are NaNs.
-
-    Args:
-    df1 (pd.DataFrame): First dataframe.
-    df2 (pd.DataFrame): Second dataframe.
-
-    Returns:
-    pd.DataFrame: Resulting dataframe after concatenation.
-    """
-    # Set 'date' as the index if it's not already
-    if df1.index.name != 'date':
-        df1 = df1.set_index('date')
-    if df2.index.name != 'date':
-        df2 = df2.set_index('date')
-
-    df2 = df2[df1.columns.to_list()]
-
-    # Combine the dataframes, preferring values from df2
-    result_df = df1.combine_first(df2)
-
-    # Where df2 has non-NaN values, override with df2's values
-    result_df.update(df2)
-    # result_df.reset_index('date',inplace=True)
-    return result_df
 
 def merge_original_and_updates(df_original:pd.DataFrame, data_dir:str):
     # load updates to the data
@@ -138,22 +110,97 @@ def parse_epexspot(raw_datadir:str, datadir:str, start_date:pd.Timestamp, end_da
     df_da_upd.to_parquet(datadir+'upd_epexspot.parquet',engine='pyarrow')
     print(f"Epexspot data is successfully saved to {datadir}upd_epexspot.parquet")
 
-def collate_and_update(df_original:pd.DataFrame, start_date:pd.Timestamp, data_dir:str):
+
+def performance_metrics_pslp(df:pd.DataFrame, df_pslp:pd.DataFrame, output_dir:str):
+    # Create a dictionary to store metrics for each column
+    evaluation = {col: {} for col in df_pslp.columns}  # Predefine the structure for each column
+    for col in df_pslp.columns:
+        actual_values = df[col].fillna(0.).infer_objects(copy=False).to_numpy()
+        predicted_values = df_pslp[col].fillna(0.).infer_objects(copy=False).to_numpy()
+
+        evaluation[col]['MAE'] = mean_absolute_error(actual_values, predicted_values)
+        evaluation[col]['MSE'] = mean_squared_error(actual_values, predicted_values)
+        evaluation[col]['R2'] = r2_score(actual_values, predicted_values)
+        evaluation[col]['MAPE'] = mean_absolute_percentage_error(actual_values, predicted_values)
+
+    # Convert the dictionary into a DataFrame
+    df_metrics = pd.DataFrame.from_dict(evaluation, orient='index')  # 'index' makes the column names as index
+    df_metrics.index.name = 'Column'
+    df_metrics.reset_index(inplace=True)  # If you prefer the columns to be one of the dataframe columns rather than the index
+    df_metrics.to_csv(output_dir+'/pslp_metrics.csv', index=False)
+
+def visualize_pslp_vs_actual(df:pd.DataFrame, df_pslp:pd.DataFrame,  output_dir:str):
+    ''' plot two  '''
+    # Ensure both dataframes are indexed by datetime
+    # df.index = pd.to_datetime(df.index)
+    # df_pslp.index = pd.to_datetime(df_pslp.index)
+
+    # Number of columns to plot
+    num_columns = len(df.columns)
+
+    # Create a figure and set of subplots
+    fig, axs = plt.subplots(nrows=num_columns, ncols=1, figsize=(10, num_columns * 3), sharex=True)
+
+    # If there's only one column, axs might not be an array, handle this case
+    if num_columns == 1:
+        axs = [axs]
+
+    # Loop over each column and plot the respective data
+    for i, column in enumerate(df.columns):
+        # Original data
+        axs[i].plot(df.index, df[column], linestyle='-', color='gray',linewidth=0.5,alpha=0.5, label='Original',)
+        axs[i].plot(df_pslp.index, df_pslp[column], linestyle=':', color='gray',linewidth=0.5,alpha=0.5, label='PSLP')
+
+        # Residuals
+        residual = df[column] - df_pslp[column]
+        axs[i].plot(df.index, residual, linestyle='-', color='black', linewidth=0.8, label='Residual')
+
+        # Set title to column name
+        axs[i].set_ylabel(column)
+
+        # Add grid, legend, and labels
+        axs[i].grid(True)
+        axs[i].legend()
+
+    # Label the x-axis with dates more neatly
+    plt.xticks(rotation=45)
+    plt.xlabel('Date')
+
+    # Adjust layout so plots don't overlap
+    plt.tight_layout()
+    plt.savefig(output_dir+'/pslp_vs_actual.png')
+    # Show the plot
+    # plt.show()
+
+
+def collate_and_update(df_original:pd.DataFrame, today:pd.Timestamp, test_start_date:pd.Timestamp,
+                       start_date:pd.Timestamp, data_dir:str, output_dir:str):
     # --------- COMBINE DATAFRAMES ------------------
     df_updated = merge_original_and_updates(df_original=df_original,data_dir=data_dir)
 
     if df_updated.isna().sum().any():
-        print(f"Found nans in the updated dataframe.")
-        print(f"Imputing nans after {start_date} using PSLP method")
+        print(f"Completing dataset using PSPL starting at {test_start_date}")
+
         # impute nans at the end of the dataframe
         df_pslp = calculate_pslps(
             df=df_updated.copy(deep=True),#crop_dataframe_to_last_full_day(df_updated).copy(deep=True),
-            start_date=start_date, lookback=14, country_code="DE"
+            start_date=test_start_date,
+            lookback=14,
+            country_code="DE"
         )
         df_pslp.dropna(how='all', inplace=True)
         df_pslp.set_index('date',inplace=True)
 
-        # Combine the dataframes, preferring values from df1
+        # estimate performance metrics in approximating new values with PSLP
+        performance_metrics_pslp(
+            df=df_updated[test_start_date:today], df_pslp=df_pslp[test_start_date:today], output_dir=output_dir)
+
+        visualize_pslp_vs_actual(
+            df=df_updated[test_start_date:today], df_pslp=df_pslp[test_start_date:today], output_dir=output_dir)
+
+        df_pslp = df_pslp[start_date:]
+
+        # Combine the dataframes, preferring values from df_updated
         result_df = df_updated.combine_first(df_pslp)
 
         # Overwrite NaNs in df1 with values from df2 where overlapping
