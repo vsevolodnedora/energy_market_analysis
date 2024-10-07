@@ -17,10 +17,6 @@ import pickle
 import json
 import os
 
-output_dir = './res8/'
-if not os.path.exists(output_dir):
-    os.makedirs(output_dir)
-
 class Metadata:
     def __init__(self, file_path:str='./metadata.json'):
         self.file_path = file_path
@@ -62,6 +58,51 @@ class Metadata:
         else:
             return None  # File does not exist
 
+    def check(self, key:str, val:any):
+        if os.path.exists(self.file_path):
+            with open(self.file_path, 'r') as file:
+                original_data = json.load(file)
+            if not key in original_data:
+                raise KeyError(f'Key {key} does not exist in metadata.json')
+            self.compare_dicts({key:original_data[key]}, {key:val})
+        else:
+            raise FileNotFoundError(f"Metadata file does not exist: {self.file_path}")
+
+    @staticmethod
+    def compare_dicts(dict_original, dict_new, path='root'):
+        for key in set(dict_original.keys()) | set(dict_new.keys()):
+            if key not in dict_original:
+                raise KeyError(f"Key '{key}' missing in original at path '{path}'")
+            elif key not in dict_new:
+                raise KeyError(f"Key '{key}' missing in new at path '{path}'")
+            else:
+                val1 = dict_original[key]
+                val2 = dict_new[key]
+                key_path = f"{path}->{key}"
+                Metadata.compare_values(key_path, val1, val2)
+    @staticmethod
+    def compare_values(path, val1, val2):
+        if isinstance(val1, dict) and isinstance(val2, dict):
+            Metadata.compare_dicts(val1, val2, path)
+        elif isinstance(val1, list) and isinstance(val2, list):
+            Metadata.compare_lists(val1, val2, path)
+        else:
+            if val1 != val2:
+                raise KeyError(f"Difference at '{path}': {val1} != {val2}")
+    @staticmethod
+    def compare_lists(list1, list2, path):
+        if len(list1) != len(list2):
+            raise KeyError(f"Difference in list length at '{path}': {len(list1)} != {len(list2)}")
+        for idx, (item1, item2) in enumerate(zip(list1, list2)):
+            item_path = f"{path}[{idx}]"
+            if isinstance(item1, dict) and isinstance(item2, dict):
+                Metadata.compare_dicts(item1, item2, item_path)
+            elif isinstance(item1, list) and isinstance(item2, list):
+                Metadata.compare_lists(item1, item2, item_path)
+            else:
+                if item1 != item2:
+                    raise KeyError(f"Difference at '{item_path}': {item1} != {item2}")
+
 class LSTMForecast(nn.Module):
     def __init__(self, window_size, input_size, hidden_size, num_layers, output_size, dropout):
         super(LSTMForecast, self).__init__()
@@ -99,6 +140,7 @@ class LSTMForecast(nn.Module):
         return out
 
 def preprocess_dataframe(df:pd.DataFrame)->pd.DataFrame:
+    df = df.copy()  # Make a copy to avoid SettingWithCopyWarning
     df['hour'] = df.index.hour
     df['dayofweek'] = df.index.dayofweek
     # Create cyclical features for hour and day of week
@@ -111,49 +153,51 @@ def preprocess_dataframe(df:pd.DataFrame)->pd.DataFrame:
     return df
 
 # Function to create sequences for LSTM
-def create_sequences(da_price_index, features_scaled, window_size, horizon):
+def create_sequences(idx_target, features_scaled, window_size, horizon):
     X = []
     y = []
     for i in range(len(features_scaled) - window_size - horizon + 1):
         X.append(features_scaled[i: (i + window_size), :])
-        y.append(features_scaled[(i + window_size) : (i + window_size + horizon), da_price_index])
+        y.append(features_scaled[(i + window_size) : (i + window_size + horizon), idx_target])
     return np.array(X), np.array(y)
 
-def train_predict(df:pd.DataFrame,today:pd.Timestamp, output_dir:str, train:bool):
+def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str):
 
-    pars = dict(
-        target='DA_auction_price',
-        window_size=3*72,   # Historical window size
-        horizon=72, # Forecast horizon
-        hidden_size = 32,
-        num_layers = 2,
-        dropout = 0.3,
-        lr = 0.01,
-        num_epochs = 30,
-        batch_size = 64,
-        early_stopping=10,
-    )
+
 
     # train_cut = today + timedelta(hours=forecast_horizon) # to use weather forecasts
 
     # load latest dataframe
     if not os.path.isdir(output_dir):
         # train mode
+        train = True
         print(f"Output directory {output_dir} does not exist. Training new model on {today}")
         os.mkdir(output_dir)
         log = Metadata(file_path=output_dir+"/metadata.json")
-        log.dump({'training_datetime': today.isoformat()})
+        log.dump({'training_datetime': today.isoformat(),
+                  'start_date':pd.Timestamp(df.index[0]).isoformat(),
+                  'end_date':pd.Timestamp(df.index[-1]).isoformat()})
+        # save train-related metadata
+        log.dump({'df_columns': df.columns.tolist()})
+        log.dump({'pars': pars})
         # df = preprocess_dataframe(df[:train_cut])
+        print("Metadata saved.")
     else:
         # predict mode
+        train = False
         log = Metadata(file_path=output_dir+"/metadata.json")
-
-    log.dump(pars)
+        # check if metadata hasn't changed (error-proving)
+        log.check('df_columns', df.columns.tolist())
+        log.check('pars', pars)
+        print("Metadata check successful.")
 
     # ----------------- Data Preparation ----------------- #
 
+    df = df[:today] # todo Use time-shifted weather forcast instead of cutting it out
+
     # add time-related features
     df = preprocess_dataframe(df=df)
+
     features = df.copy()
 
     # Split data into training and testing sets
@@ -163,9 +207,9 @@ def train_predict(df:pd.DataFrame,today:pd.Timestamp, output_dir:str, train:bool
 
     # Normalize features using StandardScaler
     if train:
+        scaler = StandardScaler()
+        features_train_scaled = scaler.fit_transform(features_train)
         with open(output_dir+'scaler.pkl', 'wb') as f:
-            scaler = StandardScaler()
-            features_train_scaled = scaler.fit_transform(features_train)
             pickle.dump(scaler, f)
     else:
         # Load the scaler from disk
@@ -227,9 +271,6 @@ def train_predict(df:pd.DataFrame,today:pd.Timestamp, output_dir:str, train:bool
         # Variable to track the best model
         best_val_loss = float('inf')
         best_model_path = 'best.pth'
-        # Lists to keep track of loss
-        train_losses = []
-        val_losses = []
 
         # Lists to keep track of loss
         train_losses = []
@@ -284,7 +325,7 @@ def train_predict(df:pd.DataFrame,today:pd.Timestamp, output_dir:str, train:bool
         # Save the losses to a .txt file
         with open(output_dir+'training_validation_loss.txt', 'w') as f:
             f.write('# Epoch\tTraining Loss\tValidation Loss\n')
-            for i in range(num_epochs):
+            for i in range(len(train_losses)):
                 f.write(f'{i+1}\t{train_losses[i]:.4f}\t{val_losses[i]:.4f}\n')
 
         plt.figure(figsize=(10, 5))
@@ -296,7 +337,7 @@ def train_predict(df:pd.DataFrame,today:pd.Timestamp, output_dir:str, train:bool
         plt.legend()
         plt.grid(True)
         plt.savefig(output_dir+'/losses.png',dpi=300)
-        plt.show()
+        # plt.show()
 
         # ----------------- Model Evaluation ----------------- #
 
@@ -349,7 +390,7 @@ def train_predict(df:pd.DataFrame,today:pd.Timestamp, output_dir:str, train:bool
         plt.title(msg)
         plt.legend()
         plt.savefig(output_dir+'/performance.png',dpi=300)
-        plt.show()
+        # plt.show()
     else:
         print('Loading best model')
         model = torch.load(output_dir+'best.pth')
@@ -439,7 +480,7 @@ def train_predict(df:pd.DataFrame,today:pd.Timestamp, output_dir:str, train:bool
     ax.grid()
     plt.tight_layout()
     plt.savefig(output_dir+'forecast.png',dpi=300)
-    plt.show()
+    # plt.show()
 
     # Combine the past forecast and future forecast
     combined_forecast_df = pd.concat([past_forecast_df, future_forecast_df], ignore_index=True)

@@ -37,7 +37,7 @@ if __name__ == '__main__':
     ]
 
     # update dataset if needed and generate new forecasts
-    if True:
+    if update:
         print("Updating data")
         parse_epexspot(raw_datadir='./data/DE-LU/DayAhead_MRC/', datadir=data_dir,
                        start_date=start_date, end_date=end_date)
@@ -52,10 +52,26 @@ if __name__ == '__main__':
         # load updated dataset and perform forecast
         df_latest = pd.read_parquet(data_dir+'latest.parquet')
 
-        # train_predict(
-        #     df=df_latest[train_start_date:today],today=today,output_dir=output_dir+'lstm_base/',
-        #     train=True
-        # )
+        # train LSTM forecasting model
+        pars = dict(
+            target='DA_auction_price',
+            window_size=3*72,   # Historical window size
+            horizon=horizon_size, # Forecast horizon
+            hidden_size = 32,
+            num_layers = 2,
+            dropout = 0.2,
+            lr = 0.01,
+            num_epochs = 40,
+            batch_size = 64,
+            early_stopping=10,
+        )
+        train_predict(
+            pars=pars,df=df_latest[train_start_date:],today=today,
+            output_dir=output_dir+'da_price_forecast_lstm_base/'
+        )
+
+    # prepare results for deployment
+
 
 
     # forecasting

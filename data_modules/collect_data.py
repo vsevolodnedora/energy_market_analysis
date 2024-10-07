@@ -5,7 +5,7 @@
 import os.path
 from datetime import datetime, timedelta
 from glob import glob
-import pandas as pd
+import pandas as pd; pd.set_option('future.no_silent_downcasting', True)
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, mean_absolute_percentage_error
@@ -24,7 +24,7 @@ def merge_original_and_updates(df_original:pd.DataFrame, data_dir:str):
     df_upd_es = pd.read_parquet(data_dir+'upd_epexspot.parquet')
     for df in [df_upd_smard,df_upd_om,df_upd_es,df_upd_smard]:
         df.fillna(value=np.nan,inplace=True)
-
+        df.infer_objects()
     # merge updates to a single dataframe (combine columns, essencially)
     # df_upd = df_upd_smard.join(df_upd_om, how='left')
     # df_upd = df_upd.join(df_upd_es, how='left')
