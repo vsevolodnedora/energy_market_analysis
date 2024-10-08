@@ -361,7 +361,7 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
         # ----------------- Model Evaluation ----------------- #
 
         print('Saving final model as .pth')
-        model = torch.load(output_dir+'best.pth').to('cpu')
+        model = torch.load(output_dir+'best.pth', map_location=torch.device('cpu'))
         # or
         # model = LSTMForecast(input_size, hidden_size, num_layers, output_size)
         # model.load_state_dict(torch.load(output_dir+'lstm_forecast_model_state_dict.pth'))
@@ -414,7 +414,7 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
         # plt.show()
     else:
         print('Loading best model')
-        model = torch.load(output_dir+'best.pth').to('cpu')
+        model = torch.load(output_dir+'best.pth',map_location=torch.device('cpu'))
 
     # -------- Predict for One Horizon Before Last Timestamp -------- #
 
