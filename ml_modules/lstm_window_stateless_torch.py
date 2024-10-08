@@ -108,13 +108,12 @@ class Metadata:
                     raise KeyError(f"Difference at '{item_path}': {item1} != {item2}")
 
 class LSTMForecast(nn.Module):
-    def __init__(self, window_size, input_size, hidden_size, num_layers, output_size, dropout, device):
+    def __init__(self, window_size, input_size, hidden_size, num_layers, output_size, dropout):
         super(LSTMForecast, self).__init__()
         self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, dropout=dropout, batch_first=True)
         self.fc = nn.Linear(hidden_size * window_size, output_size)
-        self.device = device
 
 
     def forward(self, x):
@@ -129,8 +128,9 @@ class LSTMForecast(nn.Module):
         # Initialization of Hidden and Cell States:
         # By initializing h_0 and c_0 to zeros every time, we treat each sequence in the batch independently.
         # This is appropriate when sequences are not continuous across batches.
-        h_0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(self.device)
-        c_0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(self.device)
+        device = x.device  # Get the device from the input tensor
+        h_0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
+        c_0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
         # Passing Input Through the LSTM Layer.
         # x: Input tensor of shape (batch_size, sequence_length, input_size).
         # By providing (h_0, c_0), we ensure that each batch starts with zeroed states.
@@ -265,7 +265,7 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
 
         # Instantiate the model
         model = LSTMForecast(
-            window_size, input_size,pars['hidden_size'], pars['num_layers'], output_size, pars['dropout'], device
+            window_size, input_size,pars['hidden_size'], pars['num_layers'], output_size, pars['dropout']
         ).to(device)
 
 
@@ -339,6 +339,7 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
                 break
 
         print('Saving final model as .pth')
+        model = model.to('cpu')
         torch.save(model, output_dir+'final.pth')
         # Save the losses to a .txt file
         with open(output_dir+'training_validation_loss.txt', 'w') as f:
@@ -360,13 +361,13 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
         # ----------------- Model Evaluation ----------------- #
 
         print('Saving final model as .pth')
-        model = torch.load(output_dir+'best.pth').to(device)
+        model = torch.load(output_dir+'best.pth').to('cpu')
         # or
         # model = LSTMForecast(input_size, hidden_size, num_layers, output_size)
         # model.load_state_dict(torch.load(output_dir+'lstm_forecast_model_state_dict.pth'))
         model.eval()
         with torch.no_grad():
-            y_pred = model(X_test_tensor.to(device)).cpu().numpy()
+            y_pred = model(X_test_tensor).cpu().numpy()
             y_true = y_test_tensor.numpy()
 
 
@@ -386,7 +387,7 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
         # ----------------- Plotting Results ----------------- #
 
         # Get the last sample from test set
-        last_X = X_test_tensor[-1].unsqueeze(0).to(device)
+        last_X = X_test_tensor[-1].unsqueeze(0)
         last_y_true = y_test_tensor[-1].numpy()
         # last_y_pred = model(last_X).detach().numpy()
         with torch.no_grad():
@@ -413,7 +414,7 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
         # plt.show()
     else:
         print('Loading best model')
-        model = torch.load(output_dir+'best.pth').to(device)
+        model = torch.load(output_dir+'best.pth').to('cpu')
 
     # -------- Predict for One Horizon Before Last Timestamp -------- #
 
@@ -426,7 +427,7 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
 
     # Make prediction
     with torch.no_grad():
-        past_pred = model(last_input_seq_before_tensor.to(device)).cpu().numpy()
+        past_pred = model(last_input_seq_before_tensor).cpu().numpy()
 
     # Inverse transform
     past_pred_inv = past_pred * scale_da_price + mean_da_price
@@ -479,7 +480,7 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
 
     # Make prediction
     with torch.no_grad():
-        future_pred = model(last_input_seq_after_tensor.to(device)).cpu().numpy()
+        future_pred = model(last_input_seq_after_tensor).cpu().numpy()
 
     # Inverse transform the predictions
     future_pred_inv = future_pred * scale_da_price + mean_da_price
