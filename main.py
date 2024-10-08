@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timedelta
 
 from data_modules.collect_data import collect_from_api, parse_epexspot, collate_and_update
-from ml_modules.lstm_window_stateless_torch import train_predict
+from ml_modules.lstm_window_stateless_torch import train_predict, hyperparameter_grid_search
 
 if __name__ == '__main__':
 
@@ -51,7 +51,6 @@ if __name__ == '__main__':
 
         # load updated dataset and perform forecast
         df_latest = pd.read_parquet(data_dir+'latest.parquet')
-
         # train LSTM forecasting model
         pars = dict(
             target='DA_auction_price',
@@ -63,12 +62,18 @@ if __name__ == '__main__':
             lr = 0.01,
             num_epochs = 40,
             batch_size = 64,
-            early_stopping=10,
+            early_stopping=15,
         )
         train_predict(
             pars=pars,df=df_latest[train_start_date:],today=today,
             output_dir=output_dir+'da_price_forecast_lstm_base/'
         )
+
+
+    # hyperparameter tuning for LSTM model
+    df_latest = pd.read_parquet(data_dir+'latest.parquet')
+    # hyperparameter_grid_search(df_latest[train_start_date:],today=today,horizon_size=horizon_size,
+    #                            output_dir=output_dir+'da_price_forecast_lstm_hypesearch/')
 
     # prepare results for deployment
 

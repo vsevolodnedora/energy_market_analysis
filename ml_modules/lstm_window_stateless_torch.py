@@ -4,6 +4,7 @@
     This code and its description were composed by ChatGPT o1 preview with
     my guidance and refactoring
 '''
+import copy
 
 import pandas as pd
 import numpy as np
@@ -13,9 +14,12 @@ from torch import nn
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, accuracy_score
 from datetime import datetime, timedelta
+from itertools import product
+from glob import glob
 import pickle
 import json
 import os
+import re
 
 class Metadata:
     def __init__(self, file_path:str='./metadata.json'):
@@ -104,12 +108,14 @@ class Metadata:
                     raise KeyError(f"Difference at '{item_path}': {item1} != {item2}")
 
 class LSTMForecast(nn.Module):
-    def __init__(self, window_size, input_size, hidden_size, num_layers, output_size, dropout):
+    def __init__(self, window_size, input_size, hidden_size, num_layers, output_size, dropout, device):
         super(LSTMForecast, self).__init__()
         self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, dropout=dropout, batch_first=True)
         self.fc = nn.Linear(hidden_size * window_size, output_size)
+        self.device = device
+
 
     def forward(self, x):
         '''
@@ -123,8 +129,8 @@ class LSTMForecast(nn.Module):
         # Initialization of Hidden and Cell States:
         # By initializing h_0 and c_0 to zeros every time, we treat each sequence in the batch independently.
         # This is appropriate when sequences are not continuous across batches.
-        h_0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size)
-        c_0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size)
+        h_0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(self.device)
+        c_0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(self.device)
         # Passing Input Through the LSTM Layer.
         # x: Input tensor of shape (batch_size, sequence_length, input_size).
         # By providing (h_0, c_0), we ensure that each batch starts with zeroed states.
@@ -163,8 +169,6 @@ def create_sequences(idx_target, features_scaled, window_size, horizon):
 
 def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str):
 
-
-
     # train_cut = today + timedelta(hours=forecast_horizon) # to use weather forecasts
 
     # load latest dataframe
@@ -190,6 +194,15 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
         log.check('df_columns', df.columns.tolist())
         log.check('pars', pars)
         print("Metadata check successful.")
+
+    if train:
+        # Check if GPU is available
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f'Using device: {device} for Training')
+    else:
+        # Check if GPU is available
+        device = torch.device("cpu")
+        print(f'Using device: {device} for Inference')
 
     # ----------------- Data Preparation ----------------- #
 
@@ -251,8 +264,9 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
         output_size = horizon
 
         # Instantiate the model
-        model = LSTMForecast(window_size, input_size,
-                             pars['hidden_size'], pars['num_layers'], output_size, pars['dropout'])
+        model = LSTMForecast(
+            window_size, input_size,pars['hidden_size'], pars['num_layers'], output_size, pars['dropout'], device
+        ).to(device)
 
 
         # ----------------- Training the Model ----------------- #
@@ -284,6 +298,10 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
             total_train_loss = 0
             batches = 0
             for batch_X, batch_y in train_loader:
+                # Move tensors to the configured device
+                batch_X = batch_X.to(device)
+                batch_y = batch_y.to(device)
+
                 outputs = model(batch_X)
                 loss = criterion(outputs, batch_y)
 
@@ -299,8 +317,8 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
             # Validation
             model.eval()
             with torch.no_grad():
-                val_outputs = model(X_test_tensor)
-                val_loss = criterion(val_outputs, y_test_tensor)
+                val_outputs = model(X_test_tensor.to(device))
+                val_loss = criterion(val_outputs, y_test_tensor.to(device))
             scheduler.step(val_loss)
             val_losses.append(val_loss.item())
 
@@ -342,13 +360,13 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
         # ----------------- Model Evaluation ----------------- #
 
         print('Saving final model as .pth')
-        model = torch.load(output_dir+'best.pth')
+        model = torch.load(output_dir+'best.pth').to(device)
         # or
         # model = LSTMForecast(input_size, hidden_size, num_layers, output_size)
         # model.load_state_dict(torch.load(output_dir+'lstm_forecast_model_state_dict.pth'))
         model.eval()
         with torch.no_grad():
-            y_pred = model(X_test_tensor).numpy()
+            y_pred = model(X_test_tensor.to(device)).cpu().numpy()
             y_true = y_test_tensor.numpy()
 
 
@@ -359,7 +377,7 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
         mae = mean_absolute_error(y_true_inv, y_pred_inv)
         mse = mean_squared_error(y_true_inv, y_pred_inv)
         r2 = r2_score(y_true_inv, y_pred_inv)
-        msg = f'Test MSE: {mse:.4f} MAE: {mae:.4f} R2 Score: {r2:.4f}'
+        msg = f'Test MSE: {mse:.4f} MAE: {mae:.4f} R2 Score: {r2:.4f} Val Loss: {best_val_loss:.4f}'
         print(msg)
         with open(output_dir+'metrics.txt', 'w') as f:
             f.write(msg)
@@ -368,16 +386,18 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
         # ----------------- Plotting Results ----------------- #
 
         # Get the last sample from test set
-        last_X = X_test_tensor[-1].unsqueeze(0)
+        last_X = X_test_tensor[-1].unsqueeze(0).to(device)
         last_y_true = y_test_tensor[-1].numpy()
-        last_y_pred = model(last_X).detach().numpy()
+        # last_y_pred = model(last_X).detach().numpy()
+        with torch.no_grad():
+            last_y_pred = model(last_X).cpu().numpy()
 
         # Inverse transform
         last_y_true_inv = last_y_true * scale_da_price + mean_da_price
         last_y_pred_inv = last_y_pred * scale_da_price + mean_da_price
 
         # Get the corresponding historical data
-        last_history = last_X.squeeze().numpy()[:, da_price_index]
+        last_history = last_X.cpu().squeeze().numpy()[:, da_price_index]
         last_history_inv = last_history * scale_da_price + mean_da_price
 
         # Plot historical data and forecasts
@@ -393,7 +413,7 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
         # plt.show()
     else:
         print('Loading best model')
-        model = torch.load(output_dir+'best.pth')
+        model = torch.load(output_dir+'best.pth').to(device)
 
     # -------- Predict for One Horizon Before Last Timestamp -------- #
 
@@ -406,7 +426,7 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
 
     # Make prediction
     with torch.no_grad():
-        past_pred = model(last_input_seq_before_tensor).numpy()
+        past_pred = model(last_input_seq_before_tensor.to(device)).cpu().numpy()
 
     # Inverse transform
     past_pred_inv = past_pred * scale_da_price + mean_da_price
@@ -459,7 +479,7 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
 
     # Make prediction
     with torch.no_grad():
-        future_pred = model(last_input_seq_after_tensor).numpy()
+        future_pred = model(last_input_seq_after_tensor.to(device)).cpu().numpy()
 
     # Inverse transform the predictions
     future_pred_inv = future_pred * scale_da_price + mean_da_price
@@ -489,7 +509,90 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
     combined_forecast_df.to_csv(output_dir+'forecast.csv', index=True)
     print(f'Final forecast from {combined_forecast_df.index[0]} to {combined_forecast_df.index[-1]} is saved.')
 
+def hyperparameter_grid_search(df:pd.DataFrame, horizon_size:int, today:pd.Timestamp, output_dir:str):
+    if not os.path.isdir(output_dir):
+        os.mkdir(output_dir)
 
+    # Define parameter grid (parameters to iterate over)
+    param_grid = {
+        'window_size': [3*72, 2*72, 1*72],
+        'hidden_size': [32, 48, 64],
+        'num_layers': [1, 2, 3],
+        'lr': [0.01, 0.008, 0.004, 0.001],
+        'batch_size': [32, 48, 64],
+        'dropout': [0.1, 0.2, 0.3],
+    }
+
+    # default parameter dictionary (some remain constant)
+    pars = dict(
+        target='DA_auction_price',
+        window_size=3*72,   # Historical window size
+        horizon=horizon_size, # Forecast horizon
+        hidden_size = 32,
+        num_layers = 2,
+        dropout = 0.2,
+        lr = 0.01,
+        num_epochs = 40,
+        batch_size = 64,
+        early_stopping=15
+    )
+
+    # Generate all combinations of hyperparameters
+    param_combinations = list(product(*param_grid.values()))
+    param_names = list(param_grid.keys())
+
+    for i, params in enumerate( param_combinations ):
+
+        pars_run = copy.deepcopy(pars)
+        # generate par dict for the run
+        params_dict = dict(zip(param_names, params))
+        for key, val in params_dict.items():
+            pars_run[key] = val
+
+        # run the model
+        train_predict(
+            pars=pars_run,df=df,today=today,
+            output_dir=output_dir+f'run_{i}/'
+        )
+
+        # update the score file
+        # Initialize a list to store dictionaries
+        data_list = []
+        current_runs = glob(output_dir + 'run*')
+        for run in current_runs:
+            # Initialize an empty dictionary to store the extracted values
+            data_dict = {}
+            # Open and read the text file
+            with open(run+'/metrics.txt', 'r') as file:
+                for line in file:
+                    # Remove leading and trailing whitespaces
+                    line = line.strip()
+
+                    # Define a regex pattern to match the desired values
+                    pattern = (r'MSE:\s*(-?[0-9.]+)\s+MAE:\s*(-?[0-9.]+)\s+R2 Score:\s*(-?[0-9.]+)\s+Val Loss:\s*(-?[0-9.]+)')
+
+                    # Search for the pattern in the current line
+                    match = re.search(pattern, line)
+
+                    # If a match is found, extract the values and store them in the dictionary
+                    if match:
+                        data_dict['MSE'] = float(match.group(1))
+                        data_dict['MAE'] = float(match.group(2))
+                        data_dict['R2'] = float(match.group(3))
+                        data_dict['Loss'] = float(match.group(4))
+            data_dict['run']=run.split('/')[-1]
+            data_list.append(data_dict)
+        # Create a DataFrame from the list of dictionaries
+        df_stats = pd.DataFrame(data_list)
+        # Set the first column to be the file name
+        df_stats.set_index('run', inplace=True)
+        # Save the DataFrame to a CSV file
+        csv_path = output_dir+'output_metrics.csv'
+        df_stats.to_csv(csv_path, index=True)
+
+if __name__ == '__main__':
+    # todo Add tests
+    pass
 
 
 
