@@ -16,6 +16,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, a
 from datetime import datetime, timedelta
 from itertools import product
 from glob import glob
+import holidays
 import pickle
 import json
 import os
@@ -145,17 +146,39 @@ class LSTMForecast(nn.Module):
         out = self.fc(out)
         return out
 
-def preprocess_dataframe(df:pd.DataFrame)->pd.DataFrame:
+# def preprocess_dataframe(df:pd.DataFrame)->pd.DataFrame:
+#     df = df.copy()  # Make a copy to avoid SettingWithCopyWarning
+#     df['hour'] = df.index.hour
+#     df['dayofweek'] = df.index.dayofweek
+#     # Create cyclical features for hour and day of week
+#     df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
+#     df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
+#     df['day_sin'] = np.sin(2 * np.pi * df['dayofweek'] / 7)
+#     df['day_cos'] = np.cos(2 * np.pi * df['dayofweek'] / 7)
+#     # Drop the original 'hour' and 'dayofweek' columns
+#     df.drop(['hour', 'dayofweek'], axis=1, inplace=True)
+#     return df
+
+def preprocess_dataframe(df: pd.DataFrame, country_code='DE') -> pd.DataFrame:
+    # Create a holidays list for the specified country
+    holiday_list = holidays.CountryHoliday(country_code)
+
     df = df.copy()  # Make a copy to avoid SettingWithCopyWarning
     df['hour'] = df.index.hour
     df['dayofweek'] = df.index.dayofweek
+
     # Create cyclical features for hour and day of week
     df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
     df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
     df['day_sin'] = np.sin(2 * np.pi * df['dayofweek'] / 7)
     df['day_cos'] = np.cos(2 * np.pi * df['dayofweek'] / 7)
+
+    # Encode holidays
+    df['is_holiday'] = [1 if date in holiday_list else 0 for date in df.index.date]
+
     # Drop the original 'hour' and 'dayofweek' columns
     df.drop(['hour', 'dayofweek'], axis=1, inplace=True)
+
     return df
 
 # Function to create sequences for LSTM
@@ -387,30 +410,30 @@ def train_predict(pars:dict, df:pd.DataFrame,today:pd.Timestamp, output_dir:str)
         # ----------------- Plotting Results ----------------- #
 
         # Get the last sample from test set
-        last_X = X_test_tensor[-1].unsqueeze(0)
-        last_y_true = y_test_tensor[-1].numpy()
-        # last_y_pred = model(last_X).detach().numpy()
-        with torch.no_grad():
-            last_y_pred = model(last_X).cpu().numpy()
+        # last_X = X_test_tensor[-1].unsqueeze(0)
+        # last_y_true = y_test_tensor[-1].numpy()
+        # # last_y_pred = model(last_X).detach().numpy()
+        # with torch.no_grad():
+        #     last_y_pred = model(last_X).cpu().numpy()
 
         # Inverse transform
-        last_y_true_inv = last_y_true * scale_da_price + mean_da_price
-        last_y_pred_inv = last_y_pred * scale_da_price + mean_da_price
-
-        # Get the corresponding historical data
-        last_history = last_X.cpu().squeeze().numpy()[:, da_price_index]
-        last_history_inv = last_history * scale_da_price + mean_da_price
+        # last_y_true_inv = last_y_true * scale_da_price + mean_da_price
+        # last_y_pred_inv = last_y_pred * scale_da_price + mean_da_price
+        #
+        # # Get the corresponding historical data
+        # last_history = last_X.cpu().squeeze().numpy()[:, da_price_index]
+        # last_history_inv = last_history * scale_da_price + mean_da_price
 
         # Plot historical data and forecasts
-        plt.figure(figsize=(14, 7))
-        plt.plot(range(window_size), last_history_inv, label='History Window')
-        plt.plot(range(window_size, window_size + horizon), last_y_true_inv, label='True')
-        plt.plot(range(window_size, window_size + horizon), last_y_pred_inv.squeeze(), label='Predicted')
-        plt.xlabel('Time Steps')
-        plt.ylabel(pars['target'])
-        plt.title(msg)
-        plt.legend()
-        plt.savefig(output_dir+'/performance.png',dpi=300)
+        # plt.figure(figsize=(14, 7))
+        # plt.plot(range(window_size), last_history_inv, label='History Window')
+        # plt.plot(range(window_size, window_size + horizon), last_y_true_inv, label='True')
+        # plt.plot(range(window_size, window_size + horizon), last_y_pred_inv.squeeze(), label='Predicted')
+        # plt.xlabel('Time Steps')
+        # plt.ylabel(pars['target'])
+        # plt.title(msg)
+        # plt.legend()
+        # plt.savefig(output_dir+'/performance.png',dpi=300)
         # plt.show()
     else:
         print('Loading best model')
