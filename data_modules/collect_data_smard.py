@@ -59,8 +59,16 @@ class DataEnergySMARD:
     COMMERCIAL_TRADE_NO = [22004724, 22004722]
     # commercial trade Germany/Denmark
     COMMERCIAL_TRADE_DK = [22004545, 22004403]
+    # commercial trade Germany/Sweden
+    COMMERCIAL_TRADE_SC = [22004551, 22004409]
+    # commercial trade Germany/Luxemburg
+    COMMERCIAL_TRADE_LU = [22004547, 22004405]
+    # commercial trade Germany/Austria
+    COMMERCIAL_TRADE_AT = [22004549, 22004407]
+
     # commercial trade all countries
     COMMERCIAL_TRADE_ALL = [22004629]
+
 
     country_map = {
         'france':COMMERCIAL_TRADE_FR,
@@ -70,7 +78,10 @@ class DataEnergySMARD:
         'denmark':COMMERCIAL_TRADE_DK,
         'netherlands':COMMERCIAL_TRADE_NL,
         'norway':COMMERCIAL_TRADE_NO,
-        'poland':COMMERCIAL_TRADE_PL
+        'poland':COMMERCIAL_TRADE_PL,
+        'sweden':COMMERCIAL_TRADE_SC,
+        'luxembourg':COMMERCIAL_TRADE_LU,
+        'austria':COMMERCIAL_TRADE_AT
     }
 
     # spot market
@@ -119,6 +130,12 @@ class DataEnergySMARD:
         'Norwegen (Import) [MWh] Originalauflösungen':'norway_import',
         'Polen (Export) [MWh] Originalauflösungen':'poland_export',
         'Polen (Import) [MWh] Originalauflösungen':'poland_import',
+        'Schweden (Export) [MWh] Originalauflösungen':'sweden_export',
+        'Schweden (Import) [MWh] Originalauflösungen':'sweden_import',
+        'Luxemburg (Export) [MWh] Originalauflösungen':'luxembourg_export',
+        'Luxemburg (Import) [MWh] Originalauflösungen':'luxembourg_import',
+        'Österreich (Export) [MWh] Originalauflösungen':'austria_export',
+        'Österreich (Import) [MWh] Originalauflösungen':'austria_import'
     }
 
     def __init__(self, start_date:pd.Timestamp, end_date:pd.Timestamp):
@@ -252,11 +269,12 @@ class DataEnergySMARD:
     def get_international_flow(self)->pd.DataFrame:
         # o_smard = DataEnergySMARD(start_date=start_date, end_date=end_date)
         df = pd.DataFrame()
-        for country in ['france','norway','switzerland','denmark','czechia','poland','belgium','netherlands']:
+        for country in ['france','norway','switzerland','denmark','czechia','poland',
+                        'belgium','netherlands','sweden','luxembourg','austria']:
             df_country = self.request_data(modules_id=DataEnergySMARD.country_map[country])
             if df.empty: df['date'] = df_country['date']
             # create total flow (note Import is always Negative, export is always positive
-            df[f'{country}_flow'] = df_country[f'{country}_export'].fillna(0) + df_country[f'{country}_import'].fillna(0)
+            df[f'{country}_flow'] = df_country[f'{country}_export'].fillna(0)+df_country[f'{country}_import'].fillna(0)
         df = df.resample('h', on='date').mean()
         df.reset_index(names=['date'], inplace=True)
         return df
@@ -426,5 +444,11 @@ class DataEnergySMARD:
 
 
 if __name__ == '__main__':
-    # todo add tests
+    smard = DataEnergySMARD(start_date=pd.Timestamp(datetime.today()-timedelta(days=30+21),tz='UTC'),
+                            end_date=pd.Timestamp(datetime.today()-timedelta(days=21),tz='UTC'))
+    for key, val in DataEnergySMARD.country_map.items():
+        df = smard.request_data(modules_id=val)
+        df.set_index('date', inplace=True)
+        df_sum = df.aggregate(func=sum)
+        print(key, float( df_sum[f"{key}_export"]+df_sum[f"{key}_import"] ) / 1e6, ' TW')
     pass

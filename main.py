@@ -8,7 +8,9 @@ from ml_modules.lstm_window_stateless_torch import train_predict, hyperparameter
 
 if __name__ == '__main__':
 
-    update: bool = True
+    do_forecast: bool = False # debugging tool (switch updating forecasts)
+    forceupdate: bool = False # debugging tool (update data everytime)
+
     start_date = None # if update -- none, infer from last dataset
     data_dir='./database/'
     output_dir='./output/'
@@ -28,6 +30,8 @@ if __name__ == '__main__':
     if last_timestamp >= end_date:
         print(f"Original data is up to date (>={end_date})")
         update = False
+    else:
+        update = True
     start_date = last_timestamp - timedelta(hours=horizon_size) # to override previous forecasts
     print(f"Start_date={start_date} today={today} end_date={end_date}")
 
@@ -36,8 +40,10 @@ if __name__ == '__main__':
         int(len(df_original[train_start_date:today]) * train_test_ratio)
     ]
 
+
+
     # update dataset if needed and generate new forecasts
-    if update:
+    if (update or forceupdate):
         print("Updating data")
         parse_epexspot(raw_datadir='./data/DE-LU/DayAhead_MRC/', datadir=data_dir,
                        start_date=start_date, end_date=end_date)
@@ -49,25 +55,27 @@ if __name__ == '__main__':
             data_dir=data_dir, output_dir=output_dir
         )
 
-        # load updated dataset and perform forecast
-        df_latest = pd.read_parquet(data_dir+'latest.parquet')
-        # train LSTM forecasting model
-        pars = dict(
-            target='DA_auction_price',
-            window_size=3*72,   # Historical window size
-            horizon=horizon_size, # Forecast horizon
-            hidden_size = 32,
-            num_layers = 2,
-            dropout = 0.2,
-            lr = 0.01,
-            num_epochs = 40,
-            batch_size = 64,
-            early_stopping=15,
-        )
-        train_predict(
-            pars=pars,df=df_latest[train_start_date:],today=today,
-            output_dir=output_dir+'da_price_forecast_lstm_base/'
-        )
+        if (do_forecast):
+            # load updated dataset and perform forecast
+            df_latest = pd.read_parquet(data_dir+'latest.parquet')
+
+            # train LSTM forecasting model
+            pars = dict(
+                target='DA_auction_price',
+                window_size=3*72,   # Historical window size
+                horizon=horizon_size, # Forecast horizon
+                hidden_size = 32,
+                num_layers = 2,
+                dropout = 0.2,
+                lr = 0.01,
+                num_epochs = 40,
+                batch_size = 64,
+                early_stopping=15,
+            )
+            train_predict(
+                pars=pars,df=df_latest[train_start_date:],today=today,
+                output_dir=output_dir+'da_price_forecast_lstm_base/'
+            )
 
 
     # hyperparameter tuning for LSTM model

@@ -12,7 +12,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, m
 
 from .collect_data_smard import DataEnergySMARD
 from .collect_data_openmeteo import (
-    get_weather_data_from_api_forecast,get_weather_data_from_api,process_weather_quantities
+    get_weather_data_from_api_forecast,get_weather_data_from_api
 )
 from .pslp import calculate_pslps
 from .locations import locations
@@ -68,6 +68,7 @@ def collect_from_api(today:pd.Timestamp,start_date:pd.Timestamp, end_date:pd.Tim
     print(f"Smard data is successfully collected in {data_dir}upd_smard_energy.parquet")
 
     # --------- COLLECT ELECTRICITY PRICES DATA ----------------------------
+    pass
 
     # --------- COLLECT WEATHERDATA ----------------------------------------
     df_om_hist = get_weather_data_from_api(start_date, today-timedelta(hours=12), locations)
@@ -76,7 +77,7 @@ def collect_from_api(today:pd.Timestamp,start_date:pd.Timestamp, end_date:pd.Tim
         print("! Error. Column mismatch between historical and forecasted weather!")
     df_om = pd.concat([df_om_hist, df_om_forecast[df_om_hist.columns]], ignore_index=True)
     df_om.drop_duplicates(subset='date', keep='last', inplace=True)
-    df_om=process_weather_quantities(df_om,locations)
+    # df_om = process_weather_quantities(df_om, locations)
     df_om.set_index('date',inplace=True)
     df_om = df_om[start_date:end_date]
     # df_om.fillna(value=nan_parquet,inplace=True)
@@ -175,6 +176,7 @@ def visualize_pslp_vs_actual(df:pd.DataFrame, df_pslp:pd.DataFrame,  output_dir:
 
 def collate_and_update(df_original:pd.DataFrame, today:pd.Timestamp, test_start_date:pd.Timestamp,
                        start_date:pd.Timestamp, data_dir:str, output_dir:str):
+
     # --------- COMBINE DATAFRAMES ------------------
     df_updated = merge_original_and_updates(df_original=df_original,data_dir=data_dir)
 

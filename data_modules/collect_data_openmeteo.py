@@ -12,19 +12,19 @@ from .locations import locations
 
 class OpenMeteo:
     variables_standard = (
-        "temperature_2m",
-        "relative_humidity_2m",
-        "surface_pressure",
-        "wind_speed_10m",
-        "wind_direction_10m"
-    )
-    variables_highaltitude = (
+        # basic
         "temperature_2m",
         "relative_humidity_2m",
         "surface_pressure",
         "wind_speed_10m",
         "wind_direction_10m",
+        # additional
+        "precipitation",
+        "wind_gusts_10m",
+        "cloud_cover",
+        'shortwave_radiation'
     )
+
     def __init__(self, lat, lon, variables=variables_standard, extra_api_params:dict=dict(),verbose:bool=False) -> None:
         self.lat=lat
         self.lon=lon
@@ -141,12 +141,12 @@ def get_weather_data_from_api(start_date,today,locations:list):
     df_om_hist = pd.DataFrame()
     for il, location in enumerate(locations):
         print(f"Processing historic: {location['name']} ({location['type']}) {il}/{len(locations)}")
-        if location['type'] == 'windfarm': om_quants = OpenMeteo.variables_highaltitude
-        else: om_quants = OpenMeteo.variables_standard
+        # if location['type'] == 'windfarm': om_quants = OpenMeteo.variables_highaltitude
+        # else: om_quants = OpenMeteo.variables_standard
         om = OpenMeteo(
             lat=location['lat'],
             lon=location['lon'],
-            variables=om_quants,
+            # variables=om_quants,
             #extra_api_params=location['om_api_pars'], # this gives Error in API call
             verbose=False
         )
@@ -190,14 +190,15 @@ def get_weather_data_from_api_forecast(locations:list):
 
     df_om_forecast = pd.DataFrame()
     for il, location in enumerate(locations):
-        if location['type'] == 'windfarm': om_quants = OpenMeteo.variables_highaltitude
-        else: om_quants = OpenMeteo.variables_standard
+        # TODO find out why API call does not support most of high-altitude quantities
+        # if location['type'] == 'windfarm': om_quants = OpenMeteo.variables_highaltitude
+        # else: om_quants = OpenMeteo.variables_standard
         print(f"Processing forecast: {location['name']} ({location['type']}) {il}/{len(locations)}")
         try:
             om = OpenMeteo(
                 lat=location['lat'],
                 lon=location['lon'],
-                variables=om_quants,
+                # variables=om_quants,
                 # extra_api_params=location['om_api_pars'], # this gives error in API call
                 verbose=False
             )
@@ -236,25 +237,25 @@ def check_phys_limits_in_data(df: pd.DataFrame) -> pd.DataFrame:
                 df[kkey].where(df[kkey] > lim[1], None)
     return df
 
-def transform_data(df:pd.DataFrame):
-    key = 'wind_direction_10m'
-    for loc in locations:
-        df[key + '_x' + loc['suffix']] = \
-            df[key + loc['suffix']] * np.cos( np.pi / 180 )
-        df[key + '_y' + loc['suffix']] = \
-            df[key + loc['suffix']] * np.sin( np.pi / 180 )
-        df.drop([key + loc['suffix']], axis=1, inplace=True)
-    return df
+# def transform_data(df:pd.DataFrame):
+#     key = 'wind_direction_10m'
+#     for loc in locations:
+#         df[key + '_x' + loc['suffix']] = \
+#             df[key + loc['suffix']] * np.cos( np.pi / 180 )
+#         df[key + '_y' + loc['suffix']] = \
+#             df[key + loc['suffix']] * np.sin( np.pi / 180 )
+#         df.drop([key + loc['suffix']], axis=1, inplace=True)
+#     return df
 
-def process_weather_quantities(df:pd.DataFrame, locations):
-    key:str='wind_direction_10m'
-    for loc in locations:
-        df[key + '_x' + loc['suffix']] = \
-            df[key + loc['suffix']] * np.cos( np.pi / 180 )
-        df[key + '_y' + loc['suffix']] = \
-            df[key + loc['suffix']] * np.sin( np.pi / 180 )
-        df.drop([key + loc['suffix']], axis=1, inplace=True)
-    return df
+# def process_weather_quantities(df:pd.DataFrame, locations):
+#     key:str='wind_direction_10m'
+#     for loc in locations:
+#         df[key + '_x' + loc['suffix']] = \
+#             df[key + loc['suffix']] * np.cos( np.pi / 180 )
+#         df[key + '_y' + loc['suffix']] = \
+#             df[key + loc['suffix']] * np.sin( np.pi / 180 )
+#         df.drop([key + loc['suffix']], axis=1, inplace=True)
+#     return df
 
 if __name__ == '__main__':
     # todo add tests
