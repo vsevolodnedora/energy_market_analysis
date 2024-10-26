@@ -17,52 +17,87 @@ from .collect_data_openmeteo import (
 from .pslp import calculate_pslps
 from .locations import locations
 
-def merge_original_and_updates(df_original:pd.DataFrame, data_dir:str):
+def merge_original_and_updates(df_original:pd.DataFrame, data_dir:str, today:pd.Timestamp):
     # load updates to the data
     df_upd_smard = pd.read_parquet(data_dir+'upd_smard_energy.parquet')
     df_upd_om = pd.read_parquet(data_dir+'upd_openweather.parquet')
     df_upd_es = pd.read_parquet(data_dir+'upd_epexspot.parquet')
-    for df in [df_upd_smard,df_upd_om,df_upd_es,df_upd_smard]:
-        df.fillna(value=np.nan,inplace=True)
+    for df in [df_upd_smard, df_upd_om, df_upd_es,df_upd_smard]:
+        df.fillna(value=np.nan, inplace=True)
         df.infer_objects()
-    # merge updates to a single dataframe (combine columns, essencially)
-    # df_upd = df_upd_smard.join(df_upd_om, how='left')
-    # df_upd = df_upd.join(df_upd_es, how='left')
 
-    # df_upd = pd.merge(left=df_upd_smard, right=df_upd_es, on='date', how='outer')
-    # df_upd = pd.merge(left=df_upd, right=df_upd_om, on='date', how='outer')
+    # split history and forecast
+    df_upd_smard = df_upd_smard[:today]
+    df_upd_om_hist = df_upd_om[:today]
+    df_upd_om_fore = df_upd_om[today:]
+    df_upd_es = df_upd_es[:today]
 
-    df_upd = pd.merge(left=df_upd_smard, right=df_upd_es, left_index=True, right_index=True, how='outer')
-    df_upd = pd.merge(left=df_upd, right=df_upd_om, left_index=True, right_index=True, how='outer')
-
-    # df_upd.dropna(inplace=True,how='all'
+    df_hist_upd = pd.merge(left=df_upd_smard, right=df_upd_es, left_index=True, right_index=True, how='outer')
+    df_hist_upd = pd.merge(left=df_hist_upd, right=df_upd_om_hist, left_index=True, right_index=True, how='outer')
 
     # check columns
     for col in df_original.columns:
-        if not col in df_upd.columns:
+        if not col in df_hist_upd.columns:
             raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
-    for col in df_upd.columns:
+    for col in df_hist_upd.columns:
         if not col in df_original.columns:
             print(f"! Warning col={col} is not in the original dataframe")
 
-    # combine dataframes preferring updated data over original
-    df = df_original.combine_first(df_upd)
-    # Where df2 has non-NaN values, override with df2's values
-    df.update(df_upd)
+    df_hist = df_original.combine_first(df_hist_upd)
 
-    return df
+    df_hist.to_parquet(data_dir+'history.parquet', engine='pyarrow')
+    print("History dataframe is successfully updated")
 
-def collect_from_api(today:pd.Timestamp,start_date:pd.Timestamp, end_date:pd.Timestamp, data_dir:str):
+    # ---------------------------- #
+
+    df_fore_upd = pd.DataFrame(columns=df_original.columns, index=df_upd_om_fore.index)
+
+    for col in df_upd_om_fore.columns:
+        df_fore_upd[col] = df_upd_om_fore[col]
+
+    df_fore_upd.to_parquet(data_dir+'forecast.parquet', engine='pyarrow')
+    print("Forecast dataframe is successfully updated")
+
+    #
+    #
+    # # merge updates to a single dataframe (combine columns, essencially)
+    # # df_upd = df_upd_smard.join(df_upd_om, how='left')
+    # # df_upd = df_upd.join(df_upd_es, how='left')
+    #
+    # # df_upd = pd.merge(left=df_upd_smard, right=df_upd_es, on='date', how='outer')
+    # # df_upd = pd.merge(left=df_upd, right=df_upd_om, on='date', how='outer')
+    #
+    # df_upd = pd.merge(left=df_upd_smard, right=df_upd_es, left_index=True, right_index=True, how='outer')
+    # df_upd = pd.merge(left=df_upd, right=df_upd_om, left_index=True, right_index=True, how='outer')
+    #
+    # # df_upd.dropna(inplace=True,how='all'
+    #
+    # # check columns
+    # for col in df_original.columns:
+    #     if not col in df_upd.columns:
+    #         raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
+    # for col in df_upd.columns:
+    #     if not col in df_original.columns:
+    #         print(f"! Warning col={col} is not in the original dataframe")
+    #
+    # # combine dataframes preferring updated data over original
+    # df = df_original.combine_first(df_upd)
+    # # Where df2 has non-NaN values, override with df2's values
+    # df.update(df_upd)
+    #
+    # # return (df_history, df_forecast)
+
+def collect_from_api(today:pd.Timestamp,start_date:pd.Timestamp, end_date:pd.Timestamp or None, data_dir:str):
 
     # --------- COLLECT ENERGY GENERATION & LOAD DATA ---------------------
-    o_smard = DataEnergySMARD(start_date=start_date, end_date=end_date)
+    o_smard = DataEnergySMARD(start_date=start_date, end_date=today if end_date is None else end_date)
     df_smard_flow = o_smard.get_international_flow()
     df_smard_gen_forecasted = o_smard.get_forecasted_generation()
     df_smard_con_forecasted = o_smard.get_forecasted_consumption()
     df_smard = pd.merge(left=df_smard_flow,right=df_smard_gen_forecasted,left_on='date',right_on='date',how='outer')
     df_smard = pd.merge(left=df_smard,right=df_smard_con_forecasted,left_on='date',right_on='date',how='outer')
     df_smard.set_index('date',inplace=True)
-    df_smard = df_smard[start_date:end_date]
+    # df_smard = df_smard[start_date:end_date]
     # df_smard.fillna(value=nan_parquet,inplace=True)
     df_smard.to_parquet(data_dir+'upd_smard_energy.parquet',engine='pyarrow')
     print(f"Smard data is successfully collected in {data_dir}upd_smard_energy.parquet")
@@ -79,7 +114,7 @@ def collect_from_api(today:pd.Timestamp,start_date:pd.Timestamp, end_date:pd.Tim
     df_om.drop_duplicates(subset='date', keep='last', inplace=True)
     # df_om = process_weather_quantities(df_om, locations)
     df_om.set_index('date',inplace=True)
-    df_om = df_om[start_date:end_date]
+    # df_om = df_om[start_date:end_date]
     # df_om.fillna(value=nan_parquet,inplace=True)
     df_om.to_parquet(data_dir+'upd_openweather.parquet',engine='pyarrow')
     print(f"Openweather data is successfully collected in {data_dir}upd_openweather.parquet")
@@ -178,43 +213,43 @@ def collate_and_update(df_original:pd.DataFrame, today:pd.Timestamp, test_start_
                        start_date:pd.Timestamp, data_dir:str, output_dir:str):
 
     # --------- COMBINE DATAFRAMES ------------------
-    df_updated = merge_original_and_updates(df_original=df_original,data_dir=data_dir)
+    merge_original_and_updates(df_original=df_original, data_dir=data_dir, today=today)
 
-    if df_updated.isna().sum().any():
-        print(f"Completing dataset using PSPL starting at {test_start_date}")
-
-        # impute nans at the end of the dataframe
-        df_pslp = calculate_pslps(
-            df=df_updated.copy(deep=True),#crop_dataframe_to_last_full_day(df_updated).copy(deep=True),
-            start_date=test_start_date,
-            lookback=14,
-            country_code="DE"
-        )
-        df_pslp.dropna(how='all', inplace=True)
-        df_pslp.set_index('date',inplace=True)
-
-        # estimate performance metrics in approximating new values with PSLP
-        performance_metrics_pslp(
-            df=df_updated[test_start_date:today], df_pslp=df_pslp[test_start_date:today], output_dir=output_dir)
-
-        visualize_pslp_vs_actual(
-            df=df_updated[test_start_date:today], df_pslp=df_pslp[test_start_date:today], output_dir=output_dir)
-
-        df_pslp = df_pslp[start_date:]
-
-        # Combine the dataframes, preferring values from df_updated
-        result_df = df_updated.combine_first(df_pslp)
-
-        # Overwrite NaNs in df1 with values from df2 where overlapping
-        for col in df_updated.columns:
-            result_df[col] = df_updated[col].combine_first(df_pslp[col])
-        if (result_df.isna().sum() > 0).any():
-            raise ValueError("There are NaN values in final dataframe")
-
-        df_updated = result_df
-
-    df_updated.to_parquet(data_dir+'latest.parquet', engine='pyarrow')
-    print(f"Latest dataset is successfully saved to {data_dir}latest.parquet")
+    # if df_updated.isna().sum().any():
+    #     print(f"Completing dataset using PSPL starting at {test_start_date}")
+    #
+    #     # impute nans at the end of the dataframe
+    #     df_pslp = calculate_pslps(
+    #         df=df_updated.copy(deep=True),#crop_dataframe_to_last_full_day(df_updated).copy(deep=True),
+    #         start_date=test_start_date,
+    #         lookback=14,
+    #         country_code="DE"
+    #     )
+    #     df_pslp.dropna(how='all', inplace=True)
+    #     df_pslp.set_index('date',inplace=True)
+    #
+    #     # estimate performance metrics in approximating new values with PSLP
+    #     performance_metrics_pslp(
+    #         df=df_updated[test_start_date:today], df_pslp=df_pslp[test_start_date:today], output_dir=output_dir)
+    #
+    #     visualize_pslp_vs_actual(
+    #         df=df_updated[test_start_date:today], df_pslp=df_pslp[test_start_date:today], output_dir=output_dir)
+    #
+    #     df_pslp = df_pslp[start_date:]
+    #
+    #     # Combine the dataframes, preferring values from df_updated
+    #     result_df = df_updated.combine_first(df_pslp)
+    #
+    #     # Overwrite NaNs in df1 with values from df2 where overlapping
+    #     for col in df_updated.columns:
+    #         result_df[col] = df_updated[col].combine_first(df_pslp[col])
+    #     if (result_df.isna().sum() > 0).any():
+    #         raise ValueError("There are NaN values in final dataframe")
+    #
+    #     df_updated = result_df
+    #
+    # df_updated.to_parquet(data_dir+'latest.parquet', engine='pyarrow')
+    # print(f"Latest dataset is successfully saved to {data_dir}latest.parquet")
 
 if __name__ == '__main__':
     # TODO add tests

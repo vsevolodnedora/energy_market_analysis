@@ -3,87 +3,126 @@ import os
 
 from datetime import datetime, timedelta
 
-from data_modules.collect_data import collect_from_api, parse_epexspot, collate_and_update
+from data_modules.collect_data import collect_from_api, parse_epexspot, merge_original_and_updates
 from ml_modules.lstm_window_stateless_torch import train_predict, hyperparameter_grid_search
 
 if __name__ == '__main__':
 
+    data_dir='./database/'
+    output_dir='./output/'
+
     do_forecast: bool = False # debugging tool (switch updating forecasts)
     forceupdate: bool = False # debugging tool (update data everytime)
 
-    start_date = None # if update -- none, infer from last dataset
-    data_dir='./database/'
-    output_dir='./output/'
-    horizon_size = 3*24 # update and forecast window
     today = pd.Timestamp(datetime.today()).tz_localize(tz='UTC')
     today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
-    end_date = today + timedelta(hours=horizon_size)
-    limit_train_df_past_to = today - timedelta(days=365) # use only one year of dataset (for now)
-    train_test_ratio = 0.8
-    model_name = 'lstm_fLoadFlow_wPCAtdp1_h72_f3'
 
-    # load dataset and check if it is up-to-date
-    df_original = pd.read_parquet(data_dir+'latest.parquet')
-    first_timestamp = pd.Timestamp(df_original.dropna(how='any',inplace=False).first_valid_index())
-    last_timestamp = pd.Timestamp(df_original.dropna(how='any',inplace=False).last_valid_index())
-    print(f"Latest data loaded: Data from {first_timestamp} to {last_timestamp}")
-    if last_timestamp >= end_date:
-        print(f"Original data is up to date (>={end_date})")
-        update = False
-    else:
+    df_history = pd.read_parquet(data_dir + 'history.parquet')
+    df_forecast = pd.read_parquet(data_dir + 'forecast.parquet')
+
+    first_timestamp = pd.Timestamp(df_history.dropna(how='any', inplace=False).first_valid_index())
+    last_timestamp = pd.Timestamp(df_history.dropna(how='all', inplace=False).last_valid_index())
+
+    if today >= last_timestamp:
+        print(f"Data ends on {last_timestamp}. Today is {today}. Updating... ")
         update = True
-    start_date = last_timestamp - timedelta(hours=horizon_size) # to override previous forecasts
-    print(f"Start_date={start_date} today={today} end_date={end_date}")
+    else:
+        print("Data is up to date")
+        update = False
 
-    train_start_date = first_timestamp if limit_train_df_past_to is None else limit_train_df_past_to
-    test_start_date = df_original[train_start_date:today].index[
-        int(len(df_original[train_start_date:today]) * train_test_ratio)
-    ]
-
-
-
-    # update dataset if needed and generate new forecasts
+    # update database if needed
     if (update or forceupdate):
-        print("Updating data")
         parse_epexspot(raw_datadir='./data/DE-LU/DayAhead_MRC/', datadir=data_dir,
-                       start_date=start_date, end_date=end_date)
+                       start_date=last_timestamp - timedelta(hours=24),
+                       end_date=today + timedelta(hours=24))
 
-        collect_from_api(today=today, start_date=start_date, end_date=end_date, data_dir=data_dir)
+        collect_from_api(today=today,
+                         start_date=last_timestamp - timedelta(hours=24),
+                         end_date=None,
+                         data_dir=data_dir)
 
-        collate_and_update(
-            df_original=df_original, today=today, test_start_date=test_start_date, start_date=start_date,
-            data_dir=data_dir, output_dir=output_dir
-        )
-
-        if (do_forecast):
-            # load updated dataset and perform forecast
-            df_latest = pd.read_parquet(data_dir+'latest.parquet')
-
-            # train LSTM forecasting model
-            pars = dict(
-                target='DA_auction_price',
-                window_size=3*72,   # Historical window size
-                horizon=horizon_size, # Forecast horizon
-                hidden_size = 32,
-                num_layers = 2,
-                dropout = 0.2,
-                lr = 0.01,
-                num_epochs = 40,
-                batch_size = 64,
-                early_stopping=15,
-            )
-            train_predict(
-                pars=pars,df=df_latest[train_start_date:],today=today,
-                output_dir=output_dir+'da_price_forecast_lstm_base/'
-            )
+        merge_original_and_updates(df_original=df_history, data_dir=data_dir, today=today)
 
 
-    # hyperparameter tuning for LSTM model
-    df_latest = pd.read_parquet(data_dir+'latest.parquet')
-    # hyperparameter_grid_search(df_latest[train_start_date:],today=today,horizon_size=horizon_size,
-    #                            output_dir=output_dir+'da_price_forecast_lstm_hypesearch/')
 
-    # prepare results for deployment
+
+#
+# start_date = None # if update -- none, infer from last dataset
+#     data_dir='./database/'
+#     output_dir='./output/'
+#     horizon_size = 3*24 # update and forecast window
+#     today = pd.Timestamp(datetime.today()).tz_localize(tz='UTC')
+#     today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
+#     end_date = today + timedelta(hours=horizon_size)
+#     limit_train_df_past_to = today - timedelta(days=365) # use only one year of dataset (for now)
+#     train_test_ratio = 0.8
+#     model_name = 'lstm_fLoadFlow_wPCAtdp1_h72_f3'
+#
+#     # load dataset and check if it is up-to-date
+#     df_history = pd.read_parquet(data_dir + 'history.parquet')
+#     df_forecast = pd.read_parquet(data_dir + 'forecast.parquet')
+#     first_timestamp = pd.Timestamp(df_history.dropna(how='any', inplace=False).first_valid_index())
+#     last_timestamp = pd.Timestamp(df_forecast.dropna(how='all', inplace=False).last_valid_index())
+#     print(f"Latest data loaded: Data from {first_timestamp} to (forecast) {last_timestamp}")
+#     if last_timestamp >= end_date:
+#         print(f"Original data is up to date (>={end_date})")
+#         update = False
+#     else:
+#         update = True
+#     start_date = last_timestamp - timedelta(hours=horizon_size) # to override previous forecasts
+#     print(f"Start_date={start_date} today={today} end_date={end_date}")
+#
+#     train_start_date = first_timestamp if limit_train_df_past_to is None else limit_train_df_past_to
+#     test_start_date = df_history[train_start_date:today].index[
+#         int(len(df_history[train_start_date:today]) * train_test_ratio)
+#     ]
+#
+#
+#
+#     # update dataset if needed and generate new forecasts
+#     if (update or forceupdate):
+#         print("Updating data")
+#         parse_epexspot(raw_datadir='./data/DE-LU/DayAhead_MRC/', datadir=data_dir,
+#                        start_date=start_date, end_date=end_date)
+#
+#         collect_from_api(today=today, start_date=start_date, end_date=end_date, data_dir=data_dir)
+#
+#         merge_original_and_updates(df_original=df_history, data_dir=data_dir, today=today)
+#
+#         # collate_and_update(
+#         #     df_original=df_original, today=today, test_start_date=test_start_date, start_date=start_date,
+#         #     data_dir=data_dir, output_dir=output_dir
+#         # )
+#
+#         if (do_forecast):
+#             # load updated dataset and perform forecast
+#             df_latest = pd.read_parquet(data_dir+'latest.parquet')
+#
+#             # train LSTM forecasting model
+#             pars = dict(
+#                 target='DA_auction_price',
+#                 window_size=3*72,   # Historical window size
+#                 horizon=horizon_size, # Forecast horizon
+#                 hidden_size = 32,
+#                 num_layers = 2,
+#                 dropout = 0.2,
+#                 lr = 0.01,
+#                 num_epochs = 40,
+#                 batch_size = 64,
+#                 early_stopping=15,
+#             )
+#             train_predict(
+#                 pars=pars,df=df_latest[train_start_date:],today=today,
+#                 output_dir=output_dir+'da_price_forecast_lstm_base/'
+#             )
+#
+#
+#     # hyperparameter tuning for LSTM model
+#     df_latest = pd.read_parquet(data_dir+'latest.parquet')
+#     # hyperparameter_grid_search(df_latest[train_start_date:],today=today,horizon_size=horizon_size,
+#     #                            output_dir=output_dir+'da_price_forecast_lstm_hypesearch/')
+#
+#     # prepare results for deployment
 
 
 
@@ -147,4 +186,4 @@ if __name__ == '__main__':
 
 
     # ------------- MACHINE LEARNING MODEL ----------------
-    z =1
+    # z =1
