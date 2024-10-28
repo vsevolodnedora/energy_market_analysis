@@ -274,8 +274,13 @@ class DataEnergySMARD:
             df_country = self.request_data(modules_id=DataEnergySMARD.country_map[country])
             if df.empty: df['date'] = df_country['date']
             # create total flow (note Import is always Negative, export is always positive
-            df[f'{country}_flow'] = df_country[f'{country}_export'].fillna(0)+df_country[f'{country}_import'].fillna(0)
-        df = df.resample('h', on='date').mean()
+            df[f'{country}_export'] = df_country[f'{country}_export'].fillna(0)
+            df[f'{country}_import'] = df_country[f'{country}_import'].fillna(0)
+            # df[f'{country}_flow'] = (
+            #         df_country[f'{country}_export'].fillna(0)
+            #         + df_country[f'{country}_import'].fillna(0)
+            # )
+        df = df.resample('h', on='date').sum()
         df.reset_index(names=['date'], inplace=True)
         return df
 
@@ -284,7 +289,7 @@ class DataEnergySMARD:
         df = self.request_data(modules_id=DataEnergySMARD.FORECASTED_POWER_GENERATION)
         df.rename(columns={'total':'total_gen'}, inplace=True)
         df.rename(columns={'other':'other_gen'}, inplace=True)
-        df = df.resample('h', on='date').mean()
+        df = df.resample('h', on='date').sum()
         df.reset_index(names=['date'], inplace=True)
         return df
 
@@ -293,7 +298,7 @@ class DataEnergySMARD:
         df = self.request_data(modules_id=DataEnergySMARD.FORECASTED_POWER_CONSUMPTION)
         # df.rename(columns={'total':'total_gen'}, inplace=True)
         # df.rename(columns={'other':'other_gen'}, inplace=True)
-        df = df.resample('h', on='date').mean()
+        df = df.resample('h', on='date').sum()
         df.reset_index(names=['date'], inplace=True)
         return df
 
@@ -446,9 +451,13 @@ class DataEnergySMARD:
 if __name__ == '__main__':
     smard = DataEnergySMARD(start_date=pd.Timestamp(datetime.today()-timedelta(days=30+21),tz='UTC'),
                             end_date=pd.Timestamp(datetime.today()-timedelta(days=21),tz='UTC'))
-    for key, val in DataEnergySMARD.country_map.items():
-        df = smard.request_data(modules_id=val)
-        df.set_index('date', inplace=True)
-        df_sum = df.aggregate(func=sum)
-        print(key, float( df_sum[f"{key}_export"]+df_sum[f"{key}_import"] ) / 1e6, ' TW')
+    # for key, val in DataEnergySMARD.country_map.items():
+    #     df = smard.request_data(modules_id=val)
+    #     df.set_index('date', inplace=True)
+    #     df_sum = df.aggregate(func=sum)
+    #     print(key, float( df_sum[f"{key}_export"]+df_sum[f"{key}_import"] ) / 1e6, ' TW')
+
+    df = smard.get_international_flow()[['france_export','france_import']]
+    print(df)
+
     pass
