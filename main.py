@@ -12,7 +12,7 @@ if __name__ == '__main__':
     output_dir='./output/'
 
     do_forecast: bool = False # debugging tool (switch updating forecasts)
-    forceupdate: bool = False # debugging tool (update data everytime)
+    forceupdate: bool = True # debugging tool (update data everytime)
 
     today = pd.Timestamp(datetime.today()).tz_localize(tz='UTC')
     today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours

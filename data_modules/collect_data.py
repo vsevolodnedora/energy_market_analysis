@@ -90,7 +90,8 @@ def merge_original_and_updates(df_original:pd.DataFrame, data_dir:str, today:pd.
 def collect_from_api(today:pd.Timestamp,start_date:pd.Timestamp, end_date:pd.Timestamp or None, data_dir:str):
 
     # --------- COLLECT ENERGY GENERATION & LOAD DATA ---------------------
-    o_smard = DataEnergySMARD(start_date=start_date, end_date=today if end_date is None else end_date)
+    o_smard = DataEnergySMARD(
+        start_date=start_date, end_date=today+timedelta(hours=1) if end_date is None else end_date+timedelta(hours=1))
     df_smard_flow = o_smard.get_international_flow()
     df_smard_gen_forecasted = o_smard.get_forecasted_generation()
     df_smard_con_forecasted = o_smard.get_forecasted_consumption()
