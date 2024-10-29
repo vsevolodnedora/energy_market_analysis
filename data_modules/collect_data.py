@@ -5,7 +5,9 @@
 import os.path
 from datetime import datetime, timedelta
 from glob import glob
-import pandas as pd; pd.set_option('future.no_silent_downcasting', True)
+import pandas as pd
+try: pd.set_option('future.no_silent_downcasting', True)
+except: print("Failed to set future.no_silent_downcasting=True")
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, mean_absolute_percentage_error
