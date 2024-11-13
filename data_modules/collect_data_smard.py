@@ -139,8 +139,8 @@ class DataEnergySMARD:
     }
 
     def __init__(self, start_date:pd.Timestamp, end_date:pd.Timestamp):
-        self.start_date = start_date
-        self.end_date = end_date
+        self.start_date = start_date#-timedelta(milliseconds=1)
+        self.end_date = end_date#+timedelta(milliseconds=1)
 
     @staticmethod
     def convert_to_float(value):
@@ -177,8 +177,8 @@ class DataEnergySMARD:
                     "format": "CSV",
                     "moduleIds": modulIDs,
                     "region": region,
-                    "timestamp_from": timestamp_from_in_milliseconds,
-                    "timestamp_to": timestamp_to_in_milliseconds,
+                    "timestamp_from": int(timestamp_from_in_milliseconds),
+                    "timestamp_to": int(timestamp_to_in_milliseconds),
                     "type": type,
                     "language": language,
                     # "resolution":"original"#"quarterhour",
@@ -186,8 +186,11 @@ class DataEnergySMARD:
 
         # http response
         data = s.post(url, body, headers={
-            'user-agent': headers, 'Cache-Control': 'no-cache', 'Pragma': 'no-cache'
+            'user-agent': headers, 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Content-Type': 'application/json'
+
         })
+        print("\tStatus Code:", data.status_code)
+        # print("Response Text:", data.text)
 
         # create pandas dataframe out of response string (csv)
         df = pd.read_csv(StringIO(data.text), sep=';')
@@ -198,10 +201,13 @@ class DataEnergySMARD:
 
         return df
 
-    def requestSmardDataForTimes(self, modules, utc:bool=False):
+    def requestSmardDataForTimes_OLD(self, modules, utc:bool=False):
         for i in range(5):
             try:
-                # print(f"Requesting data for {self.start_date} to {self.end_date}")
+                print(f"\tSMARD api request for {modules} data for "
+                      f"{self.start_date} ({int(self.start_date.timestamp()*1000)}) to "
+                      f"{self.end_date} ({int(self.end_date.timestamp()*1000)})")
+                time.sleep(1)
                 df = self.requestSmardData(
                     modulIDs=modules,
                     timestamp_from_in_milliseconds=int(self.start_date.timestamp()*1000),
@@ -210,7 +216,7 @@ class DataEnergySMARD:
                 # check if data is corrupted
                 errors = 0
                 while ('Datum bis' not in df.columns) and (errors < 3):
-                    time.sleep(2)
+                    time.sleep(4)
                     errors += 1
                     # df = smard.requestSmardData(modulIDs=modules, timestamp_from_in_milliseconds=1625954400000)  # int(time.time()) * 1000) - (24*3600)*373000  = 1 year + last week
                     df = self.requestSmardData(
@@ -218,6 +224,7 @@ class DataEnergySMARD:
                         timestamp_from_in_milliseconds=int(self.start_date.timestamp()*1000),
                         timestamp_to_in_milliseconds=int(self.end_date.timestamp()*1000)
                     )
+
                 # process successfull
                 if ('Datum bis' in df.columns):
                     # fix wrong decimal
@@ -245,6 +252,69 @@ class DataEnergySMARD:
             except ParserError as e:
                 print(f"Attempt {i}/{5}. Parse error in getting modules {modules} Error:{e}")
         raise Exception(f"API call has failed after {5} attempts")
+
+    def _requestSmardDataForTimes(self, start_date, end_date, modules, utc:bool=False):
+
+        time.sleep(1)
+        df = self.requestSmardData(
+            modulIDs=modules,
+            timestamp_from_in_milliseconds=int(start_date.timestamp()*1000),
+            timestamp_to_in_milliseconds=int(end_date.timestamp()*1000)
+        )
+        # check if data is corrupted
+        errors = 0
+        while ('Datum bis' not in df.columns) and (errors < 3):
+            time.sleep(4)
+            errors += 1
+            # df = smard.requestSmardData(modulIDs=modules, timestamp_from_in_milliseconds=1625954400000)  # int(time.time()) * 1000) - (24*3600)*373000  = 1 year + last week
+            df = self.requestSmardData(
+                modulIDs=modules,
+                timestamp_from_in_milliseconds=int(start_date.timestamp()*1000),
+                timestamp_to_in_milliseconds=int(end_date.timestamp()*1000)
+            )
+        pass
+
+        if ('Datum bis' in df.columns):
+            # fix wrong decimal
+            df = df.replace('-', '', regex=False)
+            df = df.rename(columns={'Datum von': 'Datum'})
+            df.drop('Datum bis', axis=1, inplace=True)
+            # convert to floats
+            for key in df.keys():
+                if not key in ['Datum']:
+                    df[key] = df[key].apply(self.convert_to_float)
+            # apply mapping
+            df.rename(columns=self.mapping, inplace=True)
+            # convert time to UTC
+            if utc:
+                df['date'] = pd.to_datetime(df['date'], format='%d.%m.%Y %H:%M')
+                df['datetime_utc'] = (df['date']
+                                      .dt.tz_localize('Europe/Berlin', ambiguous='infer')
+                                      .dt.tz_convert('UTC'))
+                df['date'] = df['datetime_utc']
+                df.drop('datetime_utc', axis=1, inplace=True)
+
+                return df
+
+        raise ConnectionError("SMARD API call has failed for " +
+                              f"\tSMARD api request for {modules} data for "
+                              f"{start_date} ({int(start_date.timestamp()*1000)}) to "
+                              f"{end_date} ({int(end_date.timestamp()*1000)})")
+
+    def requestSmardDataForTimes(self, modules, utc:bool=False):
+        start_date = self.start_date
+        end_date = self.end_date
+        for i in range(5):
+            try:
+                result = self._requestSmardDataForTimes(start_date, end_date, modules, utc)
+            except Exception as e:
+                start_date = start_date - timedelta(days=1)
+                print(f"Attempt {i}/{5}. Parse error in getting modules {modules} Error:{e}. "
+                      f"Setting earlier start_date by 1 day to {start_date}")
+                continue
+
+            return result
+        raise ConnectionError(f"API call has failed for {5} attempts")
 
     def request_data(self, modules_id:list, utc:bool=True):
         return self.requestSmardDataForTimes( modules=modules_id, utc=utc )
@@ -449,14 +519,27 @@ class DataEnergySMARD:
 
 
 if __name__ == '__main__':
-    smard = DataEnergySMARD(start_date=pd.Timestamp(datetime.today()-timedelta(days=30+21),tz='UTC'),
-                            end_date=pd.Timestamp(datetime.today()-timedelta(days=21),tz='UTC'))
+    today = datetime.today()
+    # smard = DataEnergySMARD(start_date=pd.Timestamp(today-timedelta(days=20),tz='UTC'),
+    #                         end_date=pd.Timestamp(today+timedelta(days=1),tz='UTC'))
+    # df = smard.get_international_flow()[['france_export','france_import']]
+
+    # today = pd.Timestamp(datetime.today()).tz_localize(tz='UTC')
+    # today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
+    #
+    # smard = DataEnergySMARD(start_date=today-timedelta(days=20),
+    #                         end_date=today+timedelta(days=1))
+    # df = smard.get_international_flow()[['france_export','france_import']]
+
+
     # for key, val in DataEnergySMARD.country_map.items():
     #     df = smard.request_data(modules_id=val)
     #     df.set_index('date', inplace=True)
     #     df_sum = df.aggregate(func=sum)
     #     print(key, float( df_sum[f"{key}_export"]+df_sum[f"{key}_import"] ) / 1e6, ' TW')
-
+    # 2024-11-06 12:00:00+00:00 (1730894400000) to 2024-11-13 17:00:00+00:00 (1731517200000)
+    smard = DataEnergySMARD(start_date=pd.Timestamp('2024-11-06 16:00:00+00:00',tz='UTC'),
+                            end_date=pd.Timestamp('2024-11-13 17:00:00+00:00',tz='UTC'))
     df = smard.get_international_flow()[['france_export','france_import']]
     print(df)
 
