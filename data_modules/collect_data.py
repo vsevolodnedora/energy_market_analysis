@@ -9,251 +9,208 @@ import pandas as pd
 try: pd.set_option('future.no_silent_downcasting', True)
 except: print("Failed to set future.no_silent_downcasting=True")
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, mean_absolute_percentage_error
+import gc
 
 from .collect_data_smard import DataEnergySMARD
 from .collect_data_openmeteo import (
     get_weather_data_from_api_forecast,get_weather_data_from_api
 )
-from .pslp import calculate_pslps
 from .locations import locations
 
-def merge_original_and_updates(df_original:pd.DataFrame, data_dir:str, today:pd.Timestamp):
-    # load updates to the data
-    df_upd_smard = pd.read_parquet(data_dir+'upd_smard_energy.parquet')
-    df_upd_om = pd.read_parquet(data_dir+'upd_openweather.parquet')
-    df_upd_es = pd.read_parquet(data_dir+'upd_epexspot.parquet')
-    for df in [df_upd_smard, df_upd_om, df_upd_es,df_upd_smard]:
-        df.fillna(value=np.nan, inplace=True)
-        df.infer_objects()
+def validate_dataframe(df: pd.DataFrame, text:str = '') -> bool:
+    if not df.index.is_monotonic_increasing:
+        raise ValueError(f"DataFrame index is not sorted in ascending order | {text}")
 
-    # split history and forecast
-    df_upd_smard = df_upd_smard[:today]
-    df_upd_om_hist = df_upd_om[:today]
-    df_upd_om_fore = df_upd_om[today:]
-    df_upd_es = df_upd_es[:today]
+    if df.isna().any().any():
+        # Find columns with NaN values and their counts
+        nan_counts = df.isna().sum()
+        nan_columns = nan_counts[nan_counts > 0]
 
-    df_hist_upd = pd.merge(left=df_upd_smard, right=df_upd_es, left_index=True, right_index=True, how='outer')
-    df_hist_upd = pd.merge(left=df_hist_upd, right=df_upd_om_hist, left_index=True, right_index=True, how='outer')
+        # Print results
+        if nan_columns.empty:
+            print(f"No NaN values found in the DataFrame.")
+        else:
+            print(f"In {text} | Columns with NaN values and their counts:")
+            for col, count in nan_columns.items():
+                print(f"{col}: {count} NaN values")
+        return False
 
-    # check columns
-    for col in df_original.columns:
-        if not col in df_hist_upd.columns:
-            raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
-    for col in df_hist_upd.columns:
-        if not col in df_original.columns:
-            print(f"! Warning col={col} is not in the original dataframe")
+    # Check for infinite values and handle similarly to NaN check
+    if np.isinf(df.values).any():
+        # Find columns with infinite values and their counts
+        inf_counts = np.isinf(df).sum()
+        inf_columns = inf_counts[inf_counts > 0]
 
-    df_hist = df_original.combine_first(df_hist_upd)
+        if inf_columns.empty:
+            print("No infinite values found in the DataFrame.")
+        else:
+            print(f"In {text} | Columns with infinite values and their counts:")
+            for col, count in inf_columns.items():
+                print(f"{col}: {count} infinite values")
+        return False
 
-    df_hist.to_parquet(data_dir+'history.parquet', engine='pyarrow')
-    print("History dataframe is successfully updated")
+    return True
 
-    # ---------------------------- #
+class DataCollector:
+    def __init__(self,today:pd.Timestamp,data_dir:str):
+        self.data_dir = data_dir
+        self.today = today
+        self.df_hist = pd.read_parquet(data_dir+'history.parquet')
+        self.df_forecast = pd.read_parquet(data_dir+'forecast.parquet')
+        print(f"Existing historic dataframe is loaded successfully. Shape {self.df_hist.shape}")
+        # ---
+        self.first_timestamp = pd.Timestamp(self.df_hist.dropna(how='any', inplace=False).first_valid_index())
+        self.last_timestamp = pd.Timestamp(self.df_hist.dropna(how='all', inplace=False).last_valid_index())
+        # --- file names for historic data to be updated
+        self.fname_smard_upd = 'upd_smard_energy.parquet'
+        self.fname_om_hist_upd = 'upd_openmeteo_hist.parquet'
+        self.fname_es_hist_upd = 'upd_epexspot.parquet'
+        # --- file names for forecasts to be updated
+        self.fname_om_forecast_upd = 'upd_openmeteo_forecast.parquet'
 
-    df_fore_upd = pd.DataFrame(columns=df_original.columns, index=df_upd_om_fore.index)
+    def update(self, force_update:bool)->None:
 
-    for col in df_upd_om_fore.columns:
-        df_fore_upd[col] = df_upd_om_fore[col]
+        if (not force_update) and (self.today <= self.last_timestamp):
+            print("Data is up to date")
+            return None
 
-    df_fore_upd.to_parquet(data_dir+'forecast.parquet', engine='pyarrow')
-    print("Forecast dataframe is successfully updated")
+        print(f"Data ends on {self.last_timestamp}. Today is {self.today}. Updating... ")
 
-    #
-    #
-    # # merge updates to a single dataframe (combine columns, essencially)
-    # # df_upd = df_upd_smard.join(df_upd_om, how='left')
-    # # df_upd = df_upd.join(df_upd_es, how='left')
-    #
-    # # df_upd = pd.merge(left=df_upd_smard, right=df_upd_es, on='date', how='outer')
-    # # df_upd = pd.merge(left=df_upd, right=df_upd_om, on='date', how='outer')
-    #
-    # df_upd = pd.merge(left=df_upd_smard, right=df_upd_es, left_index=True, right_index=True, how='outer')
-    # df_upd = pd.merge(left=df_upd, right=df_upd_om, left_index=True, right_index=True, how='outer')
-    #
-    # # df_upd.dropna(inplace=True,how='all'
-    #
-    # # check columns
-    # for col in df_original.columns:
-    #     if not col in df_upd.columns:
-    #         raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
-    # for col in df_upd.columns:
-    #     if not col in df_original.columns:
-    #         print(f"! Warning col={col} is not in the original dataframe")
-    #
-    # # combine dataframes preferring updated data over original
-    # df = df_original.combine_first(df_upd)
-    # # Where df2 has non-NaN values, override with df2's values
-    # df.update(df_upd)
-    #
-    # # return (df_history, df_forecast)
+        self._update_smard_from_api(self.last_timestamp-timedelta(hours=24), self.today+timedelta(hours=24))
 
-def collect_from_api(today:pd.Timestamp,start_date:pd.Timestamp, end_date:pd.Timestamp or None, data_dir:str):
+        self._update_epexspot_from_files(self.last_timestamp-timedelta(hours=24), self.today+timedelta(hours=24))
 
-    # --------- COLLECT ENERGY GENERATION & LOAD DATA ---------------------
-    o_smard = DataEnergySMARD(
-        start_date=start_date,
-        end_date=today + timedelta(hours=1) if end_date is None else end_date+timedelta(hours=1))
-    df_smard_flow = o_smard.get_international_flow()
-    df_smard_gen_forecasted = o_smard.get_forecasted_generation()
-    df_smard_con_forecasted = o_smard.get_forecasted_consumption()
-    df_smard = pd.merge(left=df_smard_flow,right=df_smard_gen_forecasted,left_on='date',right_on='date',how='outer')
-    df_smard = pd.merge(left=df_smard,right=df_smard_con_forecasted,left_on='date',right_on='date',how='outer')
-    df_smard.set_index('date',inplace=True)
-    # df_smard = df_smard[start_date:end_date]
-    # df_smard.fillna(value=nan_parquet,inplace=True)
-    df_smard.to_parquet(data_dir+'upd_smard_energy.parquet',engine='pyarrow')
-    print(f"Smard data is successfully collected in {data_dir}upd_smard_energy.parquet")
+        self._update_openmeteo_from_api(self.last_timestamp-timedelta(hours=24), self.today-timedelta(hours=12))
 
-    # --------- COLLECT ELECTRICITY PRICES DATA ----------------------------
-    pass
+        self._update_historical_dataframe()
 
-    # --------- COLLECT WEATHERDATA ----------------------------------------
-    df_om_hist = get_weather_data_from_api(start_date, today-timedelta(hours=12), locations)
-    df_om_forecast = get_weather_data_from_api_forecast(locations=locations)
-    if not df_om_forecast.columns.equals(df_om_hist.columns):
-        print("! Error. Column mismatch between historical and forecasted weather!")
-    df_om = pd.concat([df_om_hist, df_om_forecast[df_om_hist.columns]], ignore_index=True)
-    df_om.drop_duplicates(subset='date', keep='last', inplace=True)
-    # df_om = process_weather_quantities(df_om, locations)
-    df_om.set_index('date',inplace=True)
-    # df_om = df_om[start_date:end_date]
-    # df_om.fillna(value=nan_parquet,inplace=True)
-    df_om.to_parquet(data_dir+'upd_openweather.parquet',engine='pyarrow')
-    print(f"Openweather data is successfully collected in {data_dir}upd_openweather.parquet")
+        self._update_forecast_dataframe()
 
-def parse_epexspot(raw_datadir:str, datadir:str, start_date:pd.Timestamp, end_date:pd.Timestamp):
-    # updated data from epex-spot (date is in ECT)
-    # path_to_epex_spot_scraped_data = '/home/vsevolod/Work_DS/GIT/GitHub/epex_de_collector/data/DE-LU/DayAhead_MRC/'
-    files = glob(raw_datadir + '*.csv')
-    df_da_upd = pd.DataFrame()
-    for file in files:
-        df_i = pd.read_csv(file)
-        df_da_upd = pd.concat([df_da_upd, df_i])
-    if len(files) == 0:
-        raise FileNotFoundError(f"File in {raw_datadir} does not exist")
-    df_da_upd['date'] = pd.to_datetime(df_da_upd['date'])
-    df_da_upd.sort_values(by='date', inplace=True)
-    df_da_upd.drop_duplicates(subset='date', keep='first', inplace=True)
-    # for agreement with energy-charts
-    df_da_upd['date'] = df_da_upd['date'].dt.tz_localize('Etc/GMT-2').dt.tz_convert('UTC') #
-    df_da_upd.rename(columns={'Price':'DA_auction_price'},inplace=True)
-    # we do not need other data for now
-    df_da_upd = df_da_upd[['date','DA_auction_price']]
-    df_da_upd.set_index('date',inplace=True)
-    df_da_upd = df_da_upd[start_date:end_date]
-    # df_da_upd.reset_index('date',inplace=True)
-    # df_da_upd.head()
-    # return df_da_upd
-    # df_da_upd.fillna(value=nan_parquet,inplace=True)
-    df_da_upd.to_parquet(datadir+'upd_epexspot.parquet',engine='pyarrow')
-    print(f"Epexspot data is successfully saved to {datadir}upd_epexspot.parquet")
+    def get_hist(self)->pd.DataFrame:
+        return self.df_hist
 
+    def get_forecast(self)->pd.DataFrame:
+        return self.df_forecast
 
-def performance_metrics_pslp(df:pd.DataFrame, df_pslp:pd.DataFrame, output_dir:str):
-    # Create a dictionary to store metrics for each column
-    evaluation = {col: {} for col in df_pslp.columns}  # Predefine the structure for each column
-    for col in df_pslp.columns:
-        actual_values = df[col].fillna(0.).infer_objects(copy=False).to_numpy()
-        predicted_values = df_pslp[col].fillna(0.).infer_objects(copy=False).to_numpy()
+    # ------------------------------------------------------------------------ #
 
-        evaluation[col]['MAE'] = mean_absolute_error(actual_values, predicted_values)
-        evaluation[col]['MSE'] = mean_squared_error(actual_values, predicted_values)
-        evaluation[col]['R2'] = r2_score(actual_values, predicted_values)
-        evaluation[col]['MAPE'] = mean_absolute_percentage_error(actual_values, predicted_values)
+    def _update_smard_from_api(self, start_date:pd.Timestamp, end_date:pd.Timestamp):
+        # ---------- UPDATE SMARD -------------
+        print(f"Updating SMARD data from {start_date} to {end_date}")
+        o_smard = DataEnergySMARD( start_date=start_date,  end_date=end_date  )
+        df_smard_flow = o_smard.get_international_flow()
+        df_smard_gen_forecasted = o_smard.get_forecasted_generation()
+        df_smard_con_forecasted = o_smard.get_forecasted_consumption()
+        df_smard = pd.merge(left=df_smard_flow,right=df_smard_gen_forecasted,left_on='date',right_on='date',how='outer')
+        df_smard = pd.merge(left=df_smard,right=df_smard_con_forecasted,left_on='date',right_on='date',how='outer')
+        df_smard.set_index('date',inplace=True)
+        df_smard.to_parquet(self.data_dir+self.fname_smard_upd,engine='pyarrow')
+        print(f'Update for SMARD data is successfully created at '
+              f'{self.data_dir+self.fname_smard_upd} with shape {df_smard.shape}')
 
-    # Convert the dictionary into a DataFrame
-    df_metrics = pd.DataFrame.from_dict(evaluation, orient='index')  # 'index' makes the column names as index
-    df_metrics.index.name = 'Column'
-    df_metrics.reset_index(inplace=True)  # If you prefer the columns to be one of the dataframe columns rather than the index
-    df_metrics.to_csv(output_dir+'/pslp_metrics.csv', index=False)
+        gc.collect()
 
-def visualize_pslp_vs_actual(df:pd.DataFrame, df_pslp:pd.DataFrame,  output_dir:str):
-    ''' plot two  '''
-    # Ensure both dataframes are indexed by datetime
-    # df.index = pd.to_datetime(df.index)
-    # df_pslp.index = pd.to_datetime(df_pslp.index)
+    def _update_epexspot_from_files(self, start_date:pd.Timestamp, end_date:pd.Timestamp):
+        # ----------- UPDATE EPEXTSPOT --------------
+        epex_spot_fpath = './data/DE-LU/DayAhead_MRC/'
+        files = glob(epex_spot_fpath + '*.csv')
+        print(f"Updating EPEX SPOT data ({epex_spot_fpath})")
+        df_da_upd = pd.DataFrame()
+        for file in files:
+            df_i = pd.read_csv(file)
+            df_da_upd = pd.concat([df_da_upd, df_i])
+        if len(files) == 0:
+            raise FileNotFoundError(f"File in {epex_spot_fpath} does not exist")
+        df_da_upd['date'] = pd.to_datetime(df_da_upd['date'])
+        df_da_upd.sort_values(by='date', inplace=True)
+        df_da_upd.drop_duplicates(subset='date', keep='first', inplace=True)
+        # for agreement with energy-charts
+        df_da_upd['date'] = df_da_upd['date'].dt.tz_localize('Etc/GMT-2').dt.tz_convert('UTC') #
+        df_da_upd.rename(columns={'Price':'DA_auction_price'},inplace=True)
+        # we do not need other data for now
+        df_da_upd = df_da_upd[['date','DA_auction_price']]
+        df_da_upd.set_index('date',inplace=True)
+        df_da_upd = df_da_upd[start_date:end_date] # for simplicity in concatenating all data
+        # df_da_upd.reset_index('date',inplace=True)
+        # df_da_upd.head()
+        # return df_da_upd
+        # df_da_upd.fillna(value=nan_parquet,inplace=True)
+        df_da_upd.to_parquet(self.fname_es_hist_upd,engine='pyarrow')
+        print(f"Epexspot data is successfully saved to {self.fname_es_hist_upd} with shape {df_da_upd.shape}")
 
-    # Number of columns to plot
-    num_columns = len(df.columns)
+        gc.collect()
 
-    # Create a figure and set of subplots
-    fig, axs = plt.subplots(nrows=num_columns, ncols=1, figsize=(10, num_columns * 3), sharex=True)
+    def _update_openmeteo_from_api(self, start_date:pd.Timestamp, end_date:pd.Timestamp):
+        # ------- UPDATE WEATHER DATA -------------
+        print(f"Updating SMARD data from {self.last_timestamp} to {self.today}")
+        df_om_hist = get_weather_data_from_api(
+            start_date=start_date,
+            today=end_date,
+            locations=locations
+        )
+        df_om_hist.set_index('date',inplace=True)
+        df_om_hist.to_parquet(self.data_dir+self.fname_om_hist_upd,engine='pyarrow')
+        print(f'Update for openmeteo historical data is successfully created at '
+              f'{self.data_dir+self.fname_om_hist_upd} with shape {df_om_hist.shape}')
 
-    # If there's only one column, axs might not be an array, handle this case
-    if num_columns == 1:
-        axs = [axs]
+        gc.collect()
 
-    # Loop over each column and plot the respective data
-    for i, column in enumerate(df.columns):
-        # Original data
-        axs[i].plot(df.index, df[column], linestyle='-', color='gray',linewidth=0.5,alpha=0.5, label='Original',)
-        axs[i].plot(df_pslp.index, df_pslp[column], linestyle=':', color='gray',linewidth=0.5,alpha=0.5, label='PSLP')
+        df_om_forecast = get_weather_data_from_api_forecast(locations=locations)
+        df_om_forecast.set_index('date',inplace=True)
+        if not df_om_forecast.columns.equals(df_om_hist.columns):
+            unique_to_df1 = set(df_om_hist.columns) - set(df_om_forecast.columns)
+            unique_to_df2 = set(df_om_forecast.columns) - set(df_om_hist.columns)
+            print(f"! Error. Column mismatch between historical and forecasted weather! unique to "
+                  f"df_om_hist={unique_to_df1} Unique to df_om_forecast={unique_to_df2}")
+        df_om_forecast.to_parquet(self.data_dir+self.fname_om_forecast_upd,engine='pyarrow')
+        print(f'Update for openmeteo forecast data is successfully created at '
+              f'{self.data_dir+self.fname_om_forecast_upd} with shape {df_om_forecast.shape}')
 
-        # Residuals
-        residual = df[column] - df_pslp[column]
-        axs[i].plot(df.index, residual, linestyle='-', color='black', linewidth=0.8, label='Residual')
+        gc.collect()
 
-        # Set title to column name
-        axs[i].set_ylabel(column)
+    def _update_historical_dataframe(self):
 
-        # Add grid, legend, and labels
-        axs[i].grid(True)
-        axs[i].legend()
+        # ------- CONCATENATE HISTORIC DATA UPDATES ------------
+        # load updates to the data
+        df_upd_smard = pd.read_parquet(self.data_dir+self.fname_smard_upd)
+        df_upd_om = pd.read_parquet(self.data_dir+self.fname_om_hist_upd)
+        df_upd_es = pd.read_parquet(self.data_dir+self.fname_es_hist_upd)
+        df_hist_upd = pd.DataFrame(index=df_upd_smard[:self.today].index)
+        for df in [df_upd_smard, df_upd_om, df_upd_es]:
+            df.fillna(value=np.nan, inplace=True)
+            df.infer_objects()
+            df = df[:self.today] # hard limit to today for all datasets
+            df_hist_upd = pd.merge(left=df_hist_upd, right=df, left_index=True, right_index=True, how='outer')
+        # check columns
+        for col in self.df_hist.columns:
+            if not col in df_hist_upd.columns:
+                raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
 
-    # Label the x-axis with dates more neatly
-    plt.xticks(rotation=45)
-    plt.xlabel('Date')
+        self.df_hist = self.df_hist.combine_first(df_hist_upd)
 
-    # Adjust layout so plots don't overlap
-    plt.tight_layout()
-    plt.savefig(output_dir+'/pslp_vs_actual.png')
-    # Show the plot
-    # plt.show()
+        validate_dataframe(self.df_hist, text="Updated df_hist")
 
+        self.df_hist.to_parquet(self.data_dir+'history.parquet', engine='pyarrow')
+        print(f"History dataframe is successfully updated till {self.today}. N={len(df_hist_upd)} rows are added. "
+              f"New shape={self.df_hist.shape}")
 
-def collate_and_update(df_original:pd.DataFrame, today:pd.Timestamp, test_start_date:pd.Timestamp,
-                       start_date:pd.Timestamp, data_dir:str, output_dir:str):
+        gc.collect()
 
-    # --------- COMBINE DATAFRAMES ------------------
-    merge_original_and_updates(df_original=df_original, data_dir=data_dir, today=today)
+    def _update_forecast_dataframe(self):
+        # ------- CONCATENATE FORECASTS DATA UPDATES ------------
+        df_om_forecast = pd.read_parquet(self.data_dir+self.fname_om_forecast_upd)
+        df_om_forecast = df_om_forecast[self.today+timedelta(hours=1):] # shift to next hour and limit to
+        self.df_forecast = pd.DataFrame(columns=self.df_hist.columns, index=df_om_forecast.index)
+        # we want same columns in historical and forecasted data, so we fill them with nans except where we have data
+        for col in df_om_forecast.columns:
+            self.df_forecast[col] = df_om_forecast[col]
+        self.df_forecast.to_parquet(self.data_dir+'forecast.parquet', engine='pyarrow')
+        print("Forecast dataframe is successfully updated")
 
-    # if df_updated.isna().sum().any():
-    #     print(f"Completing dataset using PSPL starting at {test_start_date}")
-    #
-    #     # impute nans at the end of the dataframe
-    #     df_pslp = calculate_pslps(
-    #         df=df_updated.copy(deep=True),#crop_dataframe_to_last_full_day(df_updated).copy(deep=True),
-    #         start_date=test_start_date,
-    #         lookback=14,
-    #         country_code="DE"
-    #     )
-    #     df_pslp.dropna(how='all', inplace=True)
-    #     df_pslp.set_index('date',inplace=True)
-    #
-    #     # estimate performance metrics in approximating new values with PSLP
-    #     performance_metrics_pslp(
-    #         df=df_updated[test_start_date:today], df_pslp=df_pslp[test_start_date:today], output_dir=output_dir)
-    #
-    #     visualize_pslp_vs_actual(
-    #         df=df_updated[test_start_date:today], df_pslp=df_pslp[test_start_date:today], output_dir=output_dir)
-    #
-    #     df_pslp = df_pslp[start_date:]
-    #
-    #     # Combine the dataframes, preferring values from df_updated
-    #     result_df = df_updated.combine_first(df_pslp)
-    #
-    #     # Overwrite NaNs in df1 with values from df2 where overlapping
-    #     for col in df_updated.columns:
-    #         result_df[col] = df_updated[col].combine_first(df_pslp[col])
-    #     if (result_df.isna().sum() > 0).any():
-    #         raise ValueError("There are NaN values in final dataframe")
-    #
-    #     df_updated = result_df
-    #
-    # df_updated.to_parquet(data_dir+'latest.parquet', engine='pyarrow')
-    # print(f"Latest dataset is successfully saved to {data_dir}latest.parquet")
+        gc.collect()
+
+    # ------------------------------------------------------------------------ #
+
 
 if __name__ == '__main__':
     # TODO add tests

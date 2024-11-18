@@ -2,46 +2,70 @@ import pandas as pd
 import os
 
 from datetime import datetime, timedelta
-
-from data_modules.collect_data import collect_from_api, parse_epexspot, merge_original_and_updates
-from ml_modules.lstm_window_stateless_torch import train_predict, hyperparameter_grid_search
+from data_modules.collect_data import DataCollector
 
 if __name__ == '__main__':
-
-    data_dir='./database/'
-    output_dir='./output/'
-
-    do_forecast: bool = False # debugging tool (switch updating forecasts)
-    forceupdate: bool = True # debugging tool (update data everytime)
 
     today = pd.Timestamp(datetime.today()).tz_localize(tz='UTC')
     today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
 
-    df_history = pd.read_parquet(data_dir + 'history.parquet')
-    df_forecast = pd.read_parquet(data_dir + 'forecast.parquet')
+    # collect data from APIs and updated files (requires 'history.parquet' and 'forecast.parquet' to exist)
+    data_collector = DataCollector(
+        data_dir='./database/',
+        today=today
+    )
+    data_collector.update(force_update=False)
 
-    first_timestamp = pd.Timestamp(df_history.dropna(how='any', inplace=False).first_valid_index())
-    last_timestamp = pd.Timestamp(df_history.dropna(how='all', inplace=False).last_valid_index())
 
-    if today >= last_timestamp:
-        print(f"Data ends on {last_timestamp}. Today is {today}. Updating... ")
-        update = True
-    else:
-        print("Data is up to date")
-        update = False
-
-    # update database if needed
-    if (update or forceupdate):
-        parse_epexspot(raw_datadir='./data/DE-LU/DayAhead_MRC/', datadir=data_dir,
-                       start_date=last_timestamp - timedelta(hours=24),
-                       end_date=today + timedelta(hours=24))
-
-        collect_from_api(today=today,
-                         start_date=last_timestamp - timedelta(hours=24),
-                         end_date=None,
-                         data_dir=data_dir)
-
-        merge_original_and_updates(df_original=df_history, data_dir=data_dir, today=today)
+    #
+    #
+    # data_dir='./database/'
+    # output_dir='./output/'
+    #
+    # do_forecast: bool = False # debugging tool (switch updating forecasts)
+    # forceupdate: bool = True # debugging tool (update data everytime)
+    #
+    #
+    # df_history = pd.read_parquet(data_dir + 'history.parquet')
+    # df_forecast = pd.read_parquet(data_dir + 'forecast.parquet')
+    #
+    # first_timestamp = pd.Timestamp(df_history.dropna(how='any', inplace=False).first_valid_index())
+    # last_timestamp = pd.Timestamp(df_history.dropna(how='all', inplace=False).last_valid_index())
+    #
+    # if today >= last_timestamp:
+    #     print(f"Data ends on {last_timestamp}. Today is {today}. Updating... ")
+    #     update = True
+    # else:
+    #     print("Data is up to date")
+    #     update = False
+    #
+    # # update database if needed
+    # if (update or forceupdate):
+    #     parse_epexspot(
+    #         raw_datadir='./data/DE-LU/DayAhead_MRC/', datadir=data_dir,
+    #         start_date=last_timestamp - timedelta(hours=24),
+    #         end_date=today + timedelta(hours=24)
+    #     )
+    #
+    #     collect_from_api_SMARD(
+    #         today=today,
+    #         start_date=last_timestamp - timedelta(hours=24),
+    #         end_date=None,
+    #         outfpath=data_dir+'upd_smard_energy.parquet'
+    #     )
+    #
+    #     collect_from_api_openmeteo(
+    #         today=today,
+    #         start_date=last_timestamp - timedelta(hours=24),
+    #         end_date=None,
+    #         outfpath=data_dir+'upd_openweather.parquet'
+    #     )
+    #
+    #     merge_original_and_updates(
+    #         df_original=df_history,
+    #         data_dir=data_dir,
+    #         today=today
+    #     )
 
 
 

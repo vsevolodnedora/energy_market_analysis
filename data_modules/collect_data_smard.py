@@ -308,9 +308,9 @@ class DataEnergySMARD:
             try:
                 result = self._requestSmardDataForTimes(start_date, end_date, modules, utc)
             except Exception as e:
-                start_date = start_date - timedelta(days=1)
-                print(f"Attempt {i}/{5}. Parse error in getting modules {modules} Error:{e}. "
-                      f"Setting earlier start_date by 1 day to {start_date}")
+                start_date = start_date - timedelta(days=7)
+                print(f"Attempt {i}/{5}. Parse error in getting modules {modules} Error:\n{e}. "
+                      f"Setting earlier start_date by 7 day to {start_date}")
                 continue
 
             return result
@@ -538,9 +538,9 @@ if __name__ == '__main__':
     #     df_sum = df.aggregate(func=sum)
     #     print(key, float( df_sum[f"{key}_export"]+df_sum[f"{key}_import"] ) / 1e6, ' TW')
     # 2024-11-06 12:00:00+00:00 (1730894400000) to 2024-11-13 17:00:00+00:00 (1731517200000)
-    smard = DataEnergySMARD(start_date=pd.Timestamp('2024-11-06 16:00:00+00:00',tz='UTC'),
-                            end_date=pd.Timestamp('2024-11-13 17:00:00+00:00',tz='UTC'))
-    df = smard.get_international_flow()[['france_export','france_import']]
+    smard = DataEnergySMARD(start_date=pd.Timestamp('2024-11-10 16:00:00+00:00',tz='UTC'),
+                            end_date=pd.Timestamp('2024-11-18 17:00:00+00:00',tz='UTC'))
+    df = smard.get_international_flow()[['poland_export','poland_import']]
     print(df)
 
     pass
