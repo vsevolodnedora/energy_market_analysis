@@ -5,10 +5,13 @@ import pandas as pd
 from retry_requests import retry
 from datetime import datetime, timedelta
 import numpy as np
+import gc
+import time
 
 import openmeteo_requests
 
 from .locations import locations
+from .utils import validate_dataframe
 
 class OpenMeteo:
     variables_standard = (
@@ -103,8 +106,7 @@ class OpenMeteo:
         params = {
             "latitude": self.lat,
             "longitude": self.lon,
-            # "start_date":'2024-09-16',
-            # "end_date":'2024-09-24',
+            "forecast_days": 14,
             "hourly": ''.join([var+',' for var in self.variables])[:-1], # remove last comma...
         }
         responses = openmeteo.weather_api(url, params=params | self.extra_api_params)
@@ -137,38 +139,59 @@ class OpenMeteo:
 
         return hourly_dataframe
 
-def get_weather_data_from_api(start_date,today,locations:list):
+def get_weather_data_from_api(start_date,today,locations:list,verbose:bool):
     df_om_hist = pd.DataFrame()
     for il, location in enumerate(locations):
-        print(f"Processing historic: {location['name']} ({location['type']}) {il}/{len(locations)}")
+        if verbose:
+            print(f"Processing historic: {location['name']} ({location['type']}) {il}/{len(locations)}")
         # if location['type'] == 'windfarm': om_quants = OpenMeteo.variables_highaltitude
         # else: om_quants = OpenMeteo.variables_standard
         om = OpenMeteo(
             lat=location['lat'],
             lon=location['lon'],
-            # variables=om_quants,
-            #extra_api_params=location['om_api_pars'], # this gives Error in API call
             verbose=False
         )
         try:
             # collect hsitoric data
-            df_hist = om.get_historical(
-                # start_date=pd.Timestamp(datetime(year=2016,month=1,day=1)).tz_localize('UTC'),#start_date,
-                start_date=start_date,
-                end_date=today+timedelta(hours=15),
-                # url="https://historical-forecast-api.open-meteo.com/v1/forecast"
+            df_hist = None
+            for i in range(5):
                 url="https://archive-api.open-meteo.com/v1/archive"
-            )
+                try:
+                    df_hist = om.get_historical(
+                        start_date=start_date,
+                        end_date=today+timedelta(hours=15),
+                        url=url
+                    )
+                except Exception as e:
+                    if verbose:
+                        print(f"API call failed attempt {i+1}/{5} for loc={location['name']} url={url} with error\n{e}")
+                    time.sleep(3)
+                if verbose: print(f"API call successful. Retrieved df={df_hist.shape}")
+                break
+            if df_hist is None:
+                raise AttributeError(f"Couldn't get historical data for {location['name']}")
 
             # collect the data for today forecasted previously
-            df_hist_forecast = om.get_historical(
-                # start_date=pd.Timestamp(datetime(year=2016,month=1,day=1)).tz_localize('UTC'),#start_date,
-                start_date=today-timedelta(days=3),
-                end_date=today,#+timedelta(days=1),
-                url="https://historical-forecast-api.open-meteo.com/v1/forecast"
-                # url="https://archive-api.open-meteo.com/v1/archive"
-            )
+            df_hist_forecast = None
+            for i in range(5):
+                url = "https://historical-forecast-api.open-meteo.com/v1/forecast"
+                try:
+                    df_hist_forecast = om.get_historical(
+                        start_date=today-timedelta(days=3),
+                        end_date=today,
+                        url=url
+                    )
+                except Exception as e:
+                    if verbose:
+                        print(f"API call failed attempt {i+1}/{5} for loc={location['name']} url={url} with error\n{e}")
+                    time.sleep(3)
+                if verbose:
+                    print(f"API call successful. Retrieved df={df_hist_forecast.shape}")
+                break
+            if df_hist_forecast is None:
+                raise AttributeError(f"Couldn't get historical forecast data for {location['name']}")
 
+            # combine the data
             df_hist = pd.concat([df_hist, df_hist_forecast],axis=0)
             df_hist.drop_duplicates(subset='date', keep='last', inplace=True)
 
@@ -179,7 +202,7 @@ def get_weather_data_from_api(start_date,today,locations:list):
             else:
                 df_om_hist = pd.merge(left=df_om_hist, right=df_hist, on='date', how='outer')
         except:
-            print(f"! Failed to get weather data for {location['name']}")
+            print(f"Error! Failed to get weather data for {location['name']}")
 
     if os.path.isfile('./openmeteo.cache'):
         os.remove('./openmeteo.cache')
@@ -190,29 +213,32 @@ def get_weather_data_from_api_forecast(locations:list):
 
     df_om_forecast = pd.DataFrame()
     for il, location in enumerate(locations):
-        # TODO find out why API call does not support most of high-altitude quantities
-        # if location['type'] == 'windfarm': om_quants = OpenMeteo.variables_highaltitude
-        # else: om_quants = OpenMeteo.variables_standard
         print(f"Processing forecast: {location['name']} ({location['type']}) {il}/{len(locations)}")
-        try:
-            om = OpenMeteo(
-                lat=location['lat'],
-                lon=location['lon'],
-                # variables=om_quants,
-                # extra_api_params=location['om_api_pars'], # this gives error in API call
-                verbose=False
-            )
-            # collect actual forecast
-            df_forecast = om.get_forecast()
+        om = OpenMeteo(
+            lat=location['lat'],
+            lon=location['lon'],
+            verbose=False
+        )
+        df_forecast = None
+        for i in range(5):
+            try:
+                # collect actual forecast
+                df_forecast = om.get_forecast()
+            except Exception as e:
+                print(f"API call failed attempt {i+1}/{5} for loc={location['name']} forecast, with error\n{e}")
+                time.sleep(3)
+            print(f"API call successful. Retrieved df={df_forecast.shape}")
+            break
+        if df_forecast is None:
+            raise AttributeError(f"Couldn't get forecast data for {location['name']}")
 
-            mapping = {name : name+location['suffix'] for name in df_forecast.columns if name != 'date'}
-            df_forecast.rename(columns=mapping, inplace=True)
-            if df_om_forecast.empty:
-                df_om_forecast = df_forecast
-            else:
-                df_om_forecast = pd.merge(left=df_om_forecast, right=df_forecast, on='date', how='outer')
-        except:
-            print(f"! Failed to get weather forecast data for {location['name']}")
+        # merge data
+        mapping = {name : name+location['suffix'] for name in df_forecast.columns if name != 'date'}
+        df_forecast.rename(columns=mapping, inplace=True)
+        if df_om_forecast.empty:
+            df_om_forecast = df_forecast
+        else:
+            df_om_forecast = pd.merge(left=df_om_forecast, right=df_forecast, on='date', how='outer')
 
     if os.path.isfile('./openmeteo.cache'):
         os.remove('./openmeteo.cache')
@@ -256,6 +282,65 @@ def check_phys_limits_in_data(df: pd.DataFrame) -> pd.DataFrame:
 #             df[key + loc['suffix']] * np.sin( np.pi / 180 )
 #         df.drop([key + loc['suffix']], axis=1, inplace=True)
 #     return df
+
+def update_openmeteo_from_api(today:pd.Timestamp,data_dir:str,verbose:bool):
+
+    fname = data_dir + 'history.parquet'
+    df_hist = pd.read_parquet(fname)
+
+    first_timestamp = pd.Timestamp(df_hist.dropna(how='any', inplace=False).first_valid_index())
+    last_timestamp = pd.Timestamp(df_hist.dropna(how='all', inplace=False).last_valid_index())
+
+    start_date = last_timestamp - timedelta(hours=24)
+    end_date = today - timedelta(hours=12)
+
+    # ------- UPDATE WEATHER DATA -------------
+    if verbose: print(f"Updating SMARD data from {last_timestamp} to {today}")
+
+    df_om_hist = get_weather_data_from_api(
+        start_date=start_date,
+        today=end_date,
+        locations=locations,
+        verbose=verbose
+    )
+    df_om_hist.set_index('date',inplace=True)
+    df_om_hist = df_om_hist[:today]
+
+    # check columns
+    for col in df_hist.columns:
+        if not col in df_om_hist.columns:
+            raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
+
+    if not validate_dataframe(df_om_hist, text="Updated openmeteo df_hist"):
+        raise ValueError(f"Failed to validate the dataframe for {fname}")
+
+    df_om_hist = check_phys_limits_in_data(df_om_hist)
+    df_om_hist = df_om_hist.interpolate(method='linear')
+
+    df_om_hist.to_parquet(fname,engine='pyarrow')
+    if verbose:
+        print(f'Update for openmeteo historical data is successfully created at '
+              f'{fname} with shape {df_om_hist.shape}')
+
+    gc.collect()
+
+    # FORECAST
+
+    df_om_forecast = get_weather_data_from_api_forecast(locations=locations)
+    df_om_forecast.set_index('date',inplace=True)
+    df_om_forecast = df_om_forecast[today+timedelta(hours=1):] # start with next hour
+    if not df_om_forecast.columns.equals(df_om_hist.columns):
+        unique_to_df1 = set(df_om_hist.columns) - set(df_om_forecast.columns)
+        unique_to_df2 = set(df_om_forecast.columns) - set(df_om_hist.columns)
+        raise KeyError(f"! Error. Column mismatch between historical and forecasted weather! unique to "
+              f"df_om_hist={unique_to_df1} Unique to df_om_forecast={unique_to_df2}")
+    fname = fname.replace('history','forecast')
+    df_om_forecast.to_parquet(fname,engine='pyarrow')
+    if verbose:
+        print(f'Update for openmeteo forecast data is successfully created at '
+          f'{fname} with shape {df_om_forecast.shape}')
+
+    gc.collect()
 
 if __name__ == '__main__':
     # todo add tests

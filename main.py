@@ -2,7 +2,11 @@ import pandas as pd
 import os
 
 from datetime import datetime, timedelta
-from data_modules.collect_data import DataCollector
+from data_modules.collect_data import (
+    update_openmeteo_from_api,
+    update_smard_from_api,
+    update_epexspot_from_files
+)
 
 if __name__ == '__main__':
 
@@ -10,11 +14,19 @@ if __name__ == '__main__':
     today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
 
     # collect data from APIs and updated files (requires 'history.parquet' and 'forecast.parquet' to exist)
-    data_collector = DataCollector(
-        data_dir='./database/',
-        today=today
-    )
-    data_collector.update(force_update=False)
+    # data_collector = DataCollector(
+    #     data_dir='./database/',
+    #     today=today
+    # )
+    # data_collector.update(force_update=False)
+
+    db_path = './database/'
+
+    update_smard_from_api(today, db_path + 'smard/', verbose=True)
+
+    update_epexspot_from_files(today, db_path + 'epexspot/', verbose=True)
+
+    update_openmeteo_from_api(today, db_path + 'openmeteo/', verbose=True)
 
 
     #

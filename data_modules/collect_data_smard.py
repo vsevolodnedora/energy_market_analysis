@@ -1,10 +1,12 @@
 import pandas as pd
-import requests, json, time
+import requests, json, time, gc
 from user_agent import generate_user_agent
 from io import StringIO
 from requests.adapters import HTTPAdapter, Retry
 from datetime import datetime, timedelta
 from pandas.errors import ParserError
+
+from .utils import validate_dataframe
 
 class DataEnergySMARD:
 
@@ -138,9 +140,10 @@ class DataEnergySMARD:
         'Österreich (Import) [MWh] Originalauflösungen':'austria_import'
     }
 
-    def __init__(self, start_date:pd.Timestamp, end_date:pd.Timestamp):
+    def __init__(self, start_date:pd.Timestamp, end_date:pd.Timestamp, verbose:bool):
         self.start_date = start_date#-timedelta(milliseconds=1)
         self.end_date = end_date#+timedelta(milliseconds=1)
+        self.verbose=verbose
 
     @staticmethod
     def convert_to_float(value):
@@ -160,7 +163,8 @@ class DataEnergySMARD:
             timestamp_to_in_milliseconds=(int(time.time()) * 1000),
             region="DE",
             language="de",
-            type="discrete"
+            type="discrete",
+            verbose:bool=True
     ):
 
         s = requests.Session()
@@ -189,7 +193,8 @@ class DataEnergySMARD:
             'user-agent': headers, 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Content-Type': 'application/json'
 
         })
-        print("\tStatus Code:", data.status_code)
+        if verbose:
+            print("\tStatus Code:", data.status_code)
         # print("Response Text:", data.text)
 
         # create pandas dataframe out of response string (csv)
@@ -201,65 +206,14 @@ class DataEnergySMARD:
 
         return df
 
-    def requestSmardDataForTimes_OLD(self, modules, utc:bool=False):
-        for i in range(5):
-            try:
-                print(f"\tSMARD api request for {modules} data for "
-                      f"{self.start_date} ({int(self.start_date.timestamp()*1000)}) to "
-                      f"{self.end_date} ({int(self.end_date.timestamp()*1000)})")
-                time.sleep(1)
-                df = self.requestSmardData(
-                    modulIDs=modules,
-                    timestamp_from_in_milliseconds=int(self.start_date.timestamp()*1000),
-                    timestamp_to_in_milliseconds=int(self.end_date.timestamp()*1000)
-                )
-                # check if data is corrupted
-                errors = 0
-                while ('Datum bis' not in df.columns) and (errors < 3):
-                    time.sleep(4)
-                    errors += 1
-                    # df = smard.requestSmardData(modulIDs=modules, timestamp_from_in_milliseconds=1625954400000)  # int(time.time()) * 1000) - (24*3600)*373000  = 1 year + last week
-                    df = self.requestSmardData(
-                        modulIDs=modules,
-                        timestamp_from_in_milliseconds=int(self.start_date.timestamp()*1000),
-                        timestamp_to_in_milliseconds=int(self.end_date.timestamp()*1000)
-                    )
-
-                # process successfull
-                if ('Datum bis' in df.columns):
-                    # fix wrong decimal
-                    df = df.replace('-', '', regex=False)
-                    df = df.rename(columns={'Datum von': 'Datum'})
-                    df.drop('Datum bis', axis=1, inplace=True)
-                    # convert to floats
-                    for key in df.keys():
-                        if not key in ['Datum']:
-                            df[key] = df[key].apply(self.convert_to_float)
-                    # apply mapping
-                    df.rename(columns=self.mapping, inplace=True)
-                    # convert time to UTC
-                    if utc:
-                        df['date'] = pd.to_datetime(df['date'], format='%d.%m.%Y %H:%M')
-                        df['datetime_utc'] = (df['date']
-                                              .dt.tz_localize('Europe/Berlin', ambiguous='infer')
-                                              .dt.tz_convert('UTC'))
-                        df['date'] = df['datetime_utc']
-                        df.drop('datetime_utc', axis=1, inplace=True)
-
-                        return df
-
-                raise Exception("API call has failed")
-            except ParserError as e:
-                print(f"Attempt {i}/{5}. Parse error in getting modules {modules} Error:{e}")
-        raise Exception(f"API call has failed after {5} attempts")
-
     def _requestSmardDataForTimes(self, start_date, end_date, modules, utc:bool=False):
 
         time.sleep(1)
         df = self.requestSmardData(
             modulIDs=modules,
             timestamp_from_in_milliseconds=int(start_date.timestamp()*1000),
-            timestamp_to_in_milliseconds=int(end_date.timestamp()*1000)
+            timestamp_to_in_milliseconds=int(end_date.timestamp()*1000),
+            verbose=self.verbose
         )
         # check if data is corrupted
         errors = 0
@@ -270,7 +224,8 @@ class DataEnergySMARD:
             df = self.requestSmardData(
                 modulIDs=modules,
                 timestamp_from_in_milliseconds=int(start_date.timestamp()*1000),
-                timestamp_to_in_milliseconds=int(end_date.timestamp()*1000)
+                timestamp_to_in_milliseconds=int(end_date.timestamp()*1000),
+                verbose=self.verbose
             )
         pass
 
@@ -285,6 +240,8 @@ class DataEnergySMARD:
                     df[key] = df[key].apply(self.convert_to_float)
             # apply mapping
             df.rename(columns=self.mapping, inplace=True)
+            if self.verbose:
+                print(f"API call successful. Collected df={df.shape}")
             # convert time to UTC
             if utc:
                 df['date'] = pd.to_datetime(df['date'], format='%d.%m.%Y %H:%M')
@@ -295,7 +252,7 @@ class DataEnergySMARD:
                 df.drop('datetime_utc', axis=1, inplace=True)
 
                 return df
-
+            return df
         raise ConnectionError("SMARD API call has failed for " +
                               f"\tSMARD api request for {modules} data for "
                               f"{start_date} ({int(start_date.timestamp()*1000)}) to "
@@ -309,7 +266,8 @@ class DataEnergySMARD:
                 result = self._requestSmardDataForTimes(start_date, end_date, modules, utc)
             except Exception as e:
                 start_date = start_date - timedelta(days=7)
-                print(f"Attempt {i}/{5}. Parse error in getting modules {modules} Error:\n{e}. "
+                if self.verbose:
+                    print(f"Attempt {i}/{5}. Parse error in getting modules {modules} Error:\n{e}. "
                       f"Setting earlier start_date by 7 day to {start_date}")
                 continue
 
@@ -517,6 +475,43 @@ class DataEnergySMARD:
 
     # def request_forecasted_power_generation(self, utc:bool=True)->pd.DataFrame:
 
+def update_smard_from_api(today:pd.Timestamp,data_dir:str,verbose):
+    fname = data_dir + 'history.parquet'
+    df_hist = pd.read_parquet(fname)
+
+    first_timestamp = pd.Timestamp(df_hist.dropna(how='any', inplace=False).first_valid_index())
+    last_timestamp = pd.Timestamp(df_hist.dropna(how='all', inplace=False).last_valid_index())
+
+    # ---------- SET UPDATE TIMES ------------
+    start_date = last_timestamp-timedelta(hours=24)
+    end_date = today+timedelta(hours=24)
+
+    # ---------- UPDATE SMARD -------------
+    print(f"Updating SMARD data from {start_date} to {end_date}")
+    o_smard = DataEnergySMARD( start_date=start_date,  end_date=end_date, verbose=verbose  )
+    df_smard_flow = o_smard.get_international_flow()
+    df_smard_gen_forecasted = o_smard.get_forecasted_generation()
+    df_smard_con_forecasted = o_smard.get_forecasted_consumption()
+    df_smard = pd.merge(left=df_smard_flow,right=df_smard_gen_forecasted,left_on='date',right_on='date',how='outer')
+    df_smard = pd.merge(left=df_smard,right=df_smard_con_forecasted,left_on='date',right_on='date',how='outer')
+    df_smard.set_index('date',inplace=True)
+    df_smard = df_smard[start_date:today]
+
+    # check columns
+    for col in df_hist.columns:
+        if not col in df_smard.columns:
+            raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
+
+    # combine
+    df_hist = df_hist.combine_first(df_smard)
+    if not validate_dataframe(df_hist, text="Updated smard df_hist"):
+        raise ValueError(f"Failed to validate the updated dataframe for {fname}")
+
+    # save
+    df_hist.to_parquet(fname)
+    if verbose:print(f"SMARD data is successfully saved to {fname} with shape {df_hist.shape}")
+
+    gc.collect()
 
 if __name__ == '__main__':
     today = datetime.today()
