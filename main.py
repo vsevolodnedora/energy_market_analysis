@@ -2,16 +2,29 @@ import pandas as pd
 import os
 
 from datetime import datetime, timedelta
-from data_modules.collect_data import (
+from data_collection_modules import (
     update_openmeteo_from_api,
     update_smard_from_api,
+    create_smard_from_api,
     update_epexspot_from_files
 )
+
+
 
 if __name__ == '__main__':
 
     today = pd.Timestamp(datetime.today()).tz_localize(tz='UTC')
     today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
+
+    db_path = './database/'
+
+    # create_smard_from_api(pd.Timestamp(datetime(year=2015, month=1, day=1),tz='UTC'),
+    #                       today=today, data_dir=db_path+'smard/',verbose=True)
+    update_smard_from_api(today, db_path + 'smard/', verbose=True)
+    update_epexspot_from_files(today, db_path + 'epexspot/', verbose=True)
+    update_openmeteo_from_api(today, db_path + 'openmeteo/', verbose=True)
+
+
 
     # collect data from APIs and updated files (requires 'history.parquet' and 'forecast.parquet' to exist)
     # data_collector = DataCollector(
@@ -19,15 +32,6 @@ if __name__ == '__main__':
     #     today=today
     # )
     # data_collector.update(force_update=False)
-
-    db_path = './database/'
-
-    update_smard_from_api(today, db_path + 'smard/', verbose=True)
-
-    update_epexspot_from_files(today, db_path + 'epexspot/', verbose=True)
-
-    update_openmeteo_from_api(today, db_path + 'openmeteo/', verbose=True)
-
 
     #
     #

@@ -1,3 +1,5 @@
+import os.path
+
 import pandas as pd
 import requests, json, time, gc
 from user_agent import generate_user_agent
@@ -6,7 +8,7 @@ from requests.adapters import HTTPAdapter, Retry
 from datetime import datetime, timedelta
 from pandas.errors import ParserError
 
-from .utils import validate_dataframe
+# from .utils import validate_dataframe
 
 class DataEnergySMARD:
 
@@ -110,7 +112,7 @@ class DataEnergySMARD:
         'Gesamt (Netzlast) [MWh] Originalauflösungen':'total_grid_load',
         'Gesamt [MWh] Berechnete Auflösungen':'total_load',
         'Gesamt [MWh] Originalauflösungen':'total',
-        'Residuallast [MWh] Originalauflösungen':'residual_load_forecast',
+        'Residuallast [MWh] Originalauflösungen':'residual_load',
         # prices
         'Deutschland/Luxemburg [€/MWh] Berechnete Auflösungen':'spot_price',
         'Deutschland/Luxemburg [€/MWh] Originalauflösungen':'spot_price',
@@ -137,7 +139,22 @@ class DataEnergySMARD:
         'Luxemburg (Export) [MWh] Originalauflösungen':'luxembourg_export',
         'Luxemburg (Import) [MWh] Originalauflösungen':'luxembourg_import',
         'Österreich (Export) [MWh] Originalauflösungen':'austria_export',
-        'Österreich (Import) [MWh] Originalauflösungen':'austria_import'
+        'Österreich (Import) [MWh] Originalauflösungen':'austria_import',
+        # wholesale trade
+        'Dänemark 1 [€/MWh] Originalauflösungen' : 'denmark_1',
+        'Dänemark 2 [€/MWh] Originalauflösungen' : 'denmark_2',
+        'Frankreich [€/MWh] Originalauflösungen' : 'france',
+        'Niederlande [€/MWh] Originalauflösungen': 'netherlands',
+        'Österreich [€/MWh] Originalauflösungen': 'austria',
+        'Polen [€/MWh] Originalauflösungen': 'poland',
+        'Schweden 4 [€/MWh] Originalauflösungen': 'sweden_4',
+        'Schweiz [€/MWh] Originalauflösungen': 'switzerland',
+        'Tschechien [€/MWh] Originalauflösungen': 'czechia',
+        'DE/AT/LU [€/MWh] Originalauflösungen': 'de_at_lu',
+        'Italien (Nord) [€/MWh] Originalauflösungen' : 'italien_nord',
+        'Slowenien [€/MWh] Originalauflösungen' : 'slovenia',
+        'Ungarn [€/MWh] Originalauflösungen': 'hungary'
+
     }
 
     def __init__(self, start_date:pd.Timestamp, end_date:pd.Timestamp, verbose:bool):
@@ -295,13 +312,13 @@ class DataEnergySMARD:
     ''' ------------------------------------------------------------- '''
 
     def get_international_flow(self)->pd.DataFrame:
-        # o_smard = DataEnergySMARD(start_date=start_date, end_date=end_date)
+        if self.verbose: print(f"Collecting cross-border flows for {self.start_date} to {self.end_date} "
+                               f"for {list(self.country_map.keys())}")
         df = pd.DataFrame()
-        for country in ['france','norway','switzerland','denmark','czechia','poland',
-                        'belgium','netherlands','sweden','luxembourg','austria']:
+        for country in self.country_map.keys():
             df_country = self.request_data(modules_id=DataEnergySMARD.country_map[country])
             if df.empty: df['date'] = df_country['date']
-            # create total flow (note Import is always Negative, export is always positive
+            # create total flow (note Import is always Negative, export is always positive)
             df[f'{country}_export'] = df_country[f'{country}_export'].fillna(0)
             df[f'{country}_import'] = df_country[f'{country}_import'].fillna(0)
             # df[f'{country}_flow'] = (
@@ -313,6 +330,7 @@ class DataEnergySMARD:
         return df
 
     def get_forecasted_generation(self)->pd.DataFrame:
+        if self.verbose: print(f"Collecting forecaster generation for {self.start_date} to {self.end_date}")
         # o_smard = DataEnergySMARD(start_date=start_date, end_date=end_date)
         df = self.request_data(modules_id=DataEnergySMARD.FORECASTED_POWER_GENERATION)
         df.rename(columns={'total':'total_gen'}, inplace=True)
@@ -322,7 +340,7 @@ class DataEnergySMARD:
         return df
 
     def get_forecasted_consumption(self)->pd.DataFrame:
-
+        if self.verbose: print(f"Collecting forecaster consumption for {self.start_date} to {self.end_date}")
         df = self.request_data(modules_id=DataEnergySMARD.FORECASTED_POWER_CONSUMPTION)
         # df.rename(columns={'total':'total_gen'}, inplace=True)
         # df.rename(columns={'other':'other_gen'}, inplace=True)
@@ -332,7 +350,7 @@ class DataEnergySMARD:
 
     def get_smard_da_prices_from_api(self)->pd.DataFrame:
         # Day-ahead prices from SMARD (date is in ECT)
-
+        if self.verbose: print(f"Collecting DA auction price for {self.start_date} to {self.end_date}")
         df_smard_da = self.request_data(modules_id=DataEnergySMARD.SPOT_MARKET)
         df_smard_da = df_smard_da.resample('h', on='date').mean()
         df_smard_da.reset_index(names=['date'], inplace=True)
@@ -475,43 +493,171 @@ class DataEnergySMARD:
 
     # def request_forecasted_power_generation(self, utc:bool=True)->pd.DataFrame:
 
-def update_smard_from_api(today:pd.Timestamp,data_dir:str,verbose):
+# def update_smard_from_api(today:pd.Timestamp,data_dir:str,verbose):
+#
+#     fname = data_dir + 'history.parquet'
+#
+#     if not os.path.isdir(fname)
+#
+#         df_hist = pd.read_parquet(fname)
+#
+#     first_timestamp = pd.Timestamp(df_hist.dropna(how='any', inplace=False).first_valid_index())
+#     last_timestamp = pd.Timestamp(df_hist.dropna(how='all', inplace=False).last_valid_index())
+#
+#     # ---------- SET UPDATE TIMES ------------
+#     start_date = last_timestamp-timedelta(hours=24)
+#     end_date = today+timedelta(hours=24)
+#
+#     # ---------- UPDATE SMARD -------------
+#     print(f"Updating SMARD data from {start_date} to {end_date}")
+#     o_smard = DataEnergySMARD( start_date=start_date,  end_date=end_date, verbose=verbose  )
+#     df_smard_flow = o_smard.get_international_flow()
+#     df_smard_gen_forecasted = o_smard.get_forecasted_generation()
+#     df_smard_con_forecasted = o_smard.get_forecasted_consumption()
+#     df_smard = pd.merge(left=df_smard_flow,right=df_smard_gen_forecasted,left_on='date',right_on='date',how='outer')
+#     df_smard = pd.merge(left=df_smard,right=df_smard_con_forecasted,left_on='date',right_on='date',how='outer')
+#     df_smard.set_index('date',inplace=True)
+#     df_smard = df_smard[start_date:today]
+#
+#     # check columns
+#     for col in df_hist.columns:
+#         if not col in df_smard.columns:
+#             raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
+#
+#     # combine
+#     df_hist = df_hist.combine_first(df_smard)
+#     # if not validate_dataframe(df_hist, text="Updated smard df_hist"):
+#     #     raise ValueError(f"Failed to validate the updated dataframe for {fname}")
+#
+#     # save
+#     df_hist.to_parquet(fname)
+#     if verbose:print(f"SMARD data is successfully saved to {fname} with shape {df_hist.shape}")
+#
+#     gc.collect()
+
+
+def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, verbose:bool):
+
+    if verbose: print(f"Updating SMARD data from {start_date} to {end_date}")
+    o_smard = DataEnergySMARD( start_date=start_date,  end_date=end_date, verbose=verbose)
+
+    # collect cross-border flows
+    df_smard_flow = o_smard.get_international_flow()
+    # df_smard_flow = df_smard_flow.resample('h', on='date').sum()
+    df_smard_flow.set_index('date',inplace=True)
+
+
+    # collect forecasted generation and load
+    df_smard_gen_forecasted = o_smard.get_forecasted_generation()
+    df_smard_gen_forecasted = df_smard_gen_forecasted.rename(
+        columns={col: col + "_forecasted" for col in df_smard_gen_forecasted.columns if col != 'date'}
+    )
+    df_smard_gen_forecasted = df_smard_gen_forecasted.resample('h', on='date').sum()
+    # df_smard_gen_forecasted.set_index('date',inplace=True)
+
+    df_smard_con_forecasted = o_smard.get_forecasted_consumption()
+    df_smard_con_forecasted = df_smard_con_forecasted.rename(
+        columns={col: col + "_forecasted" for col in df_smard_con_forecasted.columns if col != 'date'}
+    )
+    df_smard_con_forecasted = df_smard_con_forecasted.resample('h', on='date').sum()
+    # df_smard_con_forecasted.set_index('date',inplace=True)
+
+    # collect actual realized generation and load
+    df_smard_gen_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_GENERATION)
+    df_smard_gen_realized = df_smard_gen_realized.resample('h', on='date').sum()
+    # df_smard_gen_realized.set_index('date',inplace=True)
+
+    df_smard_con_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_CONSUMPTION)
+    df_smard_con_realized = df_smard_con_realized.resample('h', on='date').sum()
+    # df_smard_con_realized.set_index('date',inplace=True)
+
+    df_smard_con_res_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_CONSUMPTION_RESIDUAL)
+    df_smard_con_res_realized = df_smard_con_res_realized.resample('h', on='date').sum()
+    # df_smard_con_res_realized.set_index('date',inplace=True)
+
+    # collect DA prices
+    df_da_prices = o_smard.request_data(modules_id=DataEnergySMARD.SPOT_MARKET)
+    df_da_prices = df_da_prices.resample('h', on='date').mean()
+    # df_da_prices.set_index('date',inplace=True)
+
+
+    # merge data
+    df_smard = pd.merge(left=df_smard_flow,right=df_smard_gen_forecasted,left_index=True,right_index=True,how='outer')
+    df_smard = pd.merge(left=df_smard,right=df_smard_con_forecasted,left_index=True,right_index=True,how='outer')
+    df_smard = pd.merge(left=df_smard,right=df_smard_gen_realized,left_index=True,right_index=True,how='outer')
+    df_smard = pd.merge(left=df_smard,right=df_smard_con_realized,left_index=True,right_index=True,how='outer')
+    df_smard = pd.merge(left=df_smard,right=df_smard_con_res_realized,left_index=True,right_index=True,how='outer')
+    df_smard = pd.merge(left=df_smard,right=df_da_prices,left_index=True,right_index=True,how='outer')
+
+    #df_smard.set_index('date',inplace=True)
+
+
+    return df_smard
+
+
+def update_smard_from_api(today:pd.Timestamp,data_dir:str,verbose:bool):
+    if verbose: print(f"Updating SMARD data up to {today}")
     fname = data_dir + 'history.parquet'
     df_hist = pd.read_parquet(fname)
-
-    first_timestamp = pd.Timestamp(df_hist.dropna(how='any', inplace=False).first_valid_index())
     last_timestamp = pd.Timestamp(df_hist.dropna(how='all', inplace=False).last_valid_index())
-
-    # ---------- SET UPDATE TIMES ------------
-    start_date = last_timestamp-timedelta(hours=24)
-    end_date = today+timedelta(hours=24)
-
-    # ---------- UPDATE SMARD -------------
-    print(f"Updating SMARD data from {start_date} to {end_date}")
-    o_smard = DataEnergySMARD( start_date=start_date,  end_date=end_date, verbose=verbose  )
-    df_smard_flow = o_smard.get_international_flow()
-    df_smard_gen_forecasted = o_smard.get_forecasted_generation()
-    df_smard_con_forecasted = o_smard.get_forecasted_consumption()
-    df_smard = pd.merge(left=df_smard_flow,right=df_smard_gen_forecasted,left_on='date',right_on='date',how='outer')
-    df_smard = pd.merge(left=df_smard,right=df_smard_con_forecasted,left_on='date',right_on='date',how='outer')
-    df_smard.set_index('date',inplace=True)
-    df_smard = df_smard[start_date:today]
-
+    start_date = last_timestamp - timedelta(hours=24)
+    end_date = today + timedelta(hours=24)
+    df_smard = collect_smard_from_api(start_date=start_date, end_date=end_date, verbose=verbose)
     # check columns
     for col in df_hist.columns:
         if not col in df_smard.columns:
             raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
-
     # combine
     df_hist = df_hist.combine_first(df_smard)
-    if not validate_dataframe(df_hist, text="Updated smard df_hist"):
-        raise ValueError(f"Failed to validate the updated dataframe for {fname}")
-
     # save
     df_hist.to_parquet(fname)
     if verbose:print(f"SMARD data is successfully saved to {fname} with shape {df_hist.shape}")
-
     gc.collect()
+
+
+def create_smard_from_api(start_date:pd.Timestamp or None, today:pd.Timestamp,data_dir:str,verbose:bool):
+    if verbose: print(f"Collecting SMARD data for {start_date} - {today}")
+    fname = data_dir + 'history.parquet'
+    end_date = today + timedelta(hours=24)
+    start_date_ = start_date - timedelta(hours=24)
+    df_smard = collect_smard_from_api(start_date=start_date_, end_date=end_date, verbose=verbose)
+    df_smard = df_smard[start_date:today]
+    df_smard.to_parquet(fname)
+    if verbose:print(f"SMARD data is successfully saved to {fname} with shape {df_smard.shape}")
+
+# def update_create_smard_from_api(start_date:pd.Timestamp or None, today:pd.Timestamp,data_dir:str,verbose):
+#
+#     fname = data_dir + 'history.parquet'
+#
+#     if not os.path.isdir(fname):
+#         if start_date is None:
+#             raise ValueError("Start date must be provided to create a new dataframe")
+#     else:
+#         df_hist = pd.read_parquet(fname)
+#         first_timestamp = pd.Timestamp(df_hist.dropna(how='any', inplace=False).first_valid_index())
+#         last_timestamp = pd.Timestamp(df_hist.dropna(how='all', inplace=False).last_valid_index())
+#         start_date = last_timestamp - timedelta(hours=24)
+#     end_date = today + timedelta(hours=24)
+#
+#     # ---------- UPDATE SMARD -------------
+#     df_smard = collect_smard_from_api(start_date=start_date, end_date=end_date, verbose=verbose)
+#
+#
+#     # check columns
+#     for col in df_hist.columns:
+#         if not col in df_smard.columns:
+#             raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
+#
+#     # combine
+#     df_hist = df_hist.combine_first(df_smard)
+#     # if not validate_dataframe(df_hist, text="Updated smard df_hist"):
+#     #     raise ValueError(f"Failed to validate the updated dataframe for {fname}")
+#
+#     # save
+#     df_hist.to_parquet(fname)
+#     if verbose:print(f"SMARD data is successfully saved to {fname} with shape {df_hist.shape}")
+#
+#     gc.collect()
 
 if __name__ == '__main__':
     today = datetime.today()
@@ -526,6 +672,65 @@ if __name__ == '__main__':
     #                         end_date=today+timedelta(days=1))
     # df = smard.get_international_flow()[['france_export','france_import']]
 
+    start_date = pd.Timestamp(datetime(year=2024, month=1, day=1), tz='UTC')
+    today = pd.Timestamp(datetime.today()).tz_localize(tz='UTC')
+    today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
+    end_date = today
+    # ---------- UPDATE SMARD -------------
+    print(f"Updating SMARD data from {start_date} to {end_date}")
+    o_smard = DataEnergySMARD( start_date=start_date,  end_date=end_date, verbose=True)
+
+    # collect cross-border flows
+    df_smard_flow = o_smard.get_international_flow()
+    # df_smard_flow = df_smard_flow.resample('h', on='date').sum()
+    df_smard_flow.set_index('date',inplace=True)
+
+
+    # collect forecasted generation and load
+    df_smard_gen_forecasted = o_smard.get_forecasted_generation()
+    df_smard_gen_forecasted = df_smard_gen_forecasted.rename(
+        columns={col: col + "_forecasted" for col in df_smard_gen_forecasted.columns if col != 'date'}
+    )
+    df_smard_gen_forecasted = df_smard_gen_forecasted.resample('h', on='date').sum()
+    # df_smard_gen_forecasted.set_index('date',inplace=True)
+
+    df_smard_con_forecasted = o_smard.get_forecasted_consumption()
+    df_smard_con_forecasted = df_smard_con_forecasted.rename(
+        columns={col: col + "_forecasted" for col in df_smard_con_forecasted.columns if col != 'date'}
+    )
+    df_smard_con_forecasted = df_smard_con_forecasted.resample('h', on='date').sum()
+    # df_smard_con_forecasted.set_index('date',inplace=True)
+
+    # collect actual realized generation and load
+    df_smard_gen_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_GENERATION)
+    df_smard_gen_realized = df_smard_gen_realized.resample('h', on='date').sum()
+    # df_smard_gen_realized.set_index('date',inplace=True)
+
+    df_smard_con_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_CONSUMPTION)
+    df_smard_con_realized = df_smard_con_realized.resample('h', on='date').sum()
+    # df_smard_con_realized.set_index('date',inplace=True)
+
+    df_smard_con_res_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_CONSUMPTION_RESIDUAL)
+    df_smard_con_res_realized = df_smard_con_res_realized.resample('h', on='date').sum()
+    # df_smard_con_res_realized.set_index('date',inplace=True)
+
+    # collect DA prices
+    df_da_prices = o_smard.request_data(modules_id=DataEnergySMARD.SPOT_MARKET)
+    df_da_prices = df_da_prices.resample('h', on='date').mean()
+    # df_da_prices.set_index('date',inplace=True)
+
+
+    # merge data
+    df_smard = pd.merge(left=df_smard_flow,right=df_smard_gen_forecasted,left_index=True,right_index=True,how='outer')
+    df_smard = pd.merge(left=df_smard,right=df_smard_con_forecasted,left_index=True,right_index=True,how='outer')
+    df_smard = pd.merge(left=df_smard,right=df_smard_gen_realized,left_index=True,right_index=True,how='outer')
+    df_smard = pd.merge(left=df_smard,right=df_smard_con_realized,left_index=True,right_index=True,how='outer')
+    df_smard = pd.merge(left=df_smard,right=df_smard_con_res_realized,left_index=True,right_index=True,how='outer')
+    df_smard = pd.merge(left=df_smard,right=df_da_prices,left_index=True,right_index=True,how='outer')
+
+    #df_smard.set_index('date',inplace=True)
+    df_smard = df_smard[start_date:today]
+    df_smard.to_csv('./tmp.csv')
 
     # for key, val in DataEnergySMARD.country_map.items():
     #     df = smard.request_data(modules_id=val)
@@ -533,9 +738,22 @@ if __name__ == '__main__':
     #     df_sum = df.aggregate(func=sum)
     #     print(key, float( df_sum[f"{key}_export"]+df_sum[f"{key}_import"] ) / 1e6, ' TW')
     # 2024-11-06 12:00:00+00:00 (1730894400000) to 2024-11-13 17:00:00+00:00 (1731517200000)
-    smard = DataEnergySMARD(start_date=pd.Timestamp('2024-11-10 16:00:00+00:00',tz='UTC'),
-                            end_date=pd.Timestamp('2024-11-18 17:00:00+00:00',tz='UTC'))
-    df = smard.get_international_flow()[['poland_export','poland_import']]
-    print(df)
+    # smard = DataEnergySMARD(start_date=pd.Timestamp('2024-11-10 16:00:00+00:00',tz='UTC'),
+    #                         end_date=pd.Timestamp('2024-11-18 17:00:00+00:00',tz='UTC'),
+    #                         verbose=True)
+    # # df = smard.get_international_flow()[['poland_export','poland_import']]
+    #
+    # print(smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_GENERATION).columns)
+    # print(smard.request_data(modules_id=DataEnergySMARD.FORECASTED_POWER_GENERATION).columns)
+    #
+    # print(smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_CONSUMPTION).columns)
+    # print(smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_CONSUMPTION_RESIDUAL).columns)
+    # print(smard.request_data(modules_id=DataEnergySMARD.FORECASTED_POWER_CONSUMPTION).columns)
+    #
+    # print(smard.request_data(modules_id=DataEnergySMARD.WHOLESALE_PRICES).columns)
+    # print(smard.request_data(modules_id=DataEnergySMARD.WHOLESALE_PRICES))
+
+    print(df_smard.columns)
+    print(df_smard.head())
 
     pass
