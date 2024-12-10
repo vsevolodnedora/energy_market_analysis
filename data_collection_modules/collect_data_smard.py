@@ -536,49 +536,102 @@ class DataEnergySMARD:
 #     gc.collect()
 
 
-def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, verbose:bool):
+def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datadir:str, verbose:bool):
+    datadir += 'tmp_smard/'
+    if not os.path.isdir(datadir):
+        os.mkdir(datadir)
 
     if verbose: print(f"Updating SMARD data from {start_date} to {end_date}")
     o_smard = DataEnergySMARD( start_date=start_date,  end_date=end_date, verbose=verbose)
 
     # collect cross-border flows
-    df_smard_flow = o_smard.get_international_flow()
-    # df_smard_flow = df_smard_flow.resample('h', on='date').sum()
-    df_smard_flow.set_index('date',inplace=True)
+    fname0 = datadir+'/smard_smard_flow.parquet'
+    if os.path.isfile(fname0):
+        df_smard_flow = pd.read_parquet(fname0)
+        if verbose: print(f"Loading file {fname0}")
+    else:
+        df_smard_flow = o_smard.get_international_flow()
+        df_smard_flow.set_index('date',inplace=True)
+        df_smard_flow.to_parquet(fname0)
+        if verbose: print(f"Saving file {fname0}")
 
 
     # collect forecasted generation and load
-    df_smard_gen_forecasted = o_smard.get_forecasted_generation()
-    df_smard_gen_forecasted = df_smard_gen_forecasted.rename(
-        columns={col: col + "_forecasted" for col in df_smard_gen_forecasted.columns if col != 'date'}
-    )
-    df_smard_gen_forecasted = df_smard_gen_forecasted.resample('h', on='date').sum()
-    # df_smard_gen_forecasted.set_index('date',inplace=True)
+    fname1 = datadir+'/smard_gen_forecasted.parquet'
+    if os.path.isfile(fname1):
+        df_smard_gen_forecasted = pd.read_parquet(fname1)
+        if verbose: print(f"Loading file {fname1}")
+    else:
+        df_smard_gen_forecasted:pd.DataFrame = o_smard.get_forecasted_generation()
+        df_smard_gen_forecasted = df_smard_gen_forecasted.rename(
+            columns={col: col + "_forecasted" for col in df_smard_gen_forecasted.columns if col != 'date'}
+        )
+        df_smard_gen_forecasted = df_smard_gen_forecasted.resample('h', on='date').sum()
+        df_smard_gen_forecasted.to_parquet(fname1)
+        if verbose: print(f"Saving file {fname1}")
 
-    df_smard_con_forecasted = o_smard.get_forecasted_consumption()
-    df_smard_con_forecasted = df_smard_con_forecasted.rename(
-        columns={col: col + "_forecasted" for col in df_smard_con_forecasted.columns if col != 'date'}
-    )
-    df_smard_con_forecasted = df_smard_con_forecasted.resample('h', on='date').sum()
-    # df_smard_con_forecasted.set_index('date',inplace=True)
+    # collecting forecasted consumption
+    fname2 = datadir+'/smard_con_forecasted.parquet'
+    if os.path.isfile(fname2):
+        df_smard_con_forecasted = pd.read_parquet(fname2)
+        if verbose: print(f"Loading file {fname2}")
+    else:
+        if verbose: print(f"Collecting forecasted power consumption for {start_date} to {end_date}")
+        df_smard_con_forecasted = o_smard.get_forecasted_consumption()
+        df_smard_con_forecasted = df_smard_con_forecasted.rename(
+            columns={col: col + "_forecasted" for col in df_smard_con_forecasted.columns if col != 'date'}
+        )
+        df_smard_con_forecasted = df_smard_con_forecasted.resample('h', on='date').sum()
+        df_smard_con_forecasted.to_parquet(fname2)
+        if verbose: print(f"Saving file {fname2}")
 
     # collect actual realized generation and load
-    df_smard_gen_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_GENERATION)
-    df_smard_gen_realized = df_smard_gen_realized.resample('h', on='date').sum()
-    # df_smard_gen_realized.set_index('date',inplace=True)
+    fname3 = datadir+'/smard_gen_realized.parquet'
+    if os.path.isfile(fname3):
+        df_smard_gen_realized = pd.read_parquet(fname3)
+        if verbose: print(f"Loading file {fname3}")
+    else:
+        if verbose: print(f"Collecting realized power generation for {start_date} to {end_date}")
+        df_smard_gen_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_GENERATION)
+        df_smard_gen_realized = df_smard_gen_realized.resample('h', on='date').sum()
+        df_smard_gen_realized.to_parquet(fname3)
+        if verbose: print(f"Saving file {fname3}")
 
-    df_smard_con_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_CONSUMPTION)
-    df_smard_con_realized = df_smard_con_realized.resample('h', on='date').sum()
-    # df_smard_con_realized.set_index('date',inplace=True)
+    # collect realized consumption
+    fname4 = datadir+'/smard_con_realized.parquet'
+    if os.path.isfile(fname4):
+        df_smard_con_realized = pd.read_parquet(fname4)
+        if verbose: print(f"Loading file {fname4}")
+    else:
+        if verbose: print(f"Collecting realized power consumption for {start_date} to {end_date}")
+        df_smard_con_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_CONSUMPTION)
+        df_smard_con_realized = df_smard_con_realized.resample('h', on='date').sum()
+        df_smard_con_realized.to_parquet(fname4)
+        if verbose: print(f"Saving file {fname4}")
 
-    df_smard_con_res_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_CONSUMPTION_RESIDUAL)
-    df_smard_con_res_realized = df_smard_con_res_realized.resample('h', on='date').sum()
-    # df_smard_con_res_realized.set_index('date',inplace=True)
+    # collect realize consumption residual
+    fname5 = datadir+'/smard_con_res_realized.parquet'
+    if os.path.isfile(fname5):
+        df_smard_con_res_realized = pd.read_parquet(fname5)
+        if verbose: print(f"Loading file {fname5}")
+    else:
+        if verbose: print(f"Collecting realized power consumption residual for {start_date} to {end_date}")
+        df_smard_con_res_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_CONSUMPTION_RESIDUAL)
+        df_smard_con_res_realized = df_smard_con_res_realized.resample('h', on='date').sum()
+        df_smard_con_res_realized.to_parquet(fname5)
+        if verbose: print(f"Saving file {fname5}")
 
     # collect DA prices
-    df_da_prices = o_smard.request_data(modules_id=DataEnergySMARD.SPOT_MARKET)
-    df_da_prices = df_da_prices.resample('h', on='date').mean()
-    # df_da_prices.set_index('date',inplace=True)
+    fname6 = datadir+'/smard_da_prices.parquet'
+    if os.path.isfile(fname6):
+        df_da_prices = pd.read_parquet(fname6)
+        if verbose: print(f"Loading file {fname6}")
+    else:
+        if verbose: print(f"Collecting DA prices for {start_date} to {end_date}")
+        df_da_prices = o_smard.request_data(modules_id=DataEnergySMARD.SPOT_MARKET)
+        df_da_prices = df_da_prices.resample('h', on='date').mean()
+        df_da_prices.to_parquet(fname6)
+        if verbose: print(f"Saving file {fname6}")
 
 
     # merge data
@@ -589,8 +642,10 @@ def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, verbo
     df_smard = pd.merge(left=df_smard,right=df_smard_con_res_realized,left_index=True,right_index=True,how='outer')
     df_smard = pd.merge(left=df_smard,right=df_da_prices,left_index=True,right_index=True,how='outer')
 
-    #df_smard.set_index('date',inplace=True)
-
+    if verbose: print(f"Deleting temporary files")
+    for f in [fname0, fname1, fname2, fname3, fname4, fname5, fname6]:
+        if os.path.isfile(f):
+            os.remove(f)
 
     return df_smard
 
@@ -600,15 +655,15 @@ def update_smard_from_api(today:pd.Timestamp,data_dir:str,verbose:bool):
     fname = data_dir + 'history.parquet'
     df_hist = pd.read_parquet(fname)
     last_timestamp = pd.Timestamp(df_hist.dropna(how='all', inplace=False).last_valid_index())
-    start_date = last_timestamp - timedelta(hours=24)
-    end_date = today + timedelta(hours=24)
-    df_smard = collect_smard_from_api(start_date=start_date, end_date=end_date, verbose=verbose)
+    start_date_ = last_timestamp - timedelta(hours=24)
+    end_date_ = today + timedelta(hours=24)
+    df_smard = collect_smard_from_api(start_date=start_date_, end_date=end_date_, datadir=data_dir, verbose=verbose)
     # check columns
     for col in df_hist.columns:
         if not col in df_smard.columns:
             raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
     # combine
-    df_hist = df_hist.combine_first(df_smard)
+    df_hist = df_hist[:last_timestamp].combine_first(df_smard[last_timestamp:today])
     # save
     df_hist.to_parquet(fname)
     if verbose:print(f"SMARD data is successfully saved to {fname} with shape {df_hist.shape}")
@@ -620,7 +675,7 @@ def create_smard_from_api(start_date:pd.Timestamp or None, today:pd.Timestamp,da
     fname = data_dir + 'history.parquet'
     end_date = today + timedelta(hours=24)
     start_date_ = start_date - timedelta(hours=24)
-    df_smard = collect_smard_from_api(start_date=start_date_, end_date=end_date, verbose=verbose)
+    df_smard = collect_smard_from_api(start_date=start_date_, end_date=end_date, datadir=data_dir, verbose=verbose)
     df_smard = df_smard[start_date:today]
     df_smard.to_parquet(fname)
     if verbose:print(f"SMARD data is successfully saved to {fname} with shape {df_smard.shape}")

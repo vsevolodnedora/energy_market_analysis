@@ -1,5 +1,6 @@
 import os.path
 
+import matplotlib.pyplot as plt
 import requests_cache
 import pandas as pd
 from retry_requests import retry
@@ -20,12 +21,14 @@ class OpenMeteo:
         "relative_humidity_2m",
         "surface_pressure",
         "wind_speed_10m",
+        "wind_speed_100m",
         "wind_direction_10m",
+        "wind_direction_100m",
         # additional
         "precipitation",
         "wind_gusts_10m",
         "cloud_cover",
-        'shortwave_radiation'
+        "shortwave_radiation"
     )
 
     def __init__(self, lat, lon, variables=variables_standard, extra_api_params:dict=dict(),verbose:bool=False) -> None:
@@ -139,7 +142,7 @@ class OpenMeteo:
 
         return hourly_dataframe
 
-def get_weather_data_from_api(start_date,today,locations:list,verbose:bool):
+def get_weather_data_from_api(start_date:pd.Timestamp,today:pd.Timestamp,locations:list,verbose:bool):
     df_om_hist = pd.DataFrame()
     for il, location in enumerate(locations):
         if verbose:
@@ -158,18 +161,20 @@ def get_weather_data_from_api(start_date,today,locations:list,verbose:bool):
                 url="https://archive-api.open-meteo.com/v1/archive"
                 try:
                     df_hist = om.get_historical(
-                        start_date=start_date,
-                        end_date=today+timedelta(hours=15),
+                        start_date=start_date-timedelta(hours=24),
+                        end_date=today+timedelta(hours=6),
                         url=url
                     )
                 except Exception as e:
                     if verbose:
                         print(f"API call failed attempt {i+1}/{5} for loc={location['name']} url={url} with error\n{e}")
-                    time.sleep(3)
+                    time.sleep(70)
+                    continue
                 if verbose: print(f"API call successful. Retrieved df={df_hist.shape}")
                 break
             if df_hist is None:
                 raise AttributeError(f"Couldn't get historical data for {location['name']}")
+            df_hist.set_index('date', inplace = True)
 
             # collect the data for today forecasted previously
             df_hist_forecast = None
@@ -177,32 +182,40 @@ def get_weather_data_from_api(start_date,today,locations:list,verbose:bool):
                 url = "https://historical-forecast-api.open-meteo.com/v1/forecast"
                 try:
                     df_hist_forecast = om.get_historical(
-                        start_date=today-timedelta(days=3),
-                        end_date=today,
+                        start_date=today - timedelta(hours=24),
+                        end_date=today+timedelta(hours=6),
                         url=url
                     )
                 except Exception as e:
                     if verbose:
                         print(f"API call failed attempt {i+1}/{5} for loc={location['name']} url={url} with error\n{e}")
-                    time.sleep(3)
+                    time.sleep(70)
+                    continue
                 if verbose:
                     print(f"API call successful. Retrieved df={df_hist_forecast.shape}")
                 break
             if df_hist_forecast is None:
                 raise AttributeError(f"Couldn't get historical forecast data for {location['name']}")
+            df_hist_forecast.set_index('date', inplace = True)
 
             # combine the data
-            df_hist = pd.concat([df_hist, df_hist_forecast],axis=0)
-            df_hist.drop_duplicates(subset='date', keep='last', inplace=True)
+            # df_hist = pd.concat([df_hist, df_hist_forecast],axis=0)
+            df_hist = df_hist.combine_first(df_hist_forecast)
+
+            # df_hist_forecast.tail(96)[f'wind_speed_10m'].plot(color='red')
+            # df_hist.tail(96)[f'wind_speed_10m'].plot(color='blue')
+            # plt.show()
+            # exit(0)
 
             mapping = {name : name+location['suffix'] for name in df_hist.columns if name != 'date'}
             df_hist.rename(columns=mapping, inplace=True)
+
             if df_om_hist.empty:
                 df_om_hist = df_hist
             else:
-                df_om_hist = pd.merge(left=df_om_hist, right=df_hist, on='date', how='outer')
+                df_om_hist = pd.merge(left=df_om_hist, right=df_hist, left_index=True, right_index=True)
         except:
-            print(f"Error! Failed to get weather data for {location['name']}")
+            raise IOError(f"Error! Failed to get weather data for {location['name']}")
 
     if os.path.isfile('./openmeteo.cache'):
         os.remove('./openmeteo.cache')
@@ -263,84 +276,114 @@ def check_phys_limits_in_data(df: pd.DataFrame) -> pd.DataFrame:
                 df[kkey].where(df[kkey] > lim[1], None)
     return df
 
-# def transform_data(df:pd.DataFrame):
-#     key = 'wind_direction_10m'
-#     for loc in locations:
-#         df[key + '_x' + loc['suffix']] = \
-#             df[key + loc['suffix']] * np.cos( np.pi / 180 )
-#         df[key + '_y' + loc['suffix']] = \
-#             df[key + loc['suffix']] * np.sin( np.pi / 180 )
-#         df.drop([key + loc['suffix']], axis=1, inplace=True)
-#     return df
-
-# def process_weather_quantities(df:pd.DataFrame, locations):
-#     key:str='wind_direction_10m'
-#     for loc in locations:
-#         df[key + '_x' + loc['suffix']] = \
-#             df[key + loc['suffix']] * np.cos( np.pi / 180 )
-#         df[key + '_y' + loc['suffix']] = \
-#             df[key + loc['suffix']] * np.sin( np.pi / 180 )
-#         df.drop([key + loc['suffix']], axis=1, inplace=True)
-#     return df
-
-def update_openmeteo_from_api(today:pd.Timestamp,data_dir:str,verbose:bool):
-
-    fname = data_dir + 'history.parquet'
-    df_hist = pd.read_parquet(fname)
-
-    first_timestamp = pd.Timestamp(df_hist.dropna(how='any', inplace=False).first_valid_index())
-    last_timestamp = pd.Timestamp(df_hist.dropna(how='all', inplace=False).last_valid_index())
-
-    start_date = last_timestamp - timedelta(hours=24)
-    end_date = today - timedelta(hours=12)
-
-    # ------- UPDATE WEATHER DATA -------------
-    if verbose: print(f"Updating SMARD data from {last_timestamp} to {today}")
-
+def request_openmeteo_historic_data(start_date:pd.Timestamp, end_date:pd.Timestamp, verbose:bool=False):
+    if verbose: print(f"Updating SMARD data from {start_date} to {end_date}")
     df_om_hist = get_weather_data_from_api(
         start_date=start_date,
         today=end_date,
         locations=locations,
         verbose=verbose
     )
-    df_om_hist.set_index('date',inplace=True)
-    df_om_hist = df_om_hist[:today]
-
-    # check columns
-    for col in df_hist.columns:
-        if not col in df_om_hist.columns:
-            raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
-
-    if not validate_dataframe(df_om_hist, text="Updated openmeteo df_hist"):
-        raise ValueError(f"Failed to validate the dataframe for {fname}")
 
     df_om_hist = check_phys_limits_in_data(df_om_hist)
     df_om_hist = df_om_hist.interpolate(method='linear')
+    return df_om_hist
 
-    df_om_hist.to_parquet(fname,engine='pyarrow')
-    if verbose:
-        print(f'Update for openmeteo historical data is successfully created at '
-              f'{fname} with shape {df_om_hist.shape}')
+def create_openmeteo_from_api(start_date, today, data_dir, verbose:bool):
+    if verbose:print(f"Collecting historical data from OpenMeteo from {start_date} to {today} for "
+                     f"{[loc['name'] for loc in locations]} locations")
+    fname = data_dir + 'history.parquet'
+    start_date_ = start_date - timedelta(hours=12)
+    end_date_ = today
+    df_hist = request_openmeteo_historic_data(start_date_, end_date_, verbose=verbose)
+    df_hist = df_hist[start_date:]
+    df_hist.to_parquet(fname,engine='pyarrow')
+    if verbose: print(f"OpenMeteo data collected. Collected {df_hist.shape}. Saving to {fname}")
 
+def update_openmeteo_from_api(today:pd.Timestamp,data_dir:str,verbose:bool):
+    fname = data_dir + 'history.parquet'
+    df_hist = pd.read_parquet(fname)
+    first_timestamp = pd.Timestamp(df_hist.dropna(how='any', inplace=False).first_valid_index())
+    last_timestamp = pd.Timestamp(df_hist.dropna(how='all', inplace=False).last_valid_index())
+    start_date_ = last_timestamp - timedelta(hours=24)
+    end_date_ = today #+ timedelta(hours=12)
+    df_om = request_openmeteo_historic_data(start_date_, end_date_, verbose=verbose)
+    df_om.to_parquet(fname,engine='pyarrow')
+    # df_om.tail(72)[f'wind_speed_10m_hsee'].plot()
+    # df_om.tail(72)[f'wind_speed_100m_hsee'].plot()
+    plt.show()
+
+    # check columns
+    if not df_hist.columns.equals(df_om.columns):
+        unique_to_df1 = set(df_om.columns) - set(df_hist.columns)
+        unique_to_df2 = set(df_hist.columns) - set(df_om.columns)
+        raise KeyError(f"! Error. Column mismatch between historical and forecasted weather! unique to "
+                       f"df_om_hist={unique_to_df1} Unique to df_om_forecast={unique_to_df2}")
+    # combine
+    df_hist = df_hist.combine_first(df_om)
+    # save
+    df_hist.to_parquet(fname)
+    if verbose:print(f"openmeteo data is successfully saved to {fname} with shape {df_hist.shape}")
     gc.collect()
 
-    # FORECAST
-
+    # Update forecast
     df_om_forecast = get_weather_data_from_api_forecast(locations=locations)
     df_om_forecast.set_index('date',inplace=True)
-    df_om_forecast = df_om_forecast[today+timedelta(hours=1):] # start with next hour
-    if not df_om_forecast.columns.equals(df_om_hist.columns):
-        unique_to_df1 = set(df_om_hist.columns) - set(df_om_forecast.columns)
-        unique_to_df2 = set(df_om_forecast.columns) - set(df_om_hist.columns)
+    df_om_forecast = df_om_forecast # start with next hour
+    if not df_om_forecast.columns.equals(df_om.columns):
+        unique_to_df1 = set(df_om.columns) - set(df_om_forecast.columns)
+        unique_to_df2 = set(df_om_forecast.columns) - set(df_om.columns)
         raise KeyError(f"! Error. Column mismatch between historical and forecasted weather! unique to "
-              f"df_om_hist={unique_to_df1} Unique to df_om_forecast={unique_to_df2}")
+                       f"df_om_hist={unique_to_df1} Unique to df_om_forecast={unique_to_df2}")
     fname = fname.replace('history','forecast')
     df_om_forecast.to_parquet(fname,engine='pyarrow')
     if verbose:
-        print(f'Update for openmeteo forecast data is successfully created at '
-          f'{fname} with shape {df_om_forecast.shape}')
-
+        print(f'openmeteo forecast data is successfully created at '
+              f'{fname} with shape {df_om_forecast.shape}')
     gc.collect()
+
+    # df_hist.tail(72)['wind_speed_10m_hsee'].plot()
+    # df_om_forecast.head(24)['wind_speed_10m_hsee'].plot()
+    # plt.show()
+
+# def update_openmeteo_from_api(today:pd.Timestamp,data_dir:str,verbose:bool):
+#
+#     fname = data_dir + 'history.parquet'
+#     df_hist = pd.read_parquet(fname)
+#
+#     first_timestamp = pd.Timestamp(df_hist.dropna(how='any', inplace=False).first_valid_index())
+#     last_timestamp = pd.Timestamp(df_hist.dropna(how='all', inplace=False).last_valid_index())
+#
+#     start_date = last_timestamp - timedelta(hours=24)
+#     end_date = today - timedelta(hours=12)
+#
+#     # ------- UPDATE WEATHER DATA -------------
+#
+#
+#     df_om_hist.to_parquet(fname,engine='pyarrow')
+#     if verbose:
+#         print(f'Update for openmeteo historical data is successfully created at '
+#               f'{fname} with shape {df_om_hist.shape}')
+#
+#     gc.collect()
+#
+#     # FORECAST
+#
+#     df_om_forecast = get_weather_data_from_api_forecast(locations=locations)
+#     df_om_forecast.set_index('date',inplace=True)
+#     df_om_forecast = df_om_forecast[today+timedelta(hours=1):] # start with next hour
+#     if not df_om_forecast.columns.equals(df_om_hist.columns):
+#         unique_to_df1 = set(df_om_hist.columns) - set(df_om_forecast.columns)
+#         unique_to_df2 = set(df_om_forecast.columns) - set(df_om_hist.columns)
+#         raise KeyError(f"! Error. Column mismatch between historical and forecasted weather! unique to "
+#               f"df_om_hist={unique_to_df1} Unique to df_om_forecast={unique_to_df2}")
+#     fname = fname.replace('history','forecast')
+#     df_om_forecast.to_parquet(fname,engine='pyarrow')
+#     if verbose:
+#         print(f'Update for openmeteo forecast data is successfully created at '
+#           f'{fname} with shape {df_om_forecast.shape}')
+#
+#     gc.collect()
 
 if __name__ == '__main__':
     # todo add tests

@@ -1,8 +1,7 @@
 locations = [
     # facilities
     {"name": "EnBWHoheSee", "type": "windfarm", "suffix":"_hsee",
-     "lat": 54.45001, "lon": 6.318156,
-                                                "om_api_pars":{"cell_selection":"sea"}},
+     "lat": 54.45001, "lon": 6.318156, "om_api_pars":{"cell_selection":"sea"}},
     {"name": "SolarparkWeesow-Willmersdorf ", "type": "solarfarm", "suffix":"_solw",
      "lat": 52.6506, "lon": 13.6866,  "om_api_pars":{"cell_selection":"sea"}},
 
