@@ -662,8 +662,11 @@ def update_smard_from_api(today:pd.Timestamp,data_dir:str,verbose:bool):
     for col in df_hist.columns:
         if not col in df_smard.columns:
             raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
+    combined_df = pd.concat([df_hist[:start_date_], df_smard[start_date_:]])
+    result_df = combined_df[~combined_df.index.duplicated(keep='first')]
+    df_hist = result_df.sort_index()
     # combine
-    df_hist = df_hist[:last_timestamp].combine_first(df_smard[last_timestamp:today])
+    # df_hist = df_hist[:last_timestamp].combine_first(df_smard[last_timestamp:today])
     # save
     df_hist.to_parquet(fname)
     if verbose:print(f"SMARD data is successfully saved to {fname} with shape {df_hist.shape}")
