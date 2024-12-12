@@ -1,0 +1,78 @@
+
+markdown
+Copy code
+# MLOps Forecasting Framework for Energy Quantities in Germany
+
+Welcome to the **MLOps Forecasting Framework**, an open-source project designed to forecast energy-related quantities in Germany up to a week ahead. This framework combines modularity, scalability, and automation to create an efficient multi-step forecasting pipeline. The project is being developed and released in stages, with detailed documentation provided via [Medium](https://medium.com/@vsevolod.nedora).
+
+## Features
+
+- **Daily Data Collection**: Automated data retrieval from public APIs (e.g., SMARD and OpenMeteo) with raw data preprocessing.
+- **Multi-Step Forecasting**: Baseline forecasters (ElasticNet, Prophet, XGBoost) and an ensemble model with modular and reusable code.
+- **Feature Engineering**: Manual feature engineering for improved accuracy, tailored to offshore wind energy prediction.
+- **Hyperparameter Optimization**: Fine-tuning models with Optuna to minimize RMSE over the forecasting horizon.
+- **Pipeline Automation**: Tasks for data collection, fine-tuning, training, and forecasting automated via GitHub Actions.
+- **Web Integration**: Static webpage showcasing daily updated forecasts hosted on GitHub Pages.
+- **Extendability**: Built for forecasting multiple energy-related quantities (e.g., load, generation, electricity prices).
+
+## Project Roadmap
+
+### Stage 1: [Data Collection](https://medium.com/@vsevolod.nedora/mlops-electricity-price-forecasting-project-2-ad1012350067)
+- Implemented modular data retrieval classes for APIs and web scraping.
+- Preprocessed and stored data as file-based datasets.
+
+### Stage 2: [Baseline Forecasting](https://medium.com/@vsevolod.nedora/mlops-electricity-price-forecasting-project-2-ad1012350067)
+- Developed multi-step recursive forecasters and ensemble models.
+- Enabled forecasting of total energy generation using versatile and reusable code.
+
+### Stage 3: Automated Fine-Tuning and Training [_In progress_]
+- Introduced Optuna-based hyperparameter optimization for base and ensemble models.
+- Automated separate tasks for fine-tuning, training, and forecasting.
+
+### Stage 4: Static Webpage Display (MVP Release) [_In progress_]
+- Deploy forecasts on a static webpage hosted on GitHub Pages.
+- Update forecasts daily using GitHub Actions.
+
+### Future Enhancements [_In progress_]
+- Weekly automatic model retraining to prevent model drift.
+- Exploration of deep learning models for multi-target forecasting.
+- Automated report generation using LLMs for insights from historical and forecast data.
+
+## Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/vsevolodnedora/energy_market_analysis
+   cd mlops-forecasting-framework
+   ```
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Run the pipeline:
+   ```bash
+   python main.py
+   ```
+
+## Usage
+
+The framework is task-based and can process multiple variables with minimal manual effort. Key tasks include:
+
+- `collect_data`: Retrieve and preprocess raw data.
+- `fine_tune_models`: Optimize hyperparameters for base and ensemble models.
+- `train_models`: Train models using the best parameters.
+- `forecast`: Generate forecasts for past and future horizons.
+
+Detailed usage examples and configuration files can be found in the examples directory.
+
+## Contributing
+
+Contributions are welcome! Please create an issue or submit a pull request with your suggestions or enhancements.
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
+
+## Acknowledgments
+
+This framework is made possible thanks to open data from SMARD and OpenMeteo, and tools like GitHub Actions and Optuna. Follow the project's progress and methodology on [Medium](https://medium.com/@vsevolod.nedora).

@@ -81,7 +81,7 @@ def _get_weather_features(df_history:pd.DataFrame):
     print(f"Weather features found {len(weather_columns)}")
     return weather_columns
 
-def save_optuna_results(study:optuna.Study, outdir:str):
+def save_optuna_results(study:optuna.Study, extra_pars:dict, outdir:str):
     """
     Save all results from an Optuna study to multiple formats.
 
@@ -101,6 +101,7 @@ def save_optuna_results(study:optuna.Study, outdir:str):
 
     # Save best parameters to JSON
     best_params = study.best_params
+    if extra_pars: best_params = best_params | extra_pars
     with open(f'{outdir}best_parameters.json', 'w') as f:
         json.dump(best_params, f, indent=4)
 
@@ -786,9 +787,9 @@ class EnsembleModelTasks(BaseModelTasks):
     def finetune(self, trial:optuna.Trial, cv_metrics_folds:int):
 
         cv_folds_base = len(self.base_models[list(self.base_models.keys())[-1]].results)
-        if not (cv_folds_base > cv_metrics_folds+3):
-            raise ValueError("There should be more CV folds for base models then for ensemble model. "
-                             f"Given CV ensemble {cv_metrics_folds}+3 folds and base models {cv_folds_base} folds")
+        # if not (cv_folds_base > cv_metrics_folds+3):
+        #     raise ValueError("There should be more CV folds for base models then for ensemble model. "
+        #                      f"Given CV ensemble {cv_metrics_folds}+3 folds and base models {cv_folds_base} folds")
 
         if self.ds is None:
             raise ReferenceError("Dataset class is not initialized")
@@ -801,12 +802,15 @@ class EnsembleModelTasks(BaseModelTasks):
         )
 
         self.create_X_y_for_model_from_base_models_cv_folds(
-            cv_folds_base_to_use=trial.suggest_int(
-                'cv_folds_base_to_use', cv_metrics_folds+3, cv_folds_base
-            ),
-            use_base_models_pred_intervals=trial.suggest_categorical(
-                'use_base_models_pred_intervals', [True, False])
+            cv_folds_base_to_use=cv_folds_base,
+            use_base_models_pred_intervals = False
         )
+        # trial.suggest_int(
+        #         'cv_folds_base_to_use', cv_metrics_folds+3, cv_folds_base
+        #     ),
+        #     use_base_models_pred_intervals=trial.suggest_categorical(
+        #         'use_base_models_pred_intervals', [True, False])
+        # )
 
         self.cv_train_test_ensemble(cv_folds_base=cv_metrics_folds, do_fit=True)
 
@@ -1056,7 +1060,10 @@ class ForecastingTaskSingleTarget:
             lambda trial: wrapper.finetune(trial, cv_metrics_folds=finetuning_pars['cv_folds']),
             n_trials=finetuning_pars['n_trials']
         )
-        save_optuna_results(study, ft_outdir)
+        save_optuna_results(study, {
+            'cv_folds_base':finetuning_pars['cv_folds_base'],
+            'use_base_models_pred_intervals':finetuning_pars['use_base_models_pred_intervals']
+        }, ft_outdir)
 
         wrapper.clear()
 
@@ -1088,9 +1095,8 @@ class ForecastingTaskSingleTarget:
             n_trials=finetuning_pars['n_trials']
         )
 
-
         ft_outdir = wrapper.to_finetuned()
-        save_optuna_results(study, ft_outdir)
+        save_optuna_results(study, {}, ft_outdir)
         with open(ft_outdir+'dataset.json', 'w') as f:
             json.dump(dataset_pars, f, indent=4)
 
@@ -1117,12 +1123,12 @@ class ForecastingTaskSingleTarget:
             )
         model_pars, extra_model_pars = wrapper.set_forecaster_from_dir(dir='finetuning')
         wrapper.update_pretrain_base_models(
-            cv_folds_base=extra_model_pars['cv_folds_base_to_use'],
+            cv_folds_base=extra_model_pars['cv_folds_base'],#['cv_folds_base_to_use'],
             do_fit=True
         )
         wrapper.create_X_y_for_model_from_base_models_cv_folds(
-            cv_folds_base_to_use=extra_model_pars['cv_folds_base_to_use'],
-            use_base_models_pred_intervals=extra_model_pars['use_base_models_pred_intervals']
+            cv_folds_base_to_use=extra_model_pars['cv_folds_base'],#['cv_folds_base_to_use'],
+            use_base_models_pred_intervals=extra_model_pars['use_base_models_pred_intervals'],#['use_base_models_pred_intervals']
         )
         wrapper.cv_train_test(
             folds=pars['cv_folds'],
@@ -1180,7 +1186,7 @@ class ForecastingTaskSingleTarget:
             cv_folds_base=folds, do_fit=False
         )
         wrapper.create_X_y_for_model_from_base_models_cv_folds(
-            cv_folds_base_to_use=extra_model_pars['cv_folds_base_to_use'],
+            cv_folds_base_to_use=extra_model_pars['cv_folds_base'],
             use_base_models_pred_intervals=extra_model_pars['use_base_models_pred_intervals']
         )
         wrapper.cv_train_test_ensemble(cv_folds_base=folds, do_fit=False)
@@ -1367,8 +1373,8 @@ def main():
                 #      'lags_target':24,'log_target':True,
                 #      'copy_input':True
                 #  },
-                #  'finetuning_pars':{'n_trials':20,'optim_metric':'rmse','cv_folds':3}},
-
+                #  'finetuning_pars':{'n_trials':5,'optim_metric':'rmse','cv_folds':3}},
+                #
                 # {'model':'ElasticNet',
                 #  'dataset_pars':{
                 #      'forecast_horizon':None,
@@ -1383,31 +1389,32 @@ def main():
                 #  },
                 #  'finetuning_pars':{'n_trials':5,'optim_metric':'rmse','cv_folds':3}},
 
-                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)',
-                #  'dataset_pars': {
-                #      'forecast_horizon':None,
-                #      'target_scaler':'StandardScaler',
-                #      'feature_scaler':'StandardScaler',
-                #      'limit_pca_to_features':None,#'weather',
-                #      'feature_pca_pars':None,#{'n_components':0.95},
-                #      'add_cyclical_time_features':False,
-                #      'fourier_features': {},
-                #      'ensemble_features': 'cyclic_time',
-                #      'log_target':True,
-                #      'lags_target': None,
-                #      'copy_input':True
-                #
-                #  },
-                #  'finetuning_pars':{'n_trials':40,
-                #                     'optim_metric':'rmse',
-                #                     'cv_folds':3,
-                #                     'cv_folds_base':35}}
+                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)',
+                 'dataset_pars': {
+                     'forecast_horizon':None,
+                     'target_scaler':'StandardScaler',
+                     'feature_scaler':'StandardScaler',
+                     'limit_pca_to_features':None,#'weather',
+                     'feature_pca_pars':None,#{'n_components':0.95},
+                     'add_cyclical_time_features':False,
+                     'fourier_features': {},
+                     'ensemble_features': 'cyclic_time',
+                     'log_target':True,
+                     'lags_target': None,
+                     'copy_input':True
+
+                 },
+                 'finetuning_pars':{'n_trials':5,
+                                    'optim_metric':'rmse',
+                                    'cv_folds':3,
+                                    'cv_folds_base':35,
+                                    'use_base_models_pred_intervals':False}}
             ],
             "task_training":[
                 # {'model':'Prophet', 'pars':{'cv_folds':5}},
                 # {'model':'XGBoost', 'pars':{'cv_folds':5}},
                 # {'model':'ElasticNet', 'pars':{'cv_folds':5}},
-                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','pars':{'cv_folds':5}}
+                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','pars':{'cv_folds':5}}
             ],
             "task_forecasting":[
                 # {'model':'Prophet'},
