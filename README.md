@@ -22,7 +22,7 @@ Welcome to the **MLOps Forecasting Framework**, an open-source project designed 
 - Developed multi-step recursive forecasters and ensemble models.
 - Enabled forecasting of total energy generation using versatile and reusable code.
 
-### Stage 3: Automated Fine-Tuning and Training [_In progress_]
+### Stage 3: [Automated Fine-Tuning and Training](https://medium.com/@vsevolod.nedora/building-a-modular-forecasting-framework-fine-tuning-and-predicting-offshore-wind-generation-c668e343f6c2)
 - Introduced Optuna-based hyperparameter optimization for base and ensemble models.
 - Automated separate tasks for fine-tuning, training, and forecasting.
 
