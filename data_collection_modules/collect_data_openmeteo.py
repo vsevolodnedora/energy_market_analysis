@@ -66,10 +66,16 @@ class OpenMeteo:
             "hourly": ''.join([var+',' for var in self.variables])[:-1], # remove last comma...
         }
         if self.verbose: print(f"Requesting historical data for {params['start_date']} - {params['end_date']}")
-        responses = openmeteo.weather_api(url, params=params | self.extra_api_params)
+        try:
+            responses = openmeteo.weather_api(url, params=params | self.extra_api_params)
+            # Process first location. Add a for-loop for multiple locations or weather models
+            response = responses[0]
+        except Exception as e:
+            print(f"API call failed for {start_date} to {end_date} for url={url} with Error\n{e}")
+            if os.path.isfile('./openmeteo.cache'):
+                os.remove('./openmeteo.cache')
+            raise AttributeError(f"API call failed for {start_date} to {end_date} for url={url}")
 
-        # Process first location. Add a for-loop for multiple locations or weather models
-        response = responses[0]
         if self.verbose:
             print(f"Coordinates {response.Latitude()}°N {response.Longitude()}°E")
             print(f"Elevation {response.Elevation()} m asl")
@@ -152,7 +158,7 @@ def get_weather_data_from_api(start_date:pd.Timestamp,today:pd.Timestamp,locatio
         om = OpenMeteo(
             lat=location['lat'],
             lon=location['lon'],
-            verbose=False
+            verbose=verbose
         )
         try:
             # collect hsitoric data
@@ -176,19 +182,22 @@ def get_weather_data_from_api(start_date:pd.Timestamp,today:pd.Timestamp,locatio
                 raise AttributeError(f"Couldn't get historical data for {location['name']}")
             df_hist.set_index('date', inplace = True)
 
+
             # collect the data for today forecasted previously
             df_hist_forecast = None
+            npast = 24
             for i in range(5):
                 url = "https://historical-forecast-api.open-meteo.com/v1/forecast"
                 try:
                     df_hist_forecast = om.get_historical(
-                        start_date=today - timedelta(hours=24),
-                        end_date=today+timedelta(hours=6),
+                        start_date=today - timedelta(hours=npast),
+                        end_date=today + timedelta(hours=5),
                         url=url
                     )
                 except Exception as e:
                     if verbose:
                         print(f"API call failed attempt {i+1}/{5} for loc={location['name']} url={url} with error\n{e}")
+                        npast += 24
                     time.sleep(70)
                     continue
                 if verbose:
