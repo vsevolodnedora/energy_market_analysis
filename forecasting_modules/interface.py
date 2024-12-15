@@ -48,9 +48,9 @@ from forecasting_modules.base_models import (
     ProphetForecaster
 )
 
-def load_data(target:str,limit_train_to:timedelta=timedelta(days=365)) \
+def load_data(target:str,datapath:str, verbose:bool) \
         ->tuple[pd.DataFrame, pd.DataFrame]:
-    datapath = '../tmp_database/'
+
     df_history = pd.read_parquet(f"{datapath}history.parquet")
     df_forecast = pd.read_parquet(f"{datapath}forecast.parquet")
 
@@ -62,8 +62,9 @@ def load_data(target:str,limit_train_to:timedelta=timedelta(days=365)) \
     if not df_features.columns.equals(df_forecast.columns):
         raise IOError("The DataFrames have different columns.")
 
-    print(f"History: {df_history.shape} from {df_history.index[0]} to {df_history.index[-1]} ({len(df_history.index)/7/24} weeks)")
-    print(f"Forecast: {df_forecast.shape} from {df_forecast.index[0]} to {df_forecast.index[-1]} ({len(df_forecast.index)/24} days)")
+    if verbose:
+        print(f"History: {df_history.shape} from {df_history.index[0]} to {df_history.index[-1]} ({len(df_history.index)/7/24} weeks)")
+        print(f"Forecast: {df_forecast.shape} from {df_forecast.index[0]} to {df_forecast.index[-1]} ({len(df_forecast.index)/24} days)")
 
     return df_history, df_forecast
 
@@ -215,7 +216,208 @@ def get_ensemble_name_and_model_names(model_name:str):
 
     return meta_model, model_names
 
+def write_summary(summary: dict):
+    # Collect datagrams
+    datagram = []
+
+    # Iterate through the methods (train, forecast)
+    for method, models in summary.items():
+        for model_label, horizons in models.items():
+            for horizon, metrics in horizons.items():
+                # Create a single entry for each horizon
+                datagram.append({
+                    "method": method,
+                    "model_label": model_label,
+                    "horizon": horizon,
+                    **metrics
+                })
+
+    return datagram
+def plot_metric_evolution(file_path: str, metric: str):
+    # Load the dataframe
+    df = pd.read_csv(file_path)
+
+    # Filter relevant columns
+    if metric not in df.columns:
+        raise ValueError(f"Metric '{metric}' not found in the dataframe.")
+
+    # Sort the dataframe by horizon and convert horizon to datetime
+    df['horizon'] = pd.to_datetime(df['horizon'])
+    df = df.sort_values(by='horizon')
+
+    markers = ['s', 'o', 'v', '^', 'P']
+
+    # Plot the metric evolution
+    fig, ax = plt.subplots(figsize=(8, 4))
+    for marker, model_label in zip(markers, df['model_label'].unique()):
+        if model_label.__contains__('ensemble'): markerfacecolor = 'black'
+        else: markerfacecolor = 'None'
+        method_df_trained = df[(df['model_label'] == model_label) & (df['method'] == 'trained')]
+        ax.plot(method_df_trained['horizon'], method_df_trained[metric], linestyle='None',
+                marker=marker, label=model_label, color='black',
+                markerfacecolor=markerfacecolor, markeredgecolor='black', markersize=8
+                )
+        # method_df_forecast = df[(df['model_label'] == model_label) & (df['method'] == 'trained')]
+        # ax.plot(method_df_forecast['horizon'], method_df_forecast[metric], linestyle='None', marker=marker)
+
+    # Set x-ticks at unique horizon values
+    unique_horizons = df['horizon'].sort_values().unique()
+    ax.set_xticks(unique_horizons)
+    ax.set_xticklabels([
+        h.strftime('%Y-%m-%d') for h in unique_horizons], rotation=0, ha='center'#'right'
+    )
+
+    ax.grid(True, linestyle='-', alpha=0.4)
+    ax.tick_params(axis='x', direction='in', bottom=True)
+    ax.tick_params(axis='y', which='both', direction='in', left=True, right=True)
+    # Set border lines transparent by setting the edge color and alpha
+    ax.spines['top'].set_edgecolor((1, 1, 1, 0))  # Transparent top border
+    ax.spines['right'].set_edgecolor((1, 1, 1, 0))  # Transparent right border
+    ax.spines['left'].set_edgecolor((1, 1, 1, 0))  # Transparent left border
+    ax.spines['bottom'].set_edgecolor((1, 1, 1, 0))  # Transparent bottom border
+
+    # Make x and y ticks transparent
+    ax.tick_params(axis='x', color=(1, 1, 1, 0))  # Transparent x ticks
+    ax.tick_params(axis='y', color=(1, 1, 1, 0))  # Transparent y ticks
+
+    # ax.xaxis.set_major_locator(mdates.DayLocator())
+    # ax_bottom.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))  # Format as "Dec
+
+    ax.set_title(f"{metric.upper()} for Several Out-of-Sample Forecasts")
+    ax.set_xlabel("Starting Date of the Forecasting Horizon")
+    ax.set_ylabel(f"Horizon Averaged {metric.upper()}")
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
+    plt.savefig(file_path.replace(".csv",".png"), dpi=600)
+    plt.show()
+
+def select_best_model(metrics):
+    """
+    Selects the best-performing model using different evaluation approaches.
+
+    Args:
+        metrics (dict): A nested dictionary where metrics[model_name][window_start_timestamp][metric_name] = value.
+
+    Returns:
+        dict: A dictionary with approach names as keys and the best model names as values.
+    """
+
+    # Collect models and windows
+    models = list(metrics.keys())
+    windows = set()
+    for model in metrics:
+        windows.update(metrics[model].keys())
+    windows = sorted(windows)  # Oldest to newest
+
+    # Create weights for windows, giving higher weights to more recent windows
+    num_windows = len(windows)
+    window_weights = np.arange(1, num_windows + 1)  # Linear weights
+    window_weights = window_weights / window_weights.sum()  # Normalize weights to sum to 1
+    window_weights_series = pd.Series(window_weights, index=windows)
+
+    # Define the metrics to consider
+    metric_names = ['mse', 'rmse', 'mae', 'mape', 'smape', 'bias', 'variance', 'std',
+                    'r2', 'prediction_interval_coverage', 'prediction_interval_width']
+
+    # Initialize a dictionary to store DataFrames for each metric
+    metric_dfs = {metric_name: pd.DataFrame(index=windows, columns=models) for metric_name in metric_names}
+
+    # Populate the DataFrames with metric values
+    for model in models:
+        for window in metrics[model]:
+            for metric_name in metric_names:
+                value = metrics[model][window].get(metric_name, np.nan)
+                metric_dfs[metric_name].loc[window, model] = value
+
+    # Initialize the result dictionary
+    best_models = {}
+
+    # Approach 1: Weighted Aggregate Error Metrics
+    # Weighted Mean and Median RMSE
+    for agg_func in ['mean', 'median']:
+        for metric in ['rmse', 'smape']:
+            metric_df = metric_dfs[metric].astype(float)
+            # Apply weights
+            weighted_metric = metric_df.mul(window_weights_series, axis=0)
+            if agg_func == 'mean':
+                agg_metric = weighted_metric.sum()
+            elif agg_func == 'median':
+                # Weighted median is more complex; we'll approximate by sorting
+                # and selecting the value where the cumulative weight reaches 50%
+                agg_metric = {}
+                for model in models:
+                    sorted_metrics = metric_df[model].dropna().sort_values()
+                    sorted_weights = window_weights_series.loc[sorted_metrics.index]
+                    cum_weights = sorted_weights.cumsum()
+                    median_idx = cum_weights >= 0.5
+                    if not median_idx.any():
+                        median_value = np.nan
+                    else:
+                        median_value = sorted_metrics[median_idx.idxmax()]
+                    agg_metric[model] = median_value
+                agg_metric = pd.Series(agg_metric)
+            best_model = agg_metric.idxmin()
+            best_models[f'Weighted {agg_func.capitalize()} {metric.upper()}'] = best_model
+
+    # Weighted Worst-Case Performance
+    # Since worst-case is a single value, weighting doesn't directly apply,
+    # but we can focus on recent worst cases.
+    recent_windows = windows[-max(1, num_windows // 3):]  # Use the most recent third of windows
+    for metric in ['rmse', 'smape']:
+        metric_df = metric_dfs[metric].loc[recent_windows]
+        max_metric = metric_df.max()
+        best_model_max = max_metric.idxmin()
+        best_models[f'Recent Worst-Case {metric.upper()}'] = best_model_max
+
+    # Approach 2: Weighted Stability of Performance
+    for metric in ['rmse', 'smape']:
+        metric_df = metric_dfs[metric].astype(float)
+        # Calculate weighted standard deviation
+        mean_metric = metric_df.mul(window_weights_series, axis=0).sum()
+        deviations = metric_df.subtract(mean_metric, axis=1)
+        weighted_var = (deviations ** 2).mul(window_weights_series, axis=0).sum()
+        weighted_std = np.sqrt(weighted_var)
+        cv_metric = weighted_std / mean_metric.abs()
+
+        best_model_std = weighted_std.idxmin()
+        best_model_cv = cv_metric.idxmin()
+
+        best_models[f'Weighted Std of {metric.upper()}'] = best_model_std
+        best_models[f'Weighted CV of {metric.upper()}'] = best_model_cv
+
+    # Approach 3: Weighted Pairwise Comparisons
+    for metric in ['rmse', 'smape']:
+        metric_df = metric_dfs[metric].astype(float)
+        # For each window, find the best model
+        best_per_window = metric_df.idxmin(axis=1)
+        # Weight the counts based on window weights
+        weighted_counts = best_per_window.map(window_weights_series).groupby(best_per_window).sum()
+        best_model_pairwise = weighted_counts.idxmax()
+        best_models[f'Weighted Pairwise Comparison {metric.upper()}'] = best_model_pairwise
+
+    # Approach 5: Statistical Tests on Recent Windows
+    for metric in ['rmse', 'smape']:
+        metric_df = metric_dfs[metric].loc[recent_windows].dropna()
+        if len(models) >= 2 and metric_df.shape[0] >= 2:
+            # Perform Friedman test on recent windows
+            friedman_stat, p_value = friedmanchisquare(
+                *[metric_df[model].values for model in models]
+            )
+            if p_value < 0.05:
+                best_model_friedman = metric_df.mean().idxmin()
+                best_models[f'Recent Friedman Test {metric.upper()}'] = best_model_friedman
+            else:
+                best_models[f'Recent Friedman Test {metric.upper()}'] = 'No significant difference'
+        else:
+            best_models[f'Recent Friedman Test {metric.upper()}'] = 'Not enough data'
+
+    return best_models
+
 class TaskPaths:
+
+    train_forecast = ['trained','forecast']
 
     def __init__(self, target:str, model_label:str, working_dir:str,verbose:bool):
         self.working_dir = working_dir
@@ -856,131 +1058,46 @@ class EnsembleModelTasks(BaseModelTasks):
         if self.verbose: print(f"Saving {dir+'forecast.csv'}")
         forecast.to_csv(dir+'forecast.csv')
 
-def select_best_model(metrics):
-    """
-    Selects the best-performing model using different evaluation approaches.
-
-    Args:
-        metrics (dict): A nested dictionary where metrics[model_name][window_start_timestamp][metric_name] = value.
-
-    Returns:
-        dict: A dictionary with approach names as keys and the best model names as values.
-    """
-
-    # Collect models and windows
-    models = list(metrics.keys())
-    windows = set()
-    for model in metrics:
-        windows.update(metrics[model].keys())
-    windows = sorted(windows)  # Oldest to newest
-
-    # Create weights for windows, giving higher weights to more recent windows
-    num_windows = len(windows)
-    window_weights = np.arange(1, num_windows + 1)  # Linear weights
-    window_weights = window_weights / window_weights.sum()  # Normalize weights to sum to 1
-    window_weights_series = pd.Series(window_weights, index=windows)
-
-    # Define the metrics to consider
-    metric_names = ['mse', 'rmse', 'mae', 'mape', 'smape', 'bias', 'variance', 'std',
-                    'r2', 'prediction_interval_coverage', 'prediction_interval_width']
-
-    # Initialize a dictionary to store DataFrames for each metric
-    metric_dfs = {metric_name: pd.DataFrame(index=windows, columns=models) for metric_name in metric_names}
-
-    # Populate the DataFrames with metric values
-    for model in models:
-        for window in metrics[model]:
-            for metric_name in metric_names:
-                value = metrics[model][window].get(metric_name, np.nan)
-                metric_dfs[metric_name].loc[window, model] = value
-
-    # Initialize the result dictionary
-    best_models = {}
-
-    # Approach 1: Weighted Aggregate Error Metrics
-    # Weighted Mean and Median RMSE
-    for agg_func in ['mean', 'median']:
-        for metric in ['rmse', 'smape']:
-            metric_df = metric_dfs[metric].astype(float)
-            # Apply weights
-            weighted_metric = metric_df.mul(window_weights_series, axis=0)
-            if agg_func == 'mean':
-                agg_metric = weighted_metric.sum()
-            elif agg_func == 'median':
-                # Weighted median is more complex; we'll approximate by sorting
-                # and selecting the value where the cumulative weight reaches 50%
-                agg_metric = {}
-                for model in models:
-                    sorted_metrics = metric_df[model].dropna().sort_values()
-                    sorted_weights = window_weights_series.loc[sorted_metrics.index]
-                    cum_weights = sorted_weights.cumsum()
-                    median_idx = cum_weights >= 0.5
-                    if not median_idx.any():
-                        median_value = np.nan
-                    else:
-                        median_value = sorted_metrics[median_idx.idxmax()]
-                    agg_metric[model] = median_value
-                agg_metric = pd.Series(agg_metric)
-            best_model = agg_metric.idxmin()
-            best_models[f'Weighted {agg_func.capitalize()} {metric.upper()}'] = best_model
-
-    # Weighted Worst-Case Performance
-    # Since worst-case is a single value, weighting doesn't directly apply,
-    # but we can focus on recent worst cases.
-    recent_windows = windows[-max(1, num_windows // 3):]  # Use the most recent third of windows
-    for metric in ['rmse', 'smape']:
-        metric_df = metric_dfs[metric].loc[recent_windows]
-        max_metric = metric_df.max()
-        best_model_max = max_metric.idxmin()
-        best_models[f'Recent Worst-Case {metric.upper()}'] = best_model_max
-
-    # Approach 2: Weighted Stability of Performance
-    for metric in ['rmse', 'smape']:
-        metric_df = metric_dfs[metric].astype(float)
-        # Calculate weighted standard deviation
-        mean_metric = metric_df.mul(window_weights_series, axis=0).sum()
-        deviations = metric_df.subtract(mean_metric, axis=1)
-        weighted_var = (deviations ** 2).mul(window_weights_series, axis=0).sum()
-        weighted_std = np.sqrt(weighted_var)
-        cv_metric = weighted_std / mean_metric.abs()
-
-        best_model_std = weighted_std.idxmin()
-        best_model_cv = cv_metric.idxmin()
-
-        best_models[f'Weighted Std of {metric.upper()}'] = best_model_std
-        best_models[f'Weighted CV of {metric.upper()}'] = best_model_cv
-
-    # Approach 3: Weighted Pairwise Comparisons
-    for metric in ['rmse', 'smape']:
-        metric_df = metric_dfs[metric].astype(float)
-        # For each window, find the best model
-        best_per_window = metric_df.idxmin(axis=1)
-        # Weight the counts based on window weights
-        weighted_counts = best_per_window.map(window_weights_series).groupby(best_per_window).sum()
-        best_model_pairwise = weighted_counts.idxmax()
-        best_models[f'Weighted Pairwise Comparison {metric.upper()}'] = best_model_pairwise
-
-    # Approach 5: Statistical Tests on Recent Windows
-    for metric in ['rmse', 'smape']:
-        metric_df = metric_dfs[metric].loc[recent_windows].dropna()
-        if len(models) >= 2 and metric_df.shape[0] >= 2:
-            # Perform Friedman test on recent windows
-            friedman_stat, p_value = friedmanchisquare(
-                *[metric_df[model].values for model in models]
-            )
-            if p_value < 0.05:
-                best_model_friedman = metric_df.mean().idxmin()
-                best_models[f'Recent Friedman Test {metric.upper()}'] = best_model_friedman
-            else:
-                best_models[f'Recent Friedman Test {metric.upper()}'] = 'No significant difference'
-        else:
-            best_models[f'Recent Friedman Test {metric.upper()}'] = 'Not enough data'
-
-    return best_models
-
 class ForecastingTaskSingleTarget:
 
-    def __init__(self, target:str, task:dict, outdir:str, verbose:bool):
+    # def __init__(self, target:str, task:dict, outdir:str, verbose:bool):
+    #     # main output directory
+    #     self.verbose = verbose
+    #     if not os.path.isdir(outdir):
+    #         if self.verbose: print(f"Creating {outdir}")
+    #         os.mkdir(outdir)
+    #
+    #     # init dataclass
+    #     self.target = task['target']
+    #     self.outdir_ = outdir
+    #
+    #
+    #     # load dataset
+    #     df_history, df_forecast = load_data(target, verbose=verbose)
+    #     print(f"Loaded dataset has features: {df_history.columns.tolist()}")
+    #     # df_forecast = df_forecast[1:] # remove df_history[-1] hour
+    #
+    #     # restrict to required features
+    #     features = task['features']
+    #     features_to_restrict : list = []
+    #     for feature in features:
+    #         # preprocess some features
+    #         if feature  == 'weather':
+    #             # TODO IMPROVE (USE OPENMETEO CLASS HERE)
+    #             weather_features:list = _get_weather_features(df_history)
+    #             features_to_restrict += weather_features
+    #     if not features:
+    #         if verbose: print(f"No features selected for {target}. Using all features: \n{df_forecast.columns.tolist()}")
+    #         features_to_restrict = df_forecast.columns.tolist()
+    #
+    #     # remove unnecessary features from the dataset
+    #     print(f"Restricting dataframe from {len(df_history.columns)} features to {len(features_to_restrict)}")
+    #     self.df_history = df_history[features_to_restrict + [target]]
+    #     self.df_forecast = df_forecast[features_to_restrict]
+    #     if not validate_dataframe(self.df_forecast):
+    #         raise ValueError("Nans in the df_forecast after restricting. Cannot continue.")
+
+    def __init__(self, df_history:pd.DataFrame, df_forecast:pd.DataFrame, task:dict, outdir:str, verbose:bool):
         # main output directory
         self.verbose = verbose
         if not os.path.isdir(outdir):
@@ -991,10 +1108,7 @@ class ForecastingTaskSingleTarget:
         self.target = task['target']
         self.outdir_ = outdir
 
-
-        # load dataset
-        df_history, df_forecast = load_data(target)
-        print(f"Loaded dataset has features: {df_history.columns.tolist()}")
+        if self.verbose: print(f"Given dataset has features: {df_history.columns.tolist()}")
         # df_forecast = df_forecast[1:] # remove df_history[-1] hour
 
         # restrict to required features
@@ -1007,15 +1121,46 @@ class ForecastingTaskSingleTarget:
                 weather_features:list = _get_weather_features(df_history)
                 features_to_restrict += weather_features
         if not features:
-            if verbose: print(f"No features selected for {target}. Using all features: \n{df_forecast.columns.tolist()}")
+            if verbose: print(f"No features selected for {self.target}. Using all features: \n{df_forecast.columns.tolist()}")
             features_to_restrict = df_forecast.columns.tolist()
 
         # remove unnecessary features from the dataset
         print(f"Restricting dataframe from {len(df_history.columns)} features to {len(features_to_restrict)}")
-        self.df_history = df_history[features_to_restrict + [target]]
+        self.df_history = df_history[features_to_restrict + [self.target]]
         self.df_forecast = df_forecast[features_to_restrict]
         if not validate_dataframe(self.df_forecast):
             raise ValueError("Nans in the df_forecast after restricting. Cannot continue.")
+
+
+    # def prepare_dataset_for_task(self, df_history:pd.DataFrame, df_forecast:pd.DataFrame, task:dict):
+    #
+    #     # load dataset
+    #     # df_history, df_forecast = load_data(target,datapath=datapath, verbose=verbose)
+    #     print(f"Loaded dataset has features: {df_history.columns.tolist()}")
+    #     # df_forecast = df_forecast[1:] # remove df_history[-1] hour
+    #
+    #     # restrict to required features
+    #     target = task["target"]
+    #     features = task['features']
+    #     features_to_restrict : list = []
+    #     for feature in features:
+    #         # preprocess some features
+    #         if feature  == 'weather':
+    #             # TODO IMPROVE (USE OPENMETEO CLASS HERE)
+    #             weather_features:list = _get_weather_features(df_history)
+    #             features_to_restrict += weather_features
+    #     if not features:
+    #         if self.verbose: print(f"No features selected for {target}. Using all features: \n{df_forecast.columns.tolist()}")
+    #         features_to_restrict = df_forecast.columns.tolist()
+    #
+    #     # remove unnecessary features from the dataset
+    #     print(f"Restricting dataframe from {len(df_history.columns)} features to {len(features_to_restrict)}")
+    #     df_history = df_history[features_to_restrict + [target]]
+    #     df_forecast = df_forecast[features_to_restrict]
+    #     if not validate_dataframe(df_forecast):
+    #         raise ValueError("Nans in the df_forecast after restricting. Cannot continue.")
+    #
+    #     return df_history, df_forecast
 
     # ------- FINETUNING ------------
     def process_finetuning_task_ensemble(self, ft_task):
@@ -1325,19 +1470,63 @@ class ForecastingTaskSingleTarget:
         plot_time_series_with_residuals(plotting_tasks, target=self.target, ylabel=task["label"])
         return plotting_tasks
 
-    def process_task_determine_the_best_model(self, task):
+    def process_task_determine_the_best_model(self, task:dict, outdir:str):
+        train_forecast:list[str] = TaskPaths.train_forecast # ['train', 'forecast']
         metrics = {}
-        for t_task in task['task_select_best']:
-            model_label = t_task['model']
-            paths = TaskPaths(
-                target=self.target, model_label=model_label, working_dir=self.outdir_,verbose=self.verbose
-            )
-            with open(paths.to_trained() + "metadata.json", 'r') as file:
-                train_metadata = json.load(file)
-            metrics[model_label] = train_metadata['error_metrics']
-        result = select_best_model(metrics)
-        with open(paths.to_target + 'forecasting_selection_result.json', 'w') as f:
-            json.dump(result, f, indent=4)
+        for method in train_forecast:
+            metrics[method] = {}
+            for t_task in task['task_summarize']:
+                model_label:str = t_task['model']
+                paths = TaskPaths(
+                    target=self.target, model_label=model_label, working_dir=self.outdir_,verbose=self.verbose
+                )
+                with open(paths.to_dir(method) + "metadata.json", 'r') as file:
+                    train_metadata = json.load(file)
+                metrics[method][model_label] = train_metadata['error_metrics']
+
+        # Generate the datagram
+        datagram = write_summary(metrics)
+        df = pd.DataFrame(datagram)
+        df.to_csv(outdir + "summary_metrics.csv", index=False)
+
+        # plot_metric_evolution(file_path=outdir+"summary_metrics.csv",metric='rmse')
+
+        #
+        # summary_metric = t_task['summary_metric']
+        #
+        # # Iterate through models and their respective error metrics
+        # for model_label, error_metrics in metrics.items():
+        #     for forecast_time, metric_values in error_metrics.items():
+        #         if summary_metric in metric_values:
+        #             summary_data.append({
+        #                 "model": model_label,
+        #                 "forecast_time": forecast_time,
+        #                 "metric_value": metric_values[summary_metric]
+        #             })
+        #         else:
+        #             raise KeyError(f"Metric '{summary_metric}' not found in error metrics for model '{model_label}' at time '{forecast_time}'")
+        #
+        # # Create a DataFrame
+        # df = pd.DataFrame(summary_data)
+        #
+        # # Calculate average value for each model
+        # average_metrics = (
+        #     df.groupby("model")["metric_value"].mean().reset_index().rename(columns={"metric_value": "average_metric"})
+        # )
+        #
+        # # Append average row per model to the DataFrame
+        # df = df.merge(average_metrics, on="model")
+        # df = pd.concat([
+        #     df,
+        #     pd.DataFrame({
+        #         "model": ["Overall Average"],
+        #         "forecast_time": ["Average"],
+        #         "metric_value": [df["metric_value"].mean()],
+        #         "average_metric": [df["metric_value"].mean()]
+        #     })
+        # ], ignore_index=True)
+        # df.to_csv(outdir+t_task['train_forecast']+'summary.csv', index=False)
+        #
 
 
 def main():
@@ -1388,39 +1577,41 @@ def main():
                 #      'copy_input':True
                 #  },
                 #  'finetuning_pars':{'n_trials':5,'optim_metric':'rmse','cv_folds':3}},
-
-                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)',
-                 'dataset_pars': {
-                     'forecast_horizon':None,
-                     'target_scaler':'StandardScaler',
-                     'feature_scaler':'StandardScaler',
-                     'limit_pca_to_features':None,#'weather',
-                     'feature_pca_pars':None,#{'n_components':0.95},
-                     'add_cyclical_time_features':False,
-                     'fourier_features': {},
-                     'ensemble_features': 'cyclic_time',
-                     'log_target':True,
-                     'lags_target': None,
-                     'copy_input':True
-
-                 },
-                 'finetuning_pars':{'n_trials':5,
-                                    'optim_metric':'rmse',
-                                    'cv_folds':3,
-                                    'cv_folds_base':35,
-                                    'use_base_models_pred_intervals':False}}
+                #
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)',
+                #  'dataset_pars': {
+                #      'forecast_horizon':None,
+                #      'target_scaler':'StandardScaler',
+                #      'feature_scaler':'StandardScaler',
+                #      'limit_pca_to_features':None,#'weather',
+                #      'feature_pca_pars':None,#{'n_components':0.95},
+                #      'add_cyclical_time_features':False,
+                #      'fourier_features': {},
+                #      'ensemble_features': 'cyclic_time',
+                #      'log_target':True,
+                #      'lags_target': None,
+                #      'copy_input':True
+                #
+                #  },
+                #  'finetuning_pars':{'n_trials':5,
+                #                     'optim_metric':'rmse',
+                #                     'cv_folds':3,
+                #                     'cv_folds_base':35,
+                #                     'use_base_models_pred_intervals':False}}
             ],
             "task_training":[
                 # {'model':'Prophet', 'pars':{'cv_folds':5}},
                 # {'model':'XGBoost', 'pars':{'cv_folds':5}},
                 # {'model':'ElasticNet', 'pars':{'cv_folds':5}},
-                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','pars':{'cv_folds':5}}
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','pars':{'cv_folds':5}}
+                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','pars':{'cv_folds':5}}
             ],
             "task_forecasting":[
                 # {'model':'Prophet'},
                 {'model':'XGBoost', 'past_folds':5},
                 {'model':'ElasticNet', 'past_folds':5},
-                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','past_folds':5}
+                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','past_folds':5},
+                {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','past_folds':5}
             ],
             "task_plot":[
                 # {'model':'Prophet', 'n':2,
@@ -1434,23 +1625,34 @@ def main():
                 {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','n':2,
                  'name':'Ensemble','lw':1.0,'color':"purple",'ci_alpha':0.2,
                  'train_forecast':'train'},
+                {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','n':2,
+                 'name':'Ensemble','lw':1.0,'color':"magenta",'ci_alpha':0.2,
+                 'train_forecast':'train'},
             ],
-            "task_select_best":[
+            "task_summarize":[
                 # {'model':'Prophet', 'pars':{'cv_folds':5}},
-                {'model':'XGBoost'},
-                {'model':'ElasticNet'},
-                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)'},
+                {'model':'XGBoost', 'summary_metric':'rmse'},
+                {'model':'ElasticNet', 'summary_metric':'rmse'},
+                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)', 'summary_metric':'rmse'},
+                {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)', 'summary_metric':'rmse'},
             ]
         }
     ]
 
     outdir = './output/'
+    datapath = '../tmp_database/' # expected to fild history.parquet and forecast.parquet
+
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
 
     for task in tasks:
         target = task['target']
-        processor = ForecastingTaskSingleTarget(target=target,task=task,outdir=outdir,verbose=True)
+        df_hist, df_forecast = load_data(
+            datapath=datapath,target=task['target'], verbose=True
+        )
+        processor = ForecastingTaskSingleTarget(
+            df_history=df_hist,df_forecast=df_forecast,task=task,outdir=outdir,verbose=True
+        )
 
         # process task to fine-tune the forecasting model
         if task['task_fine_tuning']:
@@ -1479,8 +1681,8 @@ def main():
         if task['task_plot']:
             processor.process_task_plot_predict_forecast(task)
 
-        if task['task_select_best']:
-            processor.process_task_determine_the_best_model(task)
+        if task['task_summarize']:
+            processor.process_task_determine_the_best_model(task, outdir=outdir+target+'/')
 
 
 if __name__ == '__main__':
