@@ -12,6 +12,6 @@ from .utils import (
     compute_error_metrics_aggregate_over_cv_runs,
     compute_timeseries_split_cutoffs
 )
-from .interface import (
+from .tasks import (
     ForecastingTaskSingleTarget
 )

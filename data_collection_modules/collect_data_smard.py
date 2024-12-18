@@ -348,16 +348,7 @@ class DataEnergySMARD:
         df.reset_index(names=['date'], inplace=True)
         return df
 
-    def get_smard_da_prices_from_api(self)->pd.DataFrame:
-        # Day-ahead prices from SMARD (date is in ECT)
-        if self.verbose: print(f"Collecting DA auction price for {self.start_date} to {self.end_date}")
-        df_smard_da = self.request_data(modules_id=DataEnergySMARD.SPOT_MARKET)
-        df_smard_da = df_smard_da.resample('h', on='date').mean()
-        df_smard_da.reset_index(names=['date'], inplace=True)
-        # this data is in UTC initially, it seems, so I need to do conversion
-        # df_smard_da['date'] = df_smard_da['date'].dt.tz_localize('UTC')
-        # df_smard_da['date'] = df_smard_da['date'].dt.tz_convert('Etc/GMT+1')#('Etc/GMT+1')
-        return df_smard_da
+
 
     # def request_realized_consumption(self, utc:bool=True)->pd.DataFrame:
     #     modules = self.REALIZED_POWER_CONSUMPTION
@@ -662,9 +653,11 @@ def update_smard_from_api(today:pd.Timestamp,data_dir:str,verbose:bool):
     for col in df_hist.columns:
         if not col in df_smard.columns:
             raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
-    combined_df = pd.concat([df_hist[:start_date_], df_smard[start_date_:]])
-    result_df = combined_df[~combined_df.index.duplicated(keep='first')]
-    df_hist = result_df.sort_index()
+    df_hist = df_smard.combine_first(df_hist)
+    df_hist.sort_index(inplace=True)
+    # combined_df = pd.concat([df_hist[:start_date_], df_smard[start_date_:]])
+    # result_df = combined_df[~combined_df.index.duplicated(keep='first')]
+    # df_hist = result_df.sort_index()
     # combine
     # df_hist = df_hist[:last_timestamp].combine_first(df_smard[last_timestamp:today])
     # save

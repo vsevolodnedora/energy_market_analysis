@@ -22,3 +22,11 @@ locations = [
     #  "lat": 53.5488, "lon": 9.9872,
     #  "om_api_pars":{"cell_selection":"land"}}
   ]
+
+
+de_regions = [
+    {'name':'DE_AMPRION','suffix':'_ampr'},
+    {'name':'DE_50HZ','suffix':'_50hz'},
+    {'name':'DE_TENNET','suffix':'_tenn'},
+    {'name':'DE_TRANSNET','suffix':'_tran'}
+]

@@ -1,55 +1,11 @@
 
 import copy, re, pandas as pd, numpy as np, matplotlib.pyplot as plt
-import os.path
+import os.path; from datetime import datetime, timedelta
 
-from sklearn.model_selection import TimeSeriesSplit
-from sklearn.linear_model import ElasticNetCV, ElasticNet, Ridge
-from mapie.regression import MapieRegressor
-import xgboost as xgb
-import shap
-from datetime import datetime, timedelta
-import holidays
-from sklearn.decomposition import PCA
-import matplotlib.dates as mdates
-from mapie.regression import MapieRegressor
-import json
-import csv
-import gc
-import inspect
-import optuna
-import joblib
-import pickle
-from prophet import Prophet
-from sklearn.preprocessing import StandardScaler
+from data_collection_modules import OpenMeteo
+from forecasting_modules import ForecastingTaskSingleTarget
 
-from sklearn.utils.validation import check_is_fitted
-
-from scipy.stats import friedmanchisquare
-
-from forecasting_modules.utils import (
-    compute_timeseries_split_cutoffs,
-    compute_error_metrics,
-    compute_error_metrics_aggregate_over_horizon,
-    compute_error_metrics_aggregate_over_cv_runs
-)
-from data_modules.data_classes import (
-    validate_dataframe,
-    HistForecastDatasetBase,
-    HistForecastDataset
-)
-from data_modules.data_vis import plot_time_series_with_residuals
-from forecasting_modules.ensemble_model import (
-    EnsembleForecaster
-)
-from forecasting_modules.base_models import (
-    BaseForecaster,
-    XGBoostMapieRegressor,
-    ElasticNetMapieRegressor,
-    ProphetForecaster
-)
-
-def load_data(target:str,datapath:str, verbose:bool) \
-        ->tuple[pd.DataFrame, pd.DataFrame]:
+def load_prepared_data(target:str,datapath:str, verbose:bool)  ->tuple[pd.DataFrame, pd.DataFrame]:
 
     df_history = pd.read_parquet(f"{datapath}history.parquet")
     df_forecast = pd.read_parquet(f"{datapath}forecast.parquet")
@@ -68,12 +24,189 @@ def load_data(target:str,datapath:str, verbose:bool) \
 
     return df_history, df_forecast
 
-def _get_weather_features(df_history:pd.DataFrame):
-    # list of openmeteo feature names (excluding suffix added for different locations)
-    patterns = [
-        'cloud_cover', 'precipitation', 'relative_humidity_2m', 'shortwave_radiation',
-        'surface_pressure', 'temperature_2m', 'wind_direction_10m', 'wind_gusts_10m', 'wind_speed_10m'
+def handle_nans_with_interpolation(df: pd.DataFrame, name: str) -> pd.DataFrame:
+    """
+    Checks each column of the DataFrame for NaNs. If a column has more than 3 consecutive NaNs,
+    it raises a ValueError. Otherwise, fills the NaNs using bi-directional interpolation.
+    """
+
+    df_copy = df.copy()
+
+    def check_consecutive_nans(series: pd.Series):
+        # Identify consecutive NaNs by grouping non-NaN segments and counting consecutive NaNs
+        consecutive_nans = (series.isna().astype(int)
+                            .groupby((~series.isna()).cumsum())
+                            .cumsum())
+        if consecutive_nans.max() > 3:
+            raise ValueError(f"Column '{series.name}' in {name} contains more than 3 consecutive NaNs.")
+
+    # Check all columns for consecutive NaNs first
+    for col in df_copy.columns:
+        check_consecutive_nans(df_copy[col])
+
+    # Interpolate all columns at once after confirming they're valid
+    df_copy = df_copy.interpolate(method='linear', limit_direction='both', axis=0)
+
+    return df_copy
+
+def fix_broken_periodicity_with_interpolation(df: pd.DataFrame, name: str) -> pd.DataFrame:
+    """
+    Fixes broken hourly periodicity by adding missing timestamps if fewer than 3 consecutive are missing.
+    Raises an error if more than 3 consecutive timestamps are missing.
+    Missing values are filled using time-based interpolation.
+    """
+
+    if not isinstance(df.index, pd.DatetimeIndex):
+        raise ValueError(f"The DataFrame {name} must have a datetime index.")
+
+    expected_index = pd.date_range(start=df.index.min(), end=df.index.max(), freq='H')
+    missing_timestamps = expected_index.difference(df.index)
+
+    if missing_timestamps.empty:
+        print(f"The DataFrame {name} is already hourly with no missing segments.")
+        return df
+
+    # Convert to a Series to check consecutive missing timestamps
+    missing_series = pd.Series(missing_timestamps)
+    groups = (missing_series.diff() != pd.Timedelta(hours=1)).cumsum()
+
+    # Check if any group has more than 3 missing points
+    group_counts = groups.value_counts()
+    if (group_counts > 3).any():
+        bad_group = group_counts[group_counts > 3].index[0]
+        raise ValueError(f"More than 3 consecutive missing timestamps detected: "
+                         f"{missing_series[groups == bad_group].values} in {name}")
+
+    # Reindex and interpolate
+    fixed_df = df.reindex(expected_index)
+    fixed_df = fixed_df.interpolate(method='time')
+
+    print(f"Added and interpolated {len(missing_timestamps)} missing timestamps in {name}.")
+
+    return fixed_df
+
+def validate_dataframe(df: pd.DataFrame, name: str = '', verbose:bool=False) -> pd.DataFrame:
+    """Check for NaNs, missing values, and periodicity in a time-series DataFrame."""
+
+    # Check for NaNs
+    if df.isnull().any().any():
+        if verbose: print(f"ERROR! {name} DataFrame contains NaN values.")
+        df = handle_nans_with_interpolation(df, name)
+
+    # Check if index is sorted in ascending order
+    if not df.index.is_monotonic_increasing:
+        if verbose: print(f"ERROR! {name} The index is not in ascending order.")
+        raise ValueError("Data is not in ascending order.")
+
+    # Check for hourly frequency with no missing segments
+    full_range = pd.date_range(start=df.index.min(), end=df.index.max(), freq='H')
+    if not full_range.equals(df.index):
+        if verbose: print(f"ERROR! {name} The data is not hourly or has missing segments.")
+        df = fix_broken_periodicity_with_interpolation(df, name)
+
+    return df
+
+def preprocess_openmeteo_for_offshore_wind(df:pd.DataFrame, location_suffix="_hsee")->pd.DataFrame:
+    """
+    Preprocesses weather data for forecasting offshore wind energy generation.
+    Focuses on critical physical features and includes turbulence_intensity, wind_ramp, and wind_shear.
+
+    df contains the following columns with suffixes for different locations:
+        "temperature_2m",
+        "relative_humidity_2m",
+        "surface_pressure",
+        "wind_speed_10m",
+        "wind_speed_100m",
+        "wind_direction_10m",
+        "wind_direction_100m",
+        # additional
+        "precipitation",
+        "wind_gusts_10m",
+        "cloud_cover",
+        "shortwave_radiation"
+
+    """
+
+    # 1. Filter for the offshore wind farm location only
+    cols_to_keep = [c for c in df.columns if c.endswith(location_suffix)]
+    df = df[cols_to_keep].copy()
+
+    # 2. Define key variable columns
+    wind_speed_10m_col = f"wind_speed_10m{location_suffix}"
+    wind_speed_100m_col = f"wind_speed_100m{location_suffix}"
+    wind_dir_100m_col = f"wind_direction_100m{location_suffix}"
+    temp_col = f"temperature_2m{location_suffix}"
+    press_col = f"surface_pressure{location_suffix}"
+
+    # 3. Compute Air Density (ρ)
+    if temp_col in df.columns and press_col in df.columns:
+        temp_K = df[temp_col] + 273.15
+        R_specific = 287.05  # J/(kg·K) for dry air
+        # convert pressure from hPa to Pa
+        df["air_density"] = np.array( (df[press_col] * 100.) / (R_specific * temp_K) )
+
+    # 4. Compute Wind Power Density (if wind_speed_100m and air_density are available)
+    if wind_speed_100m_col in df.columns and "air_density" in df.columns:
+        df["wind_power_density"] = np.array( 0.5 * df["air_density"] * (df[wind_speed_100m_col] ** 3) )
+
+    # 5. Encode Wind Direction (Cyclic)
+    if wind_dir_100m_col in df.columns:
+        df["wind_dir_sin"] = np.sin(np.deg2rad(df[wind_dir_100m_col]))
+        df["wind_dir_cos"] = np.cos(np.deg2rad(df[wind_dir_100m_col]))
+        df.drop(columns=[wind_dir_100m_col], inplace=True)
+
+    # 6. Wind Shear (Requires both 10m and 100m wind speeds)
+    if wind_speed_10m_col in df.columns and wind_speed_100m_col in df.columns:
+        with np.errstate(divide='ignore', invalid='ignore'):
+            df["wind_shear"] = np.log(df[wind_speed_100m_col] / df[wind_speed_10m_col]) / np.log(100/10)
+        # Replace infinities or NaNs if they occur
+        df["wind_shear"].replace([np.inf, -np.inf], np.nan, inplace=True)
+
+    # 7. Turbulence Intensity (using a short rolling window on 100m wind speed)
+    if wind_speed_100m_col in df.columns:
+        rolling_std = df[wind_speed_100m_col].rolling(window=3, min_periods=1).std()
+        rolling_mean = df[wind_speed_100m_col].rolling(window=3, min_periods=1).mean()
+        df["turbulence_intensity"] = np.array( rolling_std / rolling_mean )
+
+    # 8. Wind Ramp (difference in 100m wind speed over 1 timestep)
+    if wind_speed_100m_col in df.columns:
+        df["wind_ramp"] = df[wind_speed_100m_col].diff(1)
+
+    # 9. Lag Features for Wind Speed at 100m
+    if wind_speed_100m_col in df.columns:
+        for lag in [1, 6, 12, 24]:
+            df[f"wind_speed_lag_{lag}"] = df[wind_speed_100m_col].shift(lag)
+
+    # 11. Drop Irrelevant Columns
+    # Decide which columns to drop. For model simplicity, consider dropping raw weather inputs
+    # that have been transformed into more physical parameters.
+    # However, keep wind speeds if you think they add value.
+    # For now, we keep the wind speeds since other derived features depend on them.
+    drop_vars = [
+        temp_col, press_col, "air_density",
+        f"precipitation{location_suffix}",
+        f"cloud_cover{location_suffix}",
+        f"shortwave_radiation{location_suffix}",
+        f"relative_humidity_2m{location_suffix}",
+        f"wind_direction_10m{location_suffix}",
+        f"wind_gusts_10m{location_suffix}"
     ]
+    drop_cols = [c for c in drop_vars if c in df.columns]
+    df.drop(columns=drop_cols, inplace=True, errors="ignore")
+
+    # Handle missing values introduced by lagging and other computations
+    # df.dropna(inplace=True)
+
+    return df
+
+def get_raw_weather_features(df_history:pd.DataFrame):
+    # list of openmeteo feature names (excluding suffix added for different locations)
+    # patterns = [
+    #     'cloud_cover', 'precipitation', 'relative_humidity_2m', 'shortwave_radiation',
+    #     'surface_pressure', 'temperature_2m', 'wind_direction_10m', 'wind_gusts_10m', 'wind_speed_10m'
+    # ]
+    patterns = OpenMeteo.variables_standard
+
     # Use the filter method to get columns that match the regex pattern
     weather_columns = df_history.filter(
         regex='|'.join([f"{pattern}_(fran|hsee|mun|solw|stut)" for pattern in patterns])
@@ -82,1459 +215,103 @@ def _get_weather_features(df_history:pd.DataFrame):
     print(f"Weather features found {len(weather_columns)}")
     return weather_columns
 
-def save_optuna_results(study:optuna.Study, extra_pars:dict, outdir:str):
-    """
-    Save all results from an Optuna study to multiple formats.
+def input_preprocessing_pipeline_wind_offshore(datapath:str, verbose:bool, features:list, target:str) \
+        -> tuple[pd.DataFrame, pd.DataFrame]:
 
-    Args:
-        study (optuna.study.Study): The completed Optuna study to save.
-        outdir (str): Outdir for the files to create.
+    target = 'wind_offshore'
+    # df = pd.read_parquet(data_dir + 'latest.parquet')
+    df_smard = pd.read_parquet(datapath + 'smard/' + 'history.parquet') # energy generation and consumption
+    df_om = pd.read_parquet(datapath + 'openmeteo/' + 'history.parquet') # raw weather quantities for different locations
+    df_om_f = pd.read_parquet(datapath + 'openmeteo/' + 'forecast.parquet') # weather forecasts for all locations
+    df_es = pd.read_parquet(datapath + 'epexspot/' + 'history.parquet') # energy prices
 
-    Files created:
-        - {outdir}_best_parameters.json: Best parameters in JSON format.
-        - {outdir}_best_trial_details.json: Details of the best trial in JSON format.
-        - {outdir}_best_parameters.csv: Best parameters in CSV format.
-        - {outdir}_complete_study_results.csv: Full study results in CSV format.
-    """
+    if verbose:
+        print(f"SMARD data shapes hist={df_smard.shape} start={df_smard.index[0]} end={df_smard.index[-1]}")
+        print(f"Openmeteo data shapes hist={df_om.shape} start={df_om.index[0]} end={df_om.index[-1]}")
+        print(f"Openmeteo data shapes forecast={df_om_f.shape} start={df_om_f.index[0]} end={df_om_f.index[-1]}")
+        print(f"EPEXSPOT data shapes hist={df_es.shape} start={df_es.index[0]} end={df_es.index[-1]}")
 
-    if not os.path.isdir(outdir):
-        os.makedirs(outdir)
+        print(f"Target={target} Nans={df_smard[target].isna().sum().sum()}")
 
-    # Save best parameters to JSON
-    best_params = study.best_params
-    if extra_pars: best_params = best_params | extra_pars
-    with open(f'{outdir}best_parameters.json', 'w') as f:
-        json.dump(best_params, f, indent=4)
 
-    # Save details of the best trial to JSON
-    best_trial = study.best_trial
-    best_trial_details = {
-        'trial_id': best_trial.number,
-        'best_value': study.best_value,
-        'params': best_params
-    }
-    with open(f'{outdir}best_trial_details.json', 'w') as f:
-        json.dump(best_trial_details, f, indent=4)
-
-    # Save best parameters to CSV
-    with open(f'{outdir}_best_parameters.csv', 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(['Parameter', 'Value'])
-        for key, value in best_params.items():
-            writer.writerow([key, value])
-
-    # Convert the complete study results to a DataFrame and save to CSV
-    results_df = study.trials_dataframe(attrs=('number', 'value', 'params', 'state'))
-    results_df.to_csv(f'{outdir}_complete_study_results.csv', index=False)
-
-def get_parameters_for_optuna_trial(model_name, trial:optuna.trial):
-
-    if model_name == 'XGBoost':
-        param = {
-            # 'objective': self.optim_pars['objective'],#'reg:squarederror',
-            # 'eval_metric': self.optim_pars['eval_metric'],#'rmse',
-            'n_estimators': trial.suggest_int('n_estimators', 300, 1000),
-            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3, log=True),
-            'max_depth': trial.suggest_int('max_depth', 3, 10),
-            'min_child_weight': trial.suggest_int('min_child_weight', 1, 10),
-            'subsample': trial.suggest_float('subsample', 0.5, 1.0),
-            'colsample_bytree': trial.suggest_float('colsample_bytree', 0.5, 1.0),
-            'reg_alpha': trial.suggest_float('reg_alpha', 1e-8, 1.0, log=True),
-            'reg_lambda': trial.suggest_float('reg_lambda', 1e-8, 1.0, log=True),
-        }
-
-    elif model_name == 'ElasticNet':
-        param = {
-            'l1_ratio': trial.suggest_float('l1_ratio', 1e-5, 1.0, log=True),
-            'alpha': trial.suggest_float('alpha', 1e-6, 1.0, log=True)
-        }
-
-    elif model_name == 'Prophet':
-        param = {
-            # 'growth': trial.suggest_categorical('growth', ['linear', 'logistic']),
-            # 'changepoint_prior_scale': trial.suggest_float('changepoint_prior_scale', 0.001, 0.5, log=True),
-            'seasonality_mode': trial.suggest_categorical('seasonality_mode', ['additive', 'multiplicative']),
-            'seasonality_prior_scale': trial.suggest_float('seasonality_prior_scale', 0.01, 10.0, log=True),
-            # 'holidays_prior_scale': trial.suggest_float('holidays_prior_scale', 0.01, 10.0, log=True),
-            'n_changepoints': trial.suggest_int('n_changepoints', 5, 100),
-            'yearly_seasonality': trial.suggest_categorical('yearly_seasonality', [True, False]),
-            'weekly_seasonality': trial.suggest_categorical('weekly_seasonality', [True, False]),
-            'daily_seasonality': trial.suggest_categorical('daily_seasonality', [True, False]),
-        }
-
+    # set how to split the dataset
+    cutoff = df_om_f.index[0]
+    if cutoff == cutoff.normalize():
+        if verbose:
+            print(f"The cutoff timestamp corresponds to the beginning of the day {cutoff.normalize()}")
     else:
-        raise NotImplementedError(f"Fine-tuning parameter set for {model_name} not implemented")
+        raise ValueError(f"The cutoff timestamp does not correspond to the beginning of the day {cutoff}")
+    if verbose:
+        print(f"Dataset is split into ({len(df_om[:cutoff])}) before and "
+          f"({len(df_om_f[cutoff:])}) ({int(len(df_om_f[cutoff:])/24)} days) after {cutoff}.")
 
-    return param
+    # combine historic and forecasted data
+    df_om = df_om.combine_first(df_om_f)
+    if df_om.isna().any().any():
+        raise ValueError("ERROR! Nans in the dataframe")
 
-def instantiate_base_forecaster(model_name:str, target:str, lags_target:int or None, model_pars:dict, verbose:bool)->BaseForecaster:
-    # train the forecasting model several times to evaluate its performance, get all results
-    if model_name == 'XGBoost':
-        return XGBoostMapieRegressor(
-            model=MapieRegressor(
-                xgb.XGBRegressor(**model_pars),
-                method='naive', cv='prefit'#TimeSeriesSplit(n_splits=5)
-            ), target=target, alpha=0.05, lags_target=lags_target, verbose=verbose)
+    # Extract data for the offshore wind farm location and create new features
+    df_om_prep = preprocess_openmeteo_for_offshore_wind(df=df_om, location_suffix="_hsee")
+    df_om_prep.dropna(inplace=True) # drop nans formed when lagged features were added
 
-    elif model_name == 'ElasticNet':
-        return ElasticNetMapieRegressor(
-            model=MapieRegressor(
-                ElasticNet(**(model_pars | {'max_iter':10000, 'tol':1e-2})),
-                method='naive', cv='prefit'#TimeSeriesSplit(n_splits=5)
-            ), target=target, alpha=0.05, lags_target=lags_target, verbose=verbose)
+    horizon = 7 * 24
 
-    elif model_name == 'Prophet':
-        return ProphetForecaster( params = model_pars, target=target, alpha=0.05, verbose=verbose)
-
-    else:
-        raise NotImplementedError(f"Fine-tuning parameter set for {model_name} not implemented")
-
-def get_ts_cutoffs(ds:HistForecastDataset,folds:int):
-    if ds is None:
-        raise ReferenceError("Dataset class is not initialized")
-    horizon = len(ds.get_forecast_index()) # number of timesteps to forecast
-    if not horizon % 24 == 0:
-        raise ValueError(f"Horizon must be divisible by 24 (at least one day). Given {horizon}")
-    cutoffs = compute_timeseries_split_cutoffs(
-        ds.get_index(),
-        horizon=horizon,
-        delta=horizon,
-        folds=folds,
-        min_train_size=3*30*24
+    # merger with SMRD target column
+    df_om_prep.dropna(inplace=True, how='any')
+    df_hist = pd.merge(
+        df_om_prep[:cutoff-timedelta(hours=1)],
+        df_smard[:cutoff-timedelta(hours=1)][target],
+        left_index=True, right_index=True, how="inner"
     )
-    return cutoffs
-
-def get_ensemble_name_and_model_names(model_name:str):
-    match = re.search(r'\[(.*?)\]', model_name)
-    if match: meta_model = match.group(1)
-    else: raise NameError(f"Model name {model_name} does not contain '[meta_model_name]' string")
-
-    # extract base-models names
-    match = re.search(r'\((.*?)\)', model_name)
-    if match: model_names = match.group(1).split(',')  # Split by comma
-    else: raise NameError(f"Model name {model_name} does not contain '(model_name_1,model_name_2)' string")
-
-    return meta_model, model_names
-
-def write_summary(summary: dict):
-    # Collect datagrams
-    datagram = []
-
-    # Iterate through the methods (train, forecast)
-    for method, models in summary.items():
-        for model_label, horizons in models.items():
-            for horizon, metrics in horizons.items():
-                # Create a single entry for each horizon
-                datagram.append({
-                    "method": method,
-                    "model_label": model_label,
-                    "horizon": horizon,
-                    **metrics
-                })
-
-    return datagram
-def plot_metric_evolution(file_path: str, metric: str):
-    # Load the dataframe
-    df = pd.read_csv(file_path)
-
-    # Filter relevant columns
-    if metric not in df.columns:
-        raise ValueError(f"Metric '{metric}' not found in the dataframe.")
-
-    # Sort the dataframe by horizon and convert horizon to datetime
-    df['horizon'] = pd.to_datetime(df['horizon'])
-    df = df.sort_values(by='horizon')
-
-    markers = ['s', 'o', 'v', '^', 'P']
-
-    # Plot the metric evolution
-    fig, ax = plt.subplots(figsize=(8, 4))
-    for marker, model_label in zip(markers, df['model_label'].unique()):
-        if model_label.__contains__('ensemble'): markerfacecolor = 'black'
-        else: markerfacecolor = 'None'
-        method_df_trained = df[(df['model_label'] == model_label) & (df['method'] == 'trained')]
-        ax.plot(method_df_trained['horizon'], method_df_trained[metric], linestyle='None',
-                marker=marker, label=model_label, color='black',
-                markerfacecolor=markerfacecolor, markeredgecolor='black', markersize=8
-                )
-        # method_df_forecast = df[(df['model_label'] == model_label) & (df['method'] == 'trained')]
-        # ax.plot(method_df_forecast['horizon'], method_df_forecast[metric], linestyle='None', marker=marker)
-
-    # Set x-ticks at unique horizon values
-    unique_horizons = df['horizon'].sort_values().unique()
-    ax.set_xticks(unique_horizons)
-    ax.set_xticklabels([
-        h.strftime('%Y-%m-%d') for h in unique_horizons], rotation=0, ha='center'#'right'
-    )
-
-    ax.grid(True, linestyle='-', alpha=0.4)
-    ax.tick_params(axis='x', direction='in', bottom=True)
-    ax.tick_params(axis='y', which='both', direction='in', left=True, right=True)
-    # Set border lines transparent by setting the edge color and alpha
-    ax.spines['top'].set_edgecolor((1, 1, 1, 0))  # Transparent top border
-    ax.spines['right'].set_edgecolor((1, 1, 1, 0))  # Transparent right border
-    ax.spines['left'].set_edgecolor((1, 1, 1, 0))  # Transparent left border
-    ax.spines['bottom'].set_edgecolor((1, 1, 1, 0))  # Transparent bottom border
-
-    # Make x and y ticks transparent
-    ax.tick_params(axis='x', color=(1, 1, 1, 0))  # Transparent x ticks
-    ax.tick_params(axis='y', color=(1, 1, 1, 0))  # Transparent y ticks
-
-    # ax.xaxis.set_major_locator(mdates.DayLocator())
-    # ax_bottom.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))  # Format as "Dec
-
-    ax.set_title(f"{metric.upper()} for Several Out-of-Sample Forecasts")
-    ax.set_xlabel("Starting Date of the Forecasting Horizon")
-    ax.set_ylabel(f"Horizon Averaged {metric.upper()}")
-    ax.legend()
-    ax.grid(True)
-    plt.tight_layout()
-    plt.savefig(file_path.replace(".csv",".png"), dpi=600)
-    plt.show()
-
-def select_best_model(metrics):
-    """
-    Selects the best-performing model using different evaluation approaches.
-
-    Args:
-        metrics (dict): A nested dictionary where metrics[model_name][window_start_timestamp][metric_name] = value.
-
-    Returns:
-        dict: A dictionary with approach names as keys and the best model names as values.
-    """
-
-    # Collect models and windows
-    models = list(metrics.keys())
-    windows = set()
-    for model in metrics:
-        windows.update(metrics[model].keys())
-    windows = sorted(windows)  # Oldest to newest
-
-    # Create weights for windows, giving higher weights to more recent windows
-    num_windows = len(windows)
-    window_weights = np.arange(1, num_windows + 1)  # Linear weights
-    window_weights = window_weights / window_weights.sum()  # Normalize weights to sum to 1
-    window_weights_series = pd.Series(window_weights, index=windows)
-
-    # Define the metrics to consider
-    metric_names = ['mse', 'rmse', 'mae', 'mape', 'smape', 'bias', 'variance', 'std',
-                    'r2', 'prediction_interval_coverage', 'prediction_interval_width']
-
-    # Initialize a dictionary to store DataFrames for each metric
-    metric_dfs = {metric_name: pd.DataFrame(index=windows, columns=models) for metric_name in metric_names}
-
-    # Populate the DataFrames with metric values
-    for model in models:
-        for window in metrics[model]:
-            for metric_name in metric_names:
-                value = metrics[model][window].get(metric_name, np.nan)
-                metric_dfs[metric_name].loc[window, model] = value
-
-    # Initialize the result dictionary
-    best_models = {}
-
-    # Approach 1: Weighted Aggregate Error Metrics
-    # Weighted Mean and Median RMSE
-    for agg_func in ['mean', 'median']:
-        for metric in ['rmse', 'smape']:
-            metric_df = metric_dfs[metric].astype(float)
-            # Apply weights
-            weighted_metric = metric_df.mul(window_weights_series, axis=0)
-            if agg_func == 'mean':
-                agg_metric = weighted_metric.sum()
-            elif agg_func == 'median':
-                # Weighted median is more complex; we'll approximate by sorting
-                # and selecting the value where the cumulative weight reaches 50%
-                agg_metric = {}
-                for model in models:
-                    sorted_metrics = metric_df[model].dropna().sort_values()
-                    sorted_weights = window_weights_series.loc[sorted_metrics.index]
-                    cum_weights = sorted_weights.cumsum()
-                    median_idx = cum_weights >= 0.5
-                    if not median_idx.any():
-                        median_value = np.nan
-                    else:
-                        median_value = sorted_metrics[median_idx.idxmax()]
-                    agg_metric[model] = median_value
-                agg_metric = pd.Series(agg_metric)
-            best_model = agg_metric.idxmin()
-            best_models[f'Weighted {agg_func.capitalize()} {metric.upper()}'] = best_model
-
-    # Weighted Worst-Case Performance
-    # Since worst-case is a single value, weighting doesn't directly apply,
-    # but we can focus on recent worst cases.
-    recent_windows = windows[-max(1, num_windows // 3):]  # Use the most recent third of windows
-    for metric in ['rmse', 'smape']:
-        metric_df = metric_dfs[metric].loc[recent_windows]
-        max_metric = metric_df.max()
-        best_model_max = max_metric.idxmin()
-        best_models[f'Recent Worst-Case {metric.upper()}'] = best_model_max
-
-    # Approach 2: Weighted Stability of Performance
-    for metric in ['rmse', 'smape']:
-        metric_df = metric_dfs[metric].astype(float)
-        # Calculate weighted standard deviation
-        mean_metric = metric_df.mul(window_weights_series, axis=0).sum()
-        deviations = metric_df.subtract(mean_metric, axis=1)
-        weighted_var = (deviations ** 2).mul(window_weights_series, axis=0).sum()
-        weighted_std = np.sqrt(weighted_var)
-        cv_metric = weighted_std / mean_metric.abs()
-
-        best_model_std = weighted_std.idxmin()
-        best_model_cv = cv_metric.idxmin()
-
-        best_models[f'Weighted Std of {metric.upper()}'] = best_model_std
-        best_models[f'Weighted CV of {metric.upper()}'] = best_model_cv
-
-    # Approach 3: Weighted Pairwise Comparisons
-    for metric in ['rmse', 'smape']:
-        metric_df = metric_dfs[metric].astype(float)
-        # For each window, find the best model
-        best_per_window = metric_df.idxmin(axis=1)
-        # Weight the counts based on window weights
-        weighted_counts = best_per_window.map(window_weights_series).groupby(best_per_window).sum()
-        best_model_pairwise = weighted_counts.idxmax()
-        best_models[f'Weighted Pairwise Comparison {metric.upper()}'] = best_model_pairwise
-
-    # Approach 5: Statistical Tests on Recent Windows
-    for metric in ['rmse', 'smape']:
-        metric_df = metric_dfs[metric].loc[recent_windows].dropna()
-        if len(models) >= 2 and metric_df.shape[0] >= 2:
-            # Perform Friedman test on recent windows
-            friedman_stat, p_value = friedmanchisquare(
-                *[metric_df[model].values for model in models]
-            )
-            if p_value < 0.05:
-                best_model_friedman = metric_df.mean().idxmin()
-                best_models[f'Recent Friedman Test {metric.upper()}'] = best_model_friedman
-            else:
-                best_models[f'Recent Friedman Test {metric.upper()}'] = 'No significant difference'
-        else:
-            best_models[f'Recent Friedman Test {metric.upper()}'] = 'Not enough data'
-
-    return best_models
-
-class TaskPaths:
-
-    train_forecast = ['trained','forecast']
-
-    def __init__(self, target:str, model_label:str, working_dir:str,verbose:bool):
-        self.working_dir = working_dir
-        self.model_label = model_label
-        self.target = target
-        self.verbose = verbose
-        self.finetuned_name = 'finetuning'
-        self.trained_name = 'trained'
-        self.forecast_name = 'forecast'
-
-        if not os.path.isdir(working_dir):
-            raise FileNotFoundError(f"Working directory does not exists {self.working_dir}")
-        self.to_target = self.working_dir + self.target + '/'
-        self._get_create(self.to_target)
-
-        if self.model_label.__contains__('ensemble'):
-            self.name_base_model, self.names_base_models = get_ensemble_name_and_model_names(self.model_label)
-            self.model_label = 'meta_' + self.name_base_model + ''.join(['_' + m for m in self.names_base_models]) + '/'
-        else:
-            self.name_base_model = self.model_label
-            self.model_label = self.model_label
-
-        self.to_model = self.working_dir + self.target + '/' + self.model_label + '/'
-
-        self._get_create(self.to_model)
-
-    def _get_create(self, dir:str)->None:
-        if not os.path.isdir(dir):
-            if self.verbose: print(f"Creating {dir}")
-            os.mkdir(dir)
-
-    def to_target(self):
-        return self.to_target
-
-    def to_model(self):
-        return self.to_model
-
-    def to_finetuned(self):
-        dir = self.to_model + self.finetuned_name + '/'
-        self._get_create(dir)
-        return dir
-
-    def to_trained(self):
-        dir = self.to_model + self.trained_name + '/'
-        self._get_create(dir)
-        return dir
-
-    def to_forecast(self):
-        dir = self.to_model + self.forecast_name + '/'
-        self._get_create(dir)
-        return dir
-
-    def to_dir(self,dir:str)->str:
-        if dir == 'finetuning': return self.to_finetuned()
-        if dir == 'trained': return self.to_trained()
-        elif dir == 'forecast': return self.to_forecast()
-        else: raise ValueError(f"Directory {dir} is not supported. Expected 'trained' or 'forecast'")
-
-class BaseModelTasks(TaskPaths):
-
-    def __init__(self, target: str, model_label: str, working_dir: str, verbose: bool = False):
-
-        super().__init__(target, model_label, working_dir, verbose)
-
-        self.X_for_model = None
-        self.y_for_model = None
-        self.verbose = verbose
-        self.ds = None
-        self.forecaster = None
-
-        self.results = {}
-        self.metrics = {}
-        self.contributions = {}
-        self.cutoffs = []
-
-        self.model_dataset_pars = None
-        self.model_pars = None
-
-    def clear(self):
-        del self.X_for_model
-        del self.y_for_model
-        del self.results
-        del self.metrics
-        del self.contributions
-        gc.collect()
-
-    def set_dataset_from_ds(self, ds:HistForecastDatasetBase):
-        self.ds = ds
-
-    def set_dataset_from_df(self, df_hist:pd.DataFrame, df_forecast:pd.DataFrame, pars:dict):
-        if len(df_hist.columns)-1 != len(df_forecast.columns):
-            raise ValueError(f'df_hist and df_forecast must have same number of columns')
-        if len(df_hist.columns) == 0 or len(df_forecast.columns) == 0:
-            raise ValueError(f'df_hist and df_forecast must have at least one column')
-        pars = pars | {'verbose':self.verbose}
-        self.ds = HistForecastDataset( df_hist=df_hist, df_forecast=df_forecast, **pars )
-
-    def set_dataset_from_finetuned(self, df_hist:pd.DataFrame, df_forecast:pd.DataFrame)->tuple[dict,dict]:
-
-        dir = self.to_finetuned()
-        if self.verbose:
-            print(f"Setting dataset for base model {self.model_label} from finetuning directory {dir}")
-
-        with open(dir+'dataset.json', 'r') as f:
-            self.model_dataset_pars = json.load(f)
-
-        accepted_params = list(inspect.signature(HistForecastDataset.__init__).parameters.keys())[1:]  # Exclude 'self'
-        unexpected_params = {key: value for key, value in self.model_dataset_pars.items() if key not in accepted_params}
-        accepted_params = {key: value for key, value in self.model_dataset_pars.items() if key in accepted_params}
-        accepted_params = accepted_params | {'verbose':self.verbose}
-        self.ds = HistForecastDataset( df_hist=df_hist, df_forecast=df_forecast, **accepted_params )
-
-        return accepted_params, unexpected_params
-
-    def set_load_dataset_from_dir(self, dir:str, df_hist:pd.DataFrame, df_forecast:pd.DataFrame):
-
-        dir = self.to_dir(dir=dir)
-
-        if self.verbose:
-            print(f"Setting dataset for base model {self.model_label} from directory {dir}")
-
-        with open(dir+'dataset.json', 'r') as f:
-            self.model_dataset_pars = json.load(f)
-
-        accepted_params = list(inspect.signature(HistForecastDataset.__init__).parameters.keys())[1:]  # Exclude 'self'
-        unexpected_params = {key: value for key, value in self.model_dataset_pars.items() if key not in accepted_params}
-        accepted_params = {key: value for key, value in self.model_dataset_pars.items() if key in accepted_params}
-
-        target_scaler = joblib.load(dir + 'target_scaler.pkl')
-
-        feature_scaler = joblib.load(dir + 'feature_scaler.pkl')
-
-        ds_pars = accepted_params | {
-            'target_scaler':target_scaler, 'feature_scaler':feature_scaler, 'verbose':self.verbose
-        }
-        self.ds = HistForecastDataset( df_hist=df_hist, df_forecast=df_forecast, **ds_pars )
-
-        return accepted_params , unexpected_params
-
-    def set_forecaster_from_dir(self, dir:str) -> tuple[dict,dict]:
-
-        dir = self.to_dir(dir=dir)
-
-        if self.verbose:
-            print(f"Setting base forecaster {self.model_label} from directory {dir}")
-
-        with open(dir+'best_parameters.json', 'r') as f:
-            self.model_pars = json.load(f)
-
-        accepted_params = list(inspect.signature(HistForecastDataset.__init__).parameters.keys())[1:]  # Exclude 'self'
-        unexpected_params = {key: value for key, value in self.model_pars.items() if key not in accepted_params}
-        accepted_params = {key: value for key, value in self.model_pars.items() if key in accepted_params}
-
-        self.forecaster = instantiate_base_forecaster(
-            model_name=self.name_base_model, target=self.ds.target, lags_target=self.ds.lags_target,
-            model_pars=accepted_params, verbose=self.verbose
-        )
-
-        return accepted_params, unexpected_params
-
-    def load_forecaster_from_dir(self, dir:str) -> tuple[dict,dict]:
-
-        dir = self.to_dir(dir=dir)
-
-        if self.verbose:
-            print(f"Loading base forecaster {self.model_label} from directory {dir}")
-
-        if self.ds is None:
-            raise ReferenceError(f"Dataset class for base forecaster {self.model_label} is not initialized")
-
-        with open(dir+'best_parameters.json', 'r') as f:
-            self.model_pars = json.load(f)
-
-        accepted_params = list(inspect.signature(HistForecastDataset.__init__).parameters.keys())[1:]  # Exclude 'self'
-        unexpected_params = {key: value for key, value in self.model_pars.items() if key not in accepted_params}
-        accepted_params = {key: value for key, value in self.model_pars.items() if key in accepted_params}
-
-        self.forecaster = instantiate_base_forecaster(
-            model_name=self.name_base_model, target=self.ds.target, lags_target=self.ds.lags_target,
-            model_pars=accepted_params, verbose=self.verbose
-        )
-        self.forecaster.load_model(dir + 'model.joblib')
-
-        self.forecaster.lag_y_past = self.ds.get_target_transformed()
-
-        return accepted_params, unexpected_params
-
-    # def set_ts_cutoffs(self, folds:int):
-    #     self.cutoffs = get_ts_cutoffs(self.ds, folds=folds)
-
-    # def get_create_finetuning_dir(self)->str:
-    #     # create folder for the hyperparameter search
-    #     if not os.path.isdir(self.model_dir):
-    #         os.makedirs(self.model_dir)
-    #
-    #     outdir__ = self.model_dir + 'finetuning/'
-    #     if not os.path.isdir(outdir__):
-    #         os.makedirs(outdir__)
-    #
-    #     return outdir__
-
-    # def get_create_trained_dir(self)->str:
-    #     # create folder for the hyperparameter search
-    #     if not os.path.isdir(self.model_dir):
-    #         os.makedirs(self.model_dir)
-    #
-    #     outdir__ = self.model_dir + 'trained/'
-    #     if not os.path.isdir(outdir__):
-    #         os.makedirs(outdir__)
-    #
-    #     return outdir__
-
-    # def get_create_forecast_dir(self)->str:
-    #     # create folder for the hyperparameter search
-    #     if not os.path.isdir(self.model_dir):
-    #         os.makedirs(self.model_dir)
-    #
-    #     outdir__ = self.model_dir + 'forecast/'
-    #     if not os.path.isdir(outdir__):
-    #         os.makedirs(outdir__)
-    #
-    #     return outdir__
-
-    def get_average_metrics(self)->dict:
-        keys = self.metrics[list(self.metrics)[0]].keys()
-        res = {
-            key: np.mean(
-                [self.metrics[timestamp][key] for timestamp in list(self.metrics.keys())]
-            ) for key in keys
-        }
-        return res
-
-    def print_average_metrics(self, prefix:str, metrics:dict):
-        print(prefix + f"RMSE={metrics['rmse']:.1f} "
-              f"CI_width={metrics['prediction_interval_width']:.1f} "
-              f"sMAPE={metrics['smape']:.2f}")
-
-    def cv_train_test(self, folds:int, X_train:pd.DataFrame or None, y_train:pd.DataFrame or None, do_fit:bool):
-
-        if self.ds is None:
-            raise ReferenceError("Dataset class is not initialized")
-        if self.forecaster is None:
-            raise ReferenceError("Forecaster class is not initialized")
-        if folds < 1:
-            raise ValueError(f"CV is not possible with folds < 1 Given={folds}")
-        if not self.cutoffs:
-            self.cutoffs = get_ts_cutoffs(self.ds, folds=folds)
-        if len(self.cutoffs) != folds:
-            raise ValueError(f"There are already {self.cutoffs} cutoffs while passed folds={folds}")
-        if X_train is None and y_train is None:
-            self.X_for_model: pd.DataFrame = self.ds.get_exogenous_trasnformed()
-            self.y_for_model: pd.Series = self.ds.get_target_transformed()
-            if self.verbose:
-                print(f"Using full model dataset from {self.y_for_model.index[0]} to {self.y_for_model.index[-1]} "
-                      f"with {len(self.y_for_model)/24/7} weeks "
-                      f"({len(self.y_for_model)/len(self.ds.get_forecast_index())} horizons)")
-            if self.verbose:
-                print(f"Running CV {folds} folds for {self.model_label}. "
-                      f"Setting {len(self.X_for_model.columns)} "
-                      f"features from dataset (lags_target={self.ds.lags_target}))")
-        else:
-            self.X_for_model = X_train
-            self.y_for_model = y_train
-            if self.verbose:
-                print(f"Running CV {folds} folds for {self.model_label}. "
-                      f"Given {len(self.X_for_model.columns)} features (lags_target={self.ds.lags_target}))")
-
-        cutoffs = self.cutoffs # (self.ds, folds=folds)
-
-        target = self.ds.target
-
-        # sanity check that CV cutoffs are correctly set assuming multi-day forecasting horizon
-        delta = timedelta(hours=len(self.ds.get_forecast_index()))
-        for idx, cutoff in enumerate(cutoffs):
-            # Train matrix should have negth devisible for the length of the forecasting horizon,
-            # ane be composed of N segments each of which start at 00 hour and ends at 23 hour
-            train_mask = self.y_for_model.index < cutoff
-            # test mask should start at 00 hour and end on 23 hour (several full days)
-            test_mask = (self.y_for_model.index >= cutoff) \
-                        & (self.y_for_model.index < cutoff + delta)
-
-            train_idx = self.y_for_model[train_mask].index
-            test_idx = self.y_for_model[test_mask].index
-
-            if len(train_idx) == 0 or len(test_idx) == 0:
-                if self.verbose:
-                    print(f"Warning! Empty train data batch idx={idx}/{len(cutoffs)}. Skipping.")
-                    continue
-
-            if not len(train_idx) % len(test_idx) == 0:
-                print(f"Train: {train_idx[0]} to {train_idx[-1]} ({len(train_idx)/7/24} weeks, "
-                      f"{len(train_idx)/len(test_idx)} horizons) Horizon={len(test_idx)/7/24} weeks")
-                print(f"Test: {test_idx[0]} to {test_idx[-1]}")
-                raise ValueError("Train set size should be divisible by the test size")
-
-            if not len(test_idx) & 24:
-                print(f"Test: {test_idx[0]} to {test_idx[-1]} N={len(test_idx)}")
-                raise ValueError("Test set size should be divisible by 24")
-
-        # perform CV for each fold (cutoff)
-        for idx, cutoff in enumerate(cutoffs):
-            train_mask = self.y_for_model.index < cutoff
-            test_mask = (self.y_for_model.index >= cutoff) \
-                        & (self.y_for_model.index < cutoff + timedelta(hours=len(self.ds.get_forecast_index())))
-
-            if len(self.y_for_model[train_mask]) == 0 or len(self.y_for_model[test_mask]) == 0:
-                if self.verbose:
-                    print(f"Warning! Empty train data batch idx={idx}/{len(cutoffs)}. Skipping.")
-                    continue
-
-            # fit MapieRegressor(estimator=xbg.XBGRegressor(), method='naive', cv='prefit') model on the past data for current fold
-            if do_fit: self.forecaster.fit(self.X_for_model[train_mask], self.y_for_model[train_mask])
-            # get forecast for the next 'horizon' (data unseen during train time)
-            result:pd.DataFrame = self.forecaster.forecast_window( self.X_for_model[test_mask], self.y_for_model[train_mask] )
-            # 'result' has f'{target}_actual' and f'{target}_fitted' columns with N=horizon number of timesteps
-            result[f'{target}_actual'] = self.y_for_model[test_mask] # add actual target values to result for error estimation
-            # undo transformations
-            if len(result[f'{target}_fitted'][~np.isfinite(result[f'{target}_fitted'])]) > 0:
-                raise ValueError(f"Forecasting result contains nans. Fitted={result[f'{target}_fitted']}")
-            # collect results (Dataframe with actual, fitted, lower and upper) for each fold (still transformed!)
-            self.results[cutoff] = result
-            # compute error metrics (RMSE, sMAPE...) over the entire forecasted window
-            self.metrics[cutoff] = compute_error_metrics( target, result.apply(self.ds.inv_transform_target_series) )
-            # print error metrics
-            if self.verbose:
-                self.print_average_metrics(
-                    f"Fold {idx}/{len(cutoffs)} cutoff={cutoff} | "
-                    f"{'FIT' if do_fit else 'INF'} | {self.model_label} | " + \
-                    f"Train={self.X_for_model[train_mask].shape} ",
-                    self.metrics[cutoff]
-                )
-        # print averaged over all CV folds error metrics
-        if self.verbose:
-            self.print_average_metrics(
-                f"Average over {len(self.metrics)} folds | {self.model_label} | ",
-                self.get_average_metrics())
-
-
-    # def full_train(self):
-    #     if self.forecaster is None:
-    #         raise ReferenceError("Forecaster class is not initialized")
-    #     if self.verbose:
-    #         print(f"Training {self.model_label} on the entire dataset (X_train={self.X_for_model.shape})")
-    #     self.forecaster.fit(self.X_for_model, self.y_for_model)
-
-    def finetune(self, trial:optuna.Trial, cv_metrics_folds:int):
-        if self.ds is None:
-            raise ReferenceError("Dataset class is not initialized")
-
-        self.forecaster = None
-
-        params = get_parameters_for_optuna_trial(self.name_base_model, trial=trial)
-        self.forecaster = instantiate_base_forecaster(
-            model_name=self.name_base_model, target=self.ds.target, lags_target=self.ds.lags_target,
-            model_pars=params, verbose=self.verbose
-        )
-
-        self.cv_train_test(folds = cv_metrics_folds, X_train=None, y_train=None, do_fit=True)
-
-        average_metrics = self.get_average_metrics()
-        res = float( average_metrics['rmse'] ) # Average over all CV folds
-
-        del self.results; self.results = {}
-        del self.metrics; self.metrics = {}
-        del self.contributions; self.contributions = {}
-
-        gc.collect()
-
-        return res
-
-
-    def save_results(self, dir:str):
-
-        dir = self.to_dir(dir=dir)
-        if len(self.results.keys()) == 0:
-            raise ReferenceError(f"No results found for base model {self.model_label}")
-
-        metadata = {
-            'start_date':self.ds.get_index()[0].isoformat(),
-            'end_date':self.ds.get_index()[-1].isoformat(),
-            'horizon':len(self.ds.get_forecast_index()),
-            'features':self.ds.get_exogenous_trasnformed().columns.tolist(),
-            'error_metrics':{key.isoformat() : val for key, val in self.metrics.items()}
-        }
-        with open(dir+'metadata.json', 'w') as f:
-            json.dump(metadata, f, indent=4)
-
-        df_result = pd.concat([
-            self.results[key].apply(self.ds.inv_transform_target_series) for key in list(self.results.keys())
-        ], axis=0)
-        df_result.to_csv(dir+'result.csv')
-
-        if self.verbose:
-            print(f"Results of {self.model_label} fits are saved into {dir}")
-
-    def save_full_model(self, dir:str):
-
-        dir = self.to_dir(dir=dir)
-
-        if self.ds is None:
-            raise ReferenceError("Dataset class is not initialized")
-        if self.forecaster is None:
-            raise ReferenceError("Forecaster is not initialized")
-
-        check_is_fitted(self.forecaster.model)
-        self.forecaster.save_model(dir + 'model.joblib')
-
-        if not self.ds.target_scaler is None:
-            joblib.dump(self.ds.target_scaler, dir+'target_scaler.pkl')
-
-        if not self.ds.feature_scaler is None:
-            joblib.dump(self.ds.feature_scaler, dir+'feature_scaler.pkl')
-
-        with open(dir+'dataset.json', 'w') as f:
-            json.dump(self.model_dataset_pars, f, indent=4)
-
-        with open(dir+'best_parameters.json', 'w') as f:
-            json.dump(self.model_pars, f, indent=4)
-
-        if self.verbose:
-            print(f"Metadata for the trained base model {self.model_label} and dataset are saved into {dir}")
-
-    def run_save_forecast(self, folds:int):
-        if self.ds is None:
-            raise ReferenceError("Dataset class is not initialized")
-        if self.forecaster is None:
-            raise ReferenceError("Forecaster is not initialized")
-        #
-        #
-        # self.cv_train_test(folds=folds, X_train=None, y_train=None, do_fit=False)
-        # self.save_full_model(dir='forecast')
-
-        X_scaled = self.ds.get_forecast_exogenous()
-        y_scaled = self.ds.get_target_transformed()
-        forecast = self.forecaster.forecast_window(X_scaled, y_scaled)
-        forecast = forecast.apply(self.ds.inv_transform_target_series)
-        if self.verbose: print(f"Saving {self.to_forecast() + 'forecast.csv'}")
-        forecast.to_csv(self.to_forecast() + 'forecast.csv')
-
-class EnsembleModelTasks(BaseModelTasks):
-
-    def __init__(self, target:str, model_label:str, working_dir: str, verbose: bool = False):
-
-        super().__init__(target, model_label, working_dir, verbose)
-
-        # self.meta_model_name = model_name
-        # self.base_model_names = base_model_names
-        # self.workingdir = workingdir
-        # self.model_dir = workingdir + 'meta_'+model_name+''.join(['_'+m for m in base_model_names])+'/'
-        self.verbose = verbose
-        self.ds = None
-        self.base_models = {
-            model_name : BaseModelTasks(self.target, model_name, self.working_dir, verbose)
-            for model_name in self.names_base_models
-        }
-
-        self.X_for_model = None
-        self.y_for_model = None
-
-        self.X_meta = None
-        self.y_meta = None
-        self.cutoffs = None
-
-    def set_meta_X_y(self, X_meta:pd.DataFrame, y_meta:pd.Series):
-        self.y_meta = y_meta
-        self.X_meta = X_meta
-
-
-    def set_datasets_for_base_models_from_ds(self, ds:HistForecastDataset):
-        for base_model_name, base_model_class in self.base_models.items():
-            base_model_class.set_dataset_from_ds(ds)
-
-    def set_datasets_for_base_models_from_finetuned(self, df_hist:pd.DataFrame, df_forecast:pd.DataFrame):
-        for base_model_name, base_model_class in self.base_models.items():
-            base_model_class.set_dataset_from_finetuned(df_hist=df_hist, df_forecast=df_forecast)
-
-    def set_load_datasets_for_base_models_from_dir(self, dir:str, df_hist:pd.DataFrame, df_forecast:pd.DataFrame):
-        for base_model_name, base_model_class in self.base_models.items():
-            base_model_class.set_load_dataset_from_dir(dir=dir, df_hist=df_hist, df_forecast=df_forecast)
-
-    def set_base_models_from_dir(self, dir:str):
-        for base_model_name, base_model_class in self.base_models.items():
-            base_model_class.set_forecaster_from_dir(dir=dir)
-
-
-    def load_base_models_from_dir(self,dir:str):
-        for base_model_name, base_model_class in self.base_models.items():
-            base_model_class.load_forecaster_from_dir(dir=dir)
-
-    def update_pretrain_base_models(self, cv_folds_base:int, do_fit:bool):
-        if self.verbose:
-            print(f"Running CV {'train-test' if do_fit else 'test only'} {list(self.base_models.keys())} "
-                  f"base model using their respective datasets")
-        for base_model_name, base_model_class in self.base_models.items():
-            base_model_class.cv_train_test(cv_folds_base, None, None, do_fit=do_fit)
-
-    def create_X_y_for_model_from_base_models_cv_folds(
-            self,
-            cv_folds_base_to_use:int,
-            use_base_models_pred_intervals:bool
-    ):
-
-        target = self.ds.target
-
-        if use_base_models_pred_intervals: features_from_base_models = ['fitted','lower','upper']
-        else: features_from_base_models = ['fitted']
-
-        cv_folds_base = len(self.base_models[list(self.base_models.keys())[-1]].results)
-        if self.verbose:
-            print(f"Combining {cv_folds_base} "
-                  f"base-model CV folds to create a training set for meta-model {self.model_label}")
-
-        if cv_folds_base < 3:
-            raise ValueError(f"Number of CV folds for base models is too small. Should be >3 Given: {cv_folds_base}")
-
-        cutoffs = get_ts_cutoffs(self.ds, folds=cv_folds_base)
-        cutoffs = cutoffs[-cv_folds_base_to_use:]
-
-        X_meta_train_list, y_meta_train_list = [], []
-        for i_cutoff, cutoff in enumerate(cutoffs):
-
-            # get indexes for train-test split
-            resutls:dict = self.base_models[list(self.base_models.keys())[0]].results
-            if not cutoff in list(resutls.keys()):
-                raise ValueError(f"Expected cutoff {cutoff} is not in results.keys()={list(resutls.keys())}")
-
-            target_actual = resutls[cutoff][f'{target}_actual']
-            curr_tst_index = target_actual.index
-            forecasts_df = pd.DataFrame(index=curr_tst_index)
-
-            # extract results from base model forecasts
-            for base_model_name, base_model_class in self.base_models.items():
-                for key in features_from_base_models:
-                    forecasts_df[f'base_model_{base_model_name}_{key}'] = \
-                        base_model_class.results[cutoff][f'{target}_{key}']
-            # add meta-features
-            if not self.X_meta is None:
-                forecasts_df = forecasts_df.merge(self.X_meta.loc[curr_tst_index], left_index=True, right_index=True)
-
-            X_meta_train_list.append(forecasts_df)
-            y_meta_train_list.append(target_actual)
-
-        # Concatenate all folds and check shapes
-        X_meta_model_train = pd.concat(X_meta_train_list)
-        y_meta_model_train = pd.Series(pd.concat(y_meta_train_list))
-
-        # check if shapes are correct
-        model_names = list(self.base_models.keys())
-        if not self.X_meta is None:
-            if not (len(X_meta_model_train.columns) ==
-                    len(self.X_meta.columns) + len(model_names)*len(features_from_base_models)):
-                raise ValueError(f"Expected {len(self.X_meta.columns)+len(model_names)} columns in "
-                                 f"X_meta_model_train. Got={len(X_meta_model_train.columns)}")
-        else:
-            if not (len(X_meta_model_train.columns) == len(model_names)):
-                raise ValueError(f"Expected {len(model_names)} columns in "
-                                 f"X_meta_model_train. Got={len(X_meta_model_train.columns)}")
-
-        self.X_for_model = X_meta_model_train
-        self.y_for_model = y_meta_model_train
-
-        if self.verbose:
-            print(f"Trining data for meta-model {self.model_label} is collected. "
-                  f"Shape: X_train={self.X_for_model.shape}")
-
-    def cv_train_test_ensemble(self, cv_folds_base:int, do_fit:bool):
-        self.cv_train_test(folds=cv_folds_base, X_train=self.X_for_model, y_train=self.y_for_model, do_fit=do_fit)
-
-    def finetune(self, trial:optuna.Trial, cv_metrics_folds:int):
-
-        cv_folds_base = len(self.base_models[list(self.base_models.keys())[-1]].results)
-        # if not (cv_folds_base > cv_metrics_folds+3):
-        #     raise ValueError("There should be more CV folds for base models then for ensemble model. "
-        #                      f"Given CV ensemble {cv_metrics_folds}+3 folds and base models {cv_folds_base} folds")
-
-        if self.ds is None:
-            raise ReferenceError("Dataset class is not initialized")
-        self.forecaster = None
-
-        params = get_parameters_for_optuna_trial(self.name_base_model, trial=trial)
-        self.forecaster = instantiate_base_forecaster(
-            model_name=self.name_base_model, target=self.ds.target, lags_target=self.ds.lags_target,
-            model_pars=params, verbose=self.verbose
-        )
-
-        self.create_X_y_for_model_from_base_models_cv_folds(
-            cv_folds_base_to_use=cv_folds_base,
-            use_base_models_pred_intervals = False
-        )
-        # trial.suggest_int(
-        #         'cv_folds_base_to_use', cv_metrics_folds+3, cv_folds_base
-        #     ),
-        #     use_base_models_pred_intervals=trial.suggest_categorical(
-        #         'use_base_models_pred_intervals', [True, False])
-        # )
-
-        self.cv_train_test_ensemble(cv_folds_base=cv_metrics_folds, do_fit=True)
-
-        average_metrics = self.get_average_metrics()
-        res = float( average_metrics['rmse'] ) # Average over all CV folds
-
-        del self.X_for_model; self.X_for_model = None
-        del self.y_for_model; self.y_for_model = None
-        del self.results; self.results = {}
-        del self.metrics; self.metrics = {}
-        del self.contributions; self.contributions = {}
-
-        gc.collect()
-
-        return res
-
-
-    def run_save_forecast(self, folds:int):
-
-        use_base_models_pred_intervals = self.model_pars['use_base_models_pred_intervals']
-        if use_base_models_pred_intervals: features_from_base_models = ['fitted','lower','upper']
-        else: features_from_base_models = ['fitted']
-
-        X_test = pd.DataFrame()
-        for base_model_name, base_model_class in self.base_models.items():
-            dir = base_model_class.to_forecast()
-            df_i = pd.read_csv(dir+'forecast.csv', index_col='date')
-            df_i.index = pd.to_datetime(df_i.index)
-            df_i = df_i.apply(self.ds.transform_target_series)
-            for key in features_from_base_models:
-                X_test[f'base_model_{base_model_name}_{key}'] = df_i[f'{self.ds.target}_{key}']
-
-        if not self.X_meta is None:
-            X_test = X_test.merge(self.X_meta, left_index=True, right_index=True)
-
-        if not validate_dataframe(X_test) or len(X_test) != len(self.ds.get_forecast_index()):
-            raise ValueError("Validation check of forecasts_df failed.")
-
-        forecast = self.forecaster.forecast_window( X_test, self.y_meta )
-        forecast = forecast.apply(self.ds.inv_transform_target_series)
-
-        dir = self.to_forecast()
-        if self.verbose: print(f"Saving {dir+'forecast.csv'}")
-        forecast.to_csv(dir+'forecast.csv')
-
-class ForecastingTaskSingleTarget:
-
-    # def __init__(self, target:str, task:dict, outdir:str, verbose:bool):
-    #     # main output directory
-    #     self.verbose = verbose
-    #     if not os.path.isdir(outdir):
-    #         if self.verbose: print(f"Creating {outdir}")
-    #         os.mkdir(outdir)
-    #
-    #     # init dataclass
-    #     self.target = task['target']
-    #     self.outdir_ = outdir
-    #
-    #
-    #     # load dataset
-    #     df_history, df_forecast = load_data(target, verbose=verbose)
-    #     print(f"Loaded dataset has features: {df_history.columns.tolist()}")
-    #     # df_forecast = df_forecast[1:] # remove df_history[-1] hour
-    #
-    #     # restrict to required features
-    #     features = task['features']
-    #     features_to_restrict : list = []
-    #     for feature in features:
-    #         # preprocess some features
-    #         if feature  == 'weather':
-    #             # TODO IMPROVE (USE OPENMETEO CLASS HERE)
-    #             weather_features:list = _get_weather_features(df_history)
-    #             features_to_restrict += weather_features
-    #     if not features:
-    #         if verbose: print(f"No features selected for {target}. Using all features: \n{df_forecast.columns.tolist()}")
-    #         features_to_restrict = df_forecast.columns.tolist()
-    #
-    #     # remove unnecessary features from the dataset
-    #     print(f"Restricting dataframe from {len(df_history.columns)} features to {len(features_to_restrict)}")
-    #     self.df_history = df_history[features_to_restrict + [target]]
-    #     self.df_forecast = df_forecast[features_to_restrict]
-    #     if not validate_dataframe(self.df_forecast):
-    #         raise ValueError("Nans in the df_forecast after restricting. Cannot continue.")
-
-    def __init__(self, df_history:pd.DataFrame, df_forecast:pd.DataFrame, task:dict, outdir:str, verbose:bool):
-        # main output directory
-        self.verbose = verbose
-        if not os.path.isdir(outdir):
-            if self.verbose: print(f"Creating {outdir}")
-            os.mkdir(outdir)
-
-        # init dataclass
-        self.target = task['target']
-        self.outdir_ = outdir
-
-        if self.verbose: print(f"Given dataset has features: {df_history.columns.tolist()}")
-        # df_forecast = df_forecast[1:] # remove df_history[-1] hour
-
-        # restrict to required features
-        features = task['features']
-        features_to_restrict : list = []
-        for feature in features:
-            # preprocess some features
-            if feature  == 'weather':
-                # TODO IMPROVE (USE OPENMETEO CLASS HERE)
-                weather_features:list = _get_weather_features(df_history)
-                features_to_restrict += weather_features
-        if not features:
-            if verbose: print(f"No features selected for {self.target}. Using all features: \n{df_forecast.columns.tolist()}")
-            features_to_restrict = df_forecast.columns.tolist()
-
-        # remove unnecessary features from the dataset
-        print(f"Restricting dataframe from {len(df_history.columns)} features to {len(features_to_restrict)}")
-        self.df_history = df_history[features_to_restrict + [self.target]]
-        self.df_forecast = df_forecast[features_to_restrict]
-        if not validate_dataframe(self.df_forecast):
-            raise ValueError("Nans in the df_forecast after restricting. Cannot continue.")
-
-
-    # def prepare_dataset_for_task(self, df_history:pd.DataFrame, df_forecast:pd.DataFrame, task:dict):
-    #
-    #     # load dataset
-    #     # df_history, df_forecast = load_data(target,datapath=datapath, verbose=verbose)
-    #     print(f"Loaded dataset has features: {df_history.columns.tolist()}")
-    #     # df_forecast = df_forecast[1:] # remove df_history[-1] hour
-    #
-    #     # restrict to required features
-    #     target = task["target"]
-    #     features = task['features']
-    #     features_to_restrict : list = []
-    #     for feature in features:
-    #         # preprocess some features
-    #         if feature  == 'weather':
-    #             # TODO IMPROVE (USE OPENMETEO CLASS HERE)
-    #             weather_features:list = _get_weather_features(df_history)
-    #             features_to_restrict += weather_features
-    #     if not features:
-    #         if self.verbose: print(f"No features selected for {target}. Using all features: \n{df_forecast.columns.tolist()}")
-    #         features_to_restrict = df_forecast.columns.tolist()
-    #
-    #     # remove unnecessary features from the dataset
-    #     print(f"Restricting dataframe from {len(df_history.columns)} features to {len(features_to_restrict)}")
-    #     df_history = df_history[features_to_restrict + [target]]
-    #     df_forecast = df_forecast[features_to_restrict]
-    #     if not validate_dataframe(df_forecast):
-    #         raise ValueError("Nans in the df_forecast after restricting. Cannot continue.")
-    #
-    #     return df_history, df_forecast
-
-    # ------- FINETUNING ------------
-    def process_finetuning_task_ensemble(self, ft_task):
-
-        model_label = ft_task['model']
-        dataset_pars = ft_task['dataset_pars']
-        finetuning_pars = ft_task['finetuning_pars']
-
-        # common for all tasks for a given quantity
-        dataset_pars['target'] = self.target
-
-        # use actual weather features
-        if 'limit_pca_to_features' in dataset_pars.keys() and dataset_pars['limit_pca_to_features'] == 'weather':
-            dataset_pars['limit_pca_to_features'] = _get_weather_features(self.df_history)
-
-        wrapper = EnsembleModelTasks(
-            target=self.target, model_label=model_label, working_dir=self.outdir_, verbose=self.verbose
-        )
-
-        ft_outdir = wrapper.to_finetuned()
-        with open(ft_outdir+'dataset.json', 'w') as f:
-            json.dump(dataset_pars, f, indent=4)
-
-        ensemble_features = dataset_pars['ensemble_features']; del dataset_pars['ensemble_features']
-        wrapper.set_dataset_from_df(self.df_history, self.df_forecast, pars=dataset_pars)
-        wrapper.set_datasets_for_base_models_from_finetuned(self.df_history, self.df_forecast)
-        wrapper.set_base_models_from_dir(dir='finetuning')
-        if ensemble_features == 'cyclic_time':
-            wrapper.set_meta_X_y(
-                wrapper.ds._create_time_features( wrapper.ds.get_index() ),
-                wrapper.ds.get_target_transformed()
-            )
-
-        wrapper.update_pretrain_base_models(
-            cv_folds_base=finetuning_pars['cv_folds_base'], do_fit=True
-        )
-
-        if self.verbose:
-            print(f"Performing optimization study for meta-{wrapper.name_base_model} as {wrapper.model_label}")
-        study = optuna.create_study(direction='minimize')
-        study.optimize(
-            lambda trial: wrapper.finetune(trial, cv_metrics_folds=finetuning_pars['cv_folds']),
-            n_trials=finetuning_pars['n_trials']
-        )
-        save_optuna_results(study, {
-            'cv_folds_base':finetuning_pars['cv_folds_base'],
-            'use_base_models_pred_intervals':finetuning_pars['use_base_models_pred_intervals']
-        }, ft_outdir)
-
-        wrapper.clear()
-
-    def process_finetuning_task_base(self, ft_task):
-
-        model_label = ft_task['model']
-        dataset_pars = ft_task['dataset_pars']
-        finetuning_pars = ft_task['finetuning_pars']
-
-        # common for all tasks for a given quantity
-        dataset_pars['target'] = self.target
-
-        # use actual weather features
-        if 'limit_pca_to_features' in dataset_pars.keys() and dataset_pars['limit_pca_to_features'] == 'weather':
-            dataset_pars['limit_pca_to_features'] = _get_weather_features(self.df_history)
-
-        wrapper = BaseModelTasks(
-            target=self.target, model_label=model_label, working_dir=self.outdir_,verbose=self.verbose
-        )
-        wrapper.set_dataset_from_df(self.df_history, self.df_forecast, dataset_pars)
-        # wrapper.set_ts_cutoffs(folds=finetuning_pars['cv_folds'])
-
-        if self.verbose:
-            print(f"Performing optimization study for {self.target} with base model {model_label}")
-        study = optuna.create_study(direction='minimize')
-        # study.optimize(wrapper.finetune, n_trials=finetuning_pars['n_trials']) # todo move this into finetuning_pars
-        study.optimize(
-            lambda trial: wrapper.finetune(trial, cv_metrics_folds=finetuning_pars['cv_folds']),
-            n_trials=finetuning_pars['n_trials']
-        )
-
-        ft_outdir = wrapper.to_finetuned()
-        save_optuna_results(study, {}, ft_outdir)
-        with open(ft_outdir+'dataset.json', 'w') as f:
-            json.dump(dataset_pars, f, indent=4)
-
-        wrapper.clear()
-
-    # ------- TRAINING ---------
-    def process_training_task_ensemble(self, t_task):
-        model_label = t_task['model']
-        pars = t_task['pars']
-
-        # train_ensemble_model(
-        #     outdir_, model_name, target, df_history, df_forecast, pars,False
-        # )
-        wrapper = EnsembleModelTasks(
-            target=self.target, model_label=model_label, working_dir=self.outdir_,verbose=self.verbose
-        )
-        ds_pars, extra_pars = wrapper.set_dataset_from_finetuned(self.df_history, self.df_forecast)
-        wrapper.set_datasets_for_base_models_from_finetuned(self.df_history, self.df_forecast)
-        wrapper.set_base_models_from_dir(dir='finetuning')
-        if extra_pars['ensemble_features'] == 'cyclic_time':
-            wrapper.set_meta_X_y(
-                wrapper.ds._create_time_features( wrapper.ds.get_index() ),
-                wrapper.ds.get_target_transformed()
-            )
-        model_pars, extra_model_pars = wrapper.set_forecaster_from_dir(dir='finetuning')
-        wrapper.update_pretrain_base_models(
-            cv_folds_base=extra_model_pars['cv_folds_base'],#['cv_folds_base_to_use'],
-            do_fit=True
-        )
-        wrapper.create_X_y_for_model_from_base_models_cv_folds(
-            cv_folds_base_to_use=extra_model_pars['cv_folds_base'],#['cv_folds_base_to_use'],
-            use_base_models_pred_intervals=extra_model_pars['use_base_models_pred_intervals'],#['use_base_models_pred_intervals']
-        )
-        wrapper.cv_train_test(
-            folds=pars['cv_folds'],
-            X_train=wrapper.X_for_model,y_train=wrapper.y_for_model,
-            do_fit=True
-        )
-
-        t_outdir = wrapper.to_dir('trained')
-        wrapper.save_full_model(dir='trained') # trained
-        wrapper.save_results(dir='trained')
-        with open(t_outdir+'dataset.json', 'w') as f:
-            json.dump(ds_pars | extra_pars, f, indent=4)
-
-    def process_training_task_base(self, t_task):
-        model_label = t_task['model']
-        pars = t_task['pars']
-
-        wrapper = BaseModelTasks(
-            target=self.target, model_label=model_label, working_dir=self.outdir_,verbose=self.verbose
-        )
-        ds_pars, extra_pars = wrapper.set_dataset_from_finetuned(self.df_history, self.df_forecast)
-        wrapper.set_forecaster_from_dir(dir='finetuning')
-
-        wrapper.cv_train_test(folds=pars['cv_folds'], X_train=None, y_train=None, do_fit=True)
-
-        t_outdir = wrapper.to_dir('trained')
-        wrapper.save_full_model(dir='trained') # trained
-        wrapper.save_results(dir='trained')
-        with open(t_outdir+'dataset.json', 'w') as f:
-            json.dump(ds_pars | extra_pars, f, indent=4)
-
-    # ------ FORECASTING -------
-
-    def process_forecasting_task_ensemble(self, f_task):
-        model_label = f_task['model']
-        folds = f_task['past_folds']
-        wrapper = EnsembleModelTasks(
-            target=self.target, model_label=model_label, working_dir=self.outdir_,verbose=self.verbose
-        )
-        ds_pars, extra_pars = wrapper.set_load_dataset_from_dir(
-            dir='trained', df_hist=self.df_history, df_forecast=self.df_forecast
-        )
-        wrapper.set_load_datasets_for_base_models_from_dir(
-            dir='trained', df_hist=self.df_history, df_forecast=self.df_forecast
-        )
-        wrapper.load_base_models_from_dir(dir='trained')
-        if extra_pars['ensemble_features'] == 'cyclic_time':
-            wrapper.set_meta_X_y(
-                wrapper.ds._create_time_features( wrapper.ds.get_index() ),
-                wrapper.ds.get_target_transformed()
-            )
-
-        model_pars, extra_model_pars = wrapper.load_forecaster_from_dir(dir='trained')
-        wrapper.update_pretrain_base_models(
-            cv_folds_base=folds, do_fit=False
-        )
-        wrapper.create_X_y_for_model_from_base_models_cv_folds(
-            cv_folds_base_to_use=extra_model_pars['cv_folds_base'],
-            use_base_models_pred_intervals=extra_model_pars['use_base_models_pred_intervals']
-        )
-        wrapper.cv_train_test_ensemble(cv_folds_base=folds, do_fit=False)
-        wrapper.save_results(dir='forecast')
-
-
-        # forecast (different feature set)
-        if extra_pars['ensemble_features'] == 'cyclic_time':
-            wrapper.set_meta_X_y(
-                wrapper.ds._create_time_features( wrapper.ds.get_forecast_index() ),
-                wrapper.ds.get_target_transformed()
-            )
-
-        # wrapper.update_pretrain_base_models(
-        #     cv_folds_base=folds, do_fit=False
-        # )
-        # wrapper.create_X_y_for_model_from_base_models_cv_folds(
-        #     cv_folds_base_to_use=extra_model_pars['cv_folds_base_to_use'],
-        #     use_base_models_pred_intervals=extra_model_pars['use_base_models_pred_intervals']
-        # )
-        # wrapper.cv_train_test_ensemble(cv_folds_base=extra_model_pars['cv_folds_base_to_use'], do_fit=False)
-        wrapper.run_save_forecast(folds=folds)
-
-    def process_forecasting_task_base(self, f_task):
-        model_label = f_task['model']
-        folds = f_task['past_folds']
-        wrapper = BaseModelTasks(
-            target=self.target, model_label=model_label, working_dir=self.outdir_,verbose=self.verbose
-        )
-        wrapper.set_load_dataset_from_dir(dir='trained', df_hist=self.df_history, df_forecast=self.df_forecast)
-        wrapper.load_forecaster_from_dir(dir='trained')
-        wrapper.cv_train_test(folds=folds, X_train=None, y_train=None, do_fit=False)
-        wrapper.save_results(dir='forecast')
-        wrapper.run_save_forecast(folds=folds)
-
-    # ------ OTHERS --------
-
-    @staticmethod
-    def _load_trained_model(target:str,model_label:str, working_dir:str, train_forecast:str, verbose:bool)->dict:
-        paths = TaskPaths(
-            target=target, model_label=model_label, working_dir=working_dir, verbose=verbose
-        )
-
-        # choose which results to load -- from training run or from inference run
-        if train_forecast == 'forecast': dir = paths.to_forecast()
-        elif train_forecast == 'train': dir = paths.to_trained()
-        else: raise ValueError('train_forecast must be either forecast or train')
-
-        with open(dir + "metadata.json", 'r') as file:
-            train_metadata = json.load(file)
-
-        horizon = int(train_metadata['horizon'])
-        df_results = pd.read_csv(dir + 'result.csv',index_col=0,parse_dates=True)
-        if len(df_results) % horizon != 0:
-            raise ValueError(f"Expected number of rows in results to be divisible by horizon for {model_label}. "
-                             f"Given: df_results={len(df_results)} horizon={horizon} ({len(df_results) % horizon})")
-
-        df_results = [df_results.iloc[i:i + horizon] for i in range(0, len(df_results), horizon)]
-        metrics = train_metadata['error_metrics']
-        metrics = [val for (key, val) in metrics.items()]
-        if not len(metrics) == len(df_results):
-            raise ValueError(f"Expected same number of results and metrics. "
-                             f"Given: n_results={len(df_results)} n_metrics={len(metrics)}")
-
-        ave_metrics = {
-            key: np.mean( [metrics[i][key] for i in range(len((metrics)))] ) for key in list(metrics[0].keys())
-        }
-
-        task_i = {}
-        task_i['results'] = df_results
-        task_i['metrics'] = metrics
-
-        df_forecast = pd.read_csv(paths.to_forecast() + 'forecast.csv',index_col=0,parse_dates=True)
-
-        task_i['forecast'] = df_forecast
-        task_i['metrics'].append(ave_metrics)
-        return task_i
-
-    def process_task_plot_predict_forecast(self, task):
-        plotting_tasks = []
-        for t_task in task['task_plot']:
-            task_i = self._load_trained_model(
-                self.target,
-                model_label=t_task['model'],
-                working_dir=self.outdir_,
-                train_forecast=t_task['train_forecast'],
-                verbose=self.verbose
-            )
-            n = t_task['n']
-            if n > len(task_i['metrics'])-1:
-                raise ValueError(f"Requested to plot n={n} "
-                                 f"past forecasts while only {len(task_i['metrics'])-1} are avaialble")
-            task_i['results'] = task_i['results'][-n:]
-            task_i['metrics'] = task_i['metrics'][-n-1:]
-            plotting_tasks.append(task_i | t_task)
-
-            # model_label = t_task['model']
-            # paths = TaskPaths(
-            #     target=self.target, model_label=model_label, working_dir=self.outdir_,verbose=self.verbose
-            # )
-            #
-            # n = t_task['n']
-            # task_i = copy.deepcopy(t_task)
-            #
-            # with open(paths.to_trained() + "metadata.json", 'r') as file:
-            #     train_metadata = json.load(file)
-            #
-            # horizon = int(train_metadata['horizon'])
-            # df_results = pd.read_csv(paths.to_trained() + 'result.csv',index_col=0,parse_dates=True)
-            # if len(df_results) % horizon != 0:
-            #     raise ValueError(f"Expected number of rows in results to be divisible by horizon for {model_label}. "
-            #                      f"Given: df_results={len(df_results)} horizon={horizon} ({len(df_results) % horizon})")
-            #
-            # df_results = [df_results.iloc[i:i + horizon] for i in range(0, len(df_results), horizon)]
-            # metrics = train_metadata['error_metrics']
-            # metrics = [val for (key, val) in metrics.items()]
-            # if not len(metrics) == len(df_results):
-            #     raise ValueError(f"Expected same number of results and metrics. "
-            #                      f"Given: n_results={len(df_results)} n_metrics={len(metrics)}")
-            #
-            # ave_metrics = {
-            #     key: np.mean( [metrics[i][key] for i in range(len((metrics)))] ) for key in list(metrics[0].keys())
-            # }
-            #
-            # if n > len(metrics):
-            #     raise ValueError(f"Requested to plot n={n} past forecasts while only {len(metrics)} are avaialble")
-            # task_i['results'] = df_results[-n:]
-            # task_i['metrics'] = metrics[-n:]
-            #
-            # df_forecast = pd.read_csv(paths.to_forecast() + 'forecast.csv',index_col=0,parse_dates=True)
-            #
-            # task_i['forecast'] = df_forecast
-            # task_i['metrics'].append(ave_metrics)
-            #
-            # plotting_tasks.append(task_i)
-        plot_time_series_with_residuals(plotting_tasks, target=self.target, ylabel=task["label"])
-        return plotting_tasks
-
-    def process_task_determine_the_best_model(self, task:dict, outdir:str):
-        train_forecast:list[str] = TaskPaths.train_forecast # ['train', 'forecast']
-        metrics = {}
-        for method in train_forecast:
-            metrics[method] = {}
-            for t_task in task['task_summarize']:
-                model_label:str = t_task['model']
-                paths = TaskPaths(
-                    target=self.target, model_label=model_label, working_dir=self.outdir_,verbose=self.verbose
-                )
-                with open(paths.to_dir(method) + "metadata.json", 'r') as file:
-                    train_metadata = json.load(file)
-                metrics[method][model_label] = train_metadata['error_metrics']
-
-        # Generate the datagram
-        datagram = write_summary(metrics)
-        df = pd.DataFrame(datagram)
-        df.to_csv(outdir + "summary_metrics.csv", index=False)
-
-        # plot_metric_evolution(file_path=outdir+"summary_metrics.csv",metric='rmse')
-
-        #
-        # summary_metric = t_task['summary_metric']
-        #
-        # # Iterate through models and their respective error metrics
-        # for model_label, error_metrics in metrics.items():
-        #     for forecast_time, metric_values in error_metrics.items():
-        #         if summary_metric in metric_values:
-        #             summary_data.append({
-        #                 "model": model_label,
-        #                 "forecast_time": forecast_time,
-        #                 "metric_value": metric_values[summary_metric]
-        #             })
-        #         else:
-        #             raise KeyError(f"Metric '{summary_metric}' not found in error metrics for model '{model_label}' at time '{forecast_time}'")
-        #
-        # # Create a DataFrame
-        # df = pd.DataFrame(summary_data)
-        #
-        # # Calculate average value for each model
-        # average_metrics = (
-        #     df.groupby("model")["metric_value"].mean().reset_index().rename(columns={"metric_value": "average_metric"})
-        # )
-        #
-        # # Append average row per model to the DataFrame
-        # df = df.merge(average_metrics, on="model")
-        # df = pd.concat([
-        #     df,
-        #     pd.DataFrame({
-        #         "model": ["Overall Average"],
-        #         "forecast_time": ["Average"],
-        #         "metric_value": [df["metric_value"].mean()],
-        #         "average_metric": [df["metric_value"].mean()]
-        #     })
-        # ], ignore_index=True)
-        # df.to_csv(outdir+t_task['train_forecast']+'summary.csv', index=False)
-        #
-
+    df_forecast = df_om_prep[cutoff : cutoff+timedelta(hours=horizon - 1)]
+    df_hist = validate_dataframe(df_hist, 'df_hist', verbose=verbose)
+    df_forecast = validate_dataframe(df_forecast, 'df_forecast', verbose=verbose)
+    df_hist = df_hist[df_hist.index[-1]-pd.Timedelta(hours = 100 * horizon - 1):]
+
+    if verbose:
+        print(f"Features {len(df_hist.columns)-1} hist.shape={df_hist.shape} ({int(len(df_hist)/horizon)}) forecast.shape={df_forecast.shape}")
+        print(f"Hist: from {df_hist.index[0]} to {df_hist.index[-1]} ({len(df_hist)/horizon})")
+        print(f"Fore: from {df_forecast.index[0]} to {df_forecast.index[-1]} ({len(df_forecast)/horizon})")
+        print(f"Given dataset has features: {df_hist.columns.tolist()}")
+
+    # restrict to required features
+    features_to_restrict : list = []
+    for feature in features:
+        # preprocess some features
+        if feature  == 'weather':
+            # TODO IMPROVE (USE OPENMETEO CLASS HERE)
+            weather_features:list = get_raw_weather_features(df_hist)
+            features_to_restrict += weather_features
+    if not features:
+        if verbose: print(f"No features selected for {target}. Using all features: \n{df_forecast.columns.tolist()}")
+        features_to_restrict = df_forecast.columns.tolist()
+
+    # remove unnecessary features from the dataset
+    if verbose:
+        print(f"Restricting dataframe from {len(df_hist.columns)} features to {len(features_to_restrict)}")
+
+    df_hist = df_hist[features_to_restrict + [target]]
+    df_forecast = df_forecast[features_to_restrict]
+    # if not validate_dataframe(df_forecast,'df_forecast', verbose=verbose):
+    #     raise ValueError("Nans in the df_forecast after restricting. Cannot continue.")
+
+
+    return df_hist, df_forecast
 
 def main():
+    verbose = True
+    outdir = './output/'
+    if not os.path.isdir(outdir):
+        os.mkdir(outdir)
+
     tasks = [
         {
             "target": "wind_offshore",
             "label": "Wind off-shore [MW]",
-            "features":[],
+            "input_preprocessing_pipeline": {
+                'func':'input_preprocessing_pipeline_wind_offshore',
+                'kwargs':{'datapath':'../database/', 'features':[]}
+            },
             "task_fine_tuning":[
                 # {'model':'Prophet',
                 #  'dataset_pars':{
@@ -1639,19 +416,20 @@ def main():
         }
     ]
 
-    outdir = './output/'
-    datapath = '../tmp_database/' # expected to fild history.parquet and forecast.parquet
-
-    if not os.path.isdir(outdir):
-        os.mkdir(outdir)
-
     for task in tasks:
         target = task['target']
-        df_hist, df_forecast = load_data(
-            datapath=datapath,target=task['target'], verbose=True
-        )
+        input_preprocessing_pipeline_ = task['input_preprocessing_pipeline']
+        if input_preprocessing_pipeline_['func'] == 'input_preprocessing_pipeline_wind_offshore':
+            df_hist, df_forecast = input_preprocessing_pipeline_wind_offshore(
+                **(input_preprocessing_pipeline_['kwargs'] | {'target':target, 'verbose':verbose})
+            )
+        else:
+            raise NotImplementedError(
+                f"Input preprocessing pipeline {input_preprocessing_pipeline_['func']} not implemented."
+            )
+
         processor = ForecastingTaskSingleTarget(
-            df_history=df_hist,df_forecast=df_forecast,task=task,outdir=outdir,verbose=True
+            df_history=df_hist,df_forecast=df_forecast,task=task,outdir=outdir,verbose=verbose
         )
 
         # process task to fine-tune the forecasting model
