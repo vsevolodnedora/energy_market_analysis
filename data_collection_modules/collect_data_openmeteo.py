@@ -186,7 +186,7 @@ def update_openmeteo_from_api(data_dir:str, verbose:bool):
     df_om[:idx].to_parquet(fname,engine='pyarrow')
     df_om[idx+timedelta(hours=1):].to_parquet( fname.replace('history','forecast'),engine='pyarrow' )
     if verbose: print(f"OpenMeteo data updated. "
-                      f"Collected df_hist={df_om[:idx].shape} and df_forecast={df_om[idx+timedelta(hours=1):]}. ")
+                      f"Collected df_hist={df_om[:idx].shape} and df_forecast={df_om[idx+timedelta(hours=1):].shape}. ")
 
 
 if __name__ == '__main__':

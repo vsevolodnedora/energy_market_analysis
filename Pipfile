@@ -21,6 +21,12 @@ numpy = "*"
 matplotlib = "*"
 scikit-learn = "*"
 torch = "*"
+joblib = "*"
+xgboost = "*"
+shap = "*"
+prophet = "*"
+optuna = "*"
+mapie = "*"
 
 [dev-packages]
 
