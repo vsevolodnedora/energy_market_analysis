@@ -21,11 +21,10 @@ if __name__ == '__main__':
     # Fetch API key from environment
     entsoe_api_key = os.getenv("ENTSOE_API_KEY")
 
-
     today = pd.Timestamp(datetime.today()).tz_localize(tz='UTC')
     today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
 
-    db_path = './update/'
+    db_path = './database/'
 
     verbose = True
     task = 'update'
@@ -47,7 +46,7 @@ if __name__ == '__main__':
                                today=today, data_dir=db_path + 'entsoe/', api_key=entsoe_api_key, verbose=verbose)
 
     elif task == 'update':
-        update_smard_from_api(today, db_path + 'smard/', verbose=verbose)
-        update_openmeteo_from_api(db_path + 'openmeteo/', verbose=verbose)
-        update_epexspot_from_files(today, data_dir=db_path + 'epexspot/', verbose=verbose)
-        update_entsoe_from_api(today, data_dir=db_path + 'entsoe/', api_key=entsoe_api_key, verbose=verbose)
+        update_smard_from_api(today=today, data_dir=db_path + 'smard/', verbose=verbose)
+        update_openmeteo_from_api(data_dir=db_path + 'openmeteo/', verbose=verbose)
+        update_epexspot_from_files(today=today, data_dir=db_path + 'epexspot/', verbose=verbose)
+        update_entsoe_from_api(today=today, data_dir=db_path + 'entsoe/', api_key=entsoe_api_key, verbose=verbose)
