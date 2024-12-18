@@ -32,7 +32,7 @@ if __name__ == '__main__':
     # create_smard_from_api(pd.Timestamp(datetime(year=2015, month=1, day=14),tz='UTC'),
     #                       today=today, data_dir=db_path+'smard/',verbose=True)
     update_smard_from_api(today, db_path + 'smard/', verbose=True)
-    # update_epexspot_from_files(today, db_path + 'epexspot/', verbose=True)
+    update_epexspot_from_files(today, db_path + 'epexspot/', verbose=True)
     # create_openmeteo_from_api(pd.Timestamp(datetime(year=2020, month=1, day=1),tz='UTC'),
     #                           db_path + 'openmeteo/', verbose=True)
     update_openmeteo_from_api(db_path + 'openmeteo/', verbose=True)
