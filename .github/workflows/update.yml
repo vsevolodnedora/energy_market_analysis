@@ -10,6 +10,8 @@ jobs:
     if: github.event_name == 'push' # Conditionally run this job only on push events
     permissions:
       contents: write
+    env:
+      ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
