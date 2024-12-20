@@ -22,3 +22,5 @@ shap
 prophet
 optuna
 mapie
+seaborn
+statsmodels
