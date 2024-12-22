@@ -1,3 +1,7 @@
+"""
+https://github.com/EnergieID/entsoe-py/blob/master/entsoe/mappings.py
+"""
+
 from entsoe import EntsoePandasClient
 import pandas as pd
 from datetime import timedelta, datetime

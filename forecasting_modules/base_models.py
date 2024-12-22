@@ -2,7 +2,7 @@ import copy
 import joblib
 import pandas as pd, numpy as np, matplotlib.pyplot as plt
 from future.backports.datetime import timedelta
-from sklearn.model_selection import TimeSeriesSplit
+
 from sklearn.linear_model import ElasticNetCV, ElasticNet, Ridge
 from mapie.regression import MapieRegressor
 import xgboost as xgb
@@ -15,12 +15,13 @@ from prophet import Prophet
 class BaseForecaster:
 
     ''' Uses point-wise regressor or forecaster to forecast several time-steps recursively '''
-    def __init__(self, target:str, lags_target:int or None = 0, alpha:float=0.05, verbose:bool=False):
+    def __init__(self, target:str, alpha:float=0.05, verbose:bool=False): # lags_target:int or None = 0,
         self.target = target
         self.alpha = alpha
         # self.lag_y_past : pd.Series = pd.Series()
         self.X_futures_df : pd.DataFrame = pd.DataFrame() # for feature importance
-        self.lags_target = lags_target
+        # self.lags_target = lags_target
+        self.trained_features = None
         self.model:MapieRegressor = MapieRegressor()
         self.name = 'BaseClass'
         self.verbose = verbose
@@ -73,7 +74,7 @@ class BaseForecaster:
         }, index=X_scaled.index)
         return results
 
-    def forecast_window(self, X_test:pd.DataFrame, y_train_scaled:pd.Series or None)->pd.DataFrame:
+    def forecast_window(self, X_test:pd.DataFrame, y_train_scaled:pd.Series or None, lags_target:int or None)->pd.DataFrame:
         '''
         Compute trained model forecast for each timestep in the given test data set.
         If there are lagged targets as features, then iterative procedure is requried. Otherwise it is
@@ -85,10 +86,10 @@ class BaseForecaster:
         correspond to 95% confidence intervals.
         '''
 
-        if self.lags_target is None:
+        if lags_target is None:
             return self.predict(X_test, None)
 
-        if not self.lags_target is None:
+        if not lags_target is None:
             if y_train_scaled is None:
                 raise ValueError("Requires y_train_scaled for lagged target")
             time_delta = pd.Timedelta(y_train_scaled.index[-1] - y_train_scaled.index[-2])
@@ -97,6 +98,8 @@ class BaseForecaster:
                                  f"y_train_scaled.index[-1] + 1 = {y_train_scaled.index[-1] + timedelta(hours=1)}"
                                  f"X_test.index[0] = {X_test.index[0]}")
 
+        if set(X_test.columns) != set(self.features):
+            raise ValueError("X_test.columns must match self.features")
 
         forecast_values, lower, upper, X_futures = [], [], [], []
         # predict target for each time step in future features X_scaled
@@ -104,8 +107,10 @@ class BaseForecaster:
             # X_future = self.ds.exog_forecast.iloc[[i]].to_dict('records')[0]
             X_future = X_test.iloc[[i]].to_dict('records')[0]
             # Update lag features for target (if lag featires are needed)
-            if not self.lags_target is None:
-                for lag in range(1, self.lags_target+1):
+            if not lags_target is None:
+                for lag in range(1, lags_target+1):
+                    if not f'{self.target}_lag_{lag}' in X_test.columns:
+                        raise ValueError("X_test.columns must match self.features")
                     if (i - lag >= 0):
                         # For the target variable, use forecasted values
                         X_future[f'{self.target}_lag_{lag}'] = forecast_values[i - lag]
@@ -135,14 +140,14 @@ class BaseForecaster:
         }, index=X_test.index)
         return df
 
-    def get_model_feature_importance(self, X_train_scaled, y_train_scaled, X_test_scaled)->pd.DataFrame:
+    def get_model_feature_importance(self, X_train_scaled, y_train_scaled, X_test_scaled, lags_target:int or None)->pd.DataFrame:
         '''
         Compute feature importance using Shapley algorithm or other methods.
         :param X_scaled: time-series dataframe with exogenous variables. (e.g., forecasting horizon length)
         :return: pd.DataFrame with importances for each feature and each timestep
         '''
 
-        _ = self.forecast_window(X_test_scaled, y_train_scaled) # populate self.X_futures_df:pd.Dataframe
+        _ = self.forecast_window(X_test_scaled, y_train_scaled, lags_target) # populate self.X_futures_df:pd.Dataframe
 
         mapie_regressor : MapieRegressor = self.get_regressor()
         ensemble_estimator = mapie_regressor.estimator_
@@ -194,12 +199,17 @@ class BaseForecaster:
         self.model = joblib.load(file_path)
         # print(f"Model loaded from {file_path}")
 
+    def reset_model(self):
+        del self.model; self.model = MapieRegressor()
+        del  self.X_futures_df;  self.X_futures_df = pd.DataFrame()
+
+
 
 class XGBoostMapieRegressor(BaseForecaster):
 
-    def __init__(self,target:str,  model: MapieRegressor, lags_target:int or None,alpha:float, verbose:bool):
+    def __init__(self,target:str,  model: MapieRegressor, alpha:float, verbose:bool): # lags_target:int or None,
         super().__init__(
-            target, lags_target, alpha, verbose
+            target, alpha, verbose
         )
         self.name='XGBoostMapieRegressor'
         self.model = model
@@ -219,7 +229,7 @@ class XGBoostMapieRegressor(BaseForecaster):
 
         # save data for feature importance analysis
         self.features = X_scaled.columns.tolist()
-        self.lag_y_past = y_scaled.copy()
+        # self.lag_y_past = y_scaled.copy()
 
     # def get_model_feature_importance(self, ):
     #     # Ensure that the underlying estimator is fitted
@@ -243,10 +253,10 @@ class XGBoostMapieRegressor(BaseForecaster):
 class ElasticNetMapieRegressor(BaseForecaster):
 
     def __init__(self,
-                 target:str, model:MapieRegressor, lags_target:int or None, alpha:float, verbose:bool
+                 target:str, model:MapieRegressor, alpha:float, verbose:bool # lags_target:int or None,
                  ):
         super().__init__(
-            target, lags_target, alpha, verbose
+            target, alpha, verbose
         )
         self.name = "ElasticNetMapieRegressor"
         self.base_model = model
@@ -268,7 +278,7 @@ class ElasticNetMapieRegressor(BaseForecaster):
         # Fit mapieregressor model
         self.model.fit(X_scaled, y_scaled)
         self.features = X_scaled.columns.tolist()
-        self.lag_y_past = y_scaled.copy()
+        # self.lag_y_past = y_scaled.copy()
 
     # def get_model_feature_importance(self)->pd.Series:
     #     ''' get feature importance from MapieRegressor (of ElasticNet) '''
@@ -311,7 +321,7 @@ class ProphetForecaster(BaseForecaster):
 
     def __init__(self, params:dict,target:str, alpha:float, verbose:bool):
         super().__init__(
-            target, None, alpha, verbose
+            target, alpha, verbose
         )
         self.params = copy.deepcopy(params)
         self.name='Prophet'
@@ -399,7 +409,7 @@ class ProphetForecaster(BaseForecaster):
 
         return predict_df
 
-    def forecast_window(self, X_scaled:pd.DataFrame,y_train_scaled:pd.Series or None)->pd.DataFrame:
+    def forecast_window(self, X_scaled:pd.DataFrame,y_train_scaled:pd.Series or None,lags_target:int or None)->pd.DataFrame:
         ''' Overrides base method. Lagged features are not supported for Prophet model.
         '''
         # self.X_future = X_scaled
@@ -427,7 +437,7 @@ class ProphetForecaster(BaseForecaster):
         predict_df.index = predict_df.index.tz_localize(X_scaled.index.tzinfo)
         return predict_df
 
-    def get_model_feature_importance(self, X_train:pd.DataFrame, y_train:pd.Series, X_test:pd.DataFrame) -> pd.DataFrame:
+    def get_model_feature_importance(self, X_train:pd.DataFrame, y_train:pd.Series, X_test:pd.DataFrame,lags_target:int or None) -> pd.DataFrame:
         """
         Explanation
         Prophet provides the additive contribution of each regressor, which directly reflects their

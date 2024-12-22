@@ -1,9 +1,12 @@
-
 import copy, re, pandas as pd, numpy as np, matplotlib.pyplot as plt
 import os.path; from datetime import datetime, timedelta
 
 from data_collection_modules import OpenMeteo
-from forecasting_modules import ForecastingTaskSingleTarget
+from forecasting_modules.tasks import ForecastingTaskSingleTarget
+from data_collection_modules.locations import (
+    locations, offshore_windfarms, onshore_windfarms, solarfarms, de_regions
+)
+
 
 def load_prepared_data(target:str,datapath:str, verbose:bool)  ->tuple[pd.DataFrame, pd.DataFrame]:
 
@@ -23,6 +26,43 @@ def load_prepared_data(target:str,datapath:str, verbose:bool)  ->tuple[pd.DataFr
         print(f"Forecast: {df_forecast.shape} from {df_forecast.index[0]} to {df_forecast.index[-1]} ({len(df_forecast.index)/24} days)")
 
     return df_history, df_forecast
+
+def extract_from_database(target:str, datapath:str, verbose:bool, region:str, n_horizons:int) ->tuple[pd.DataFrame, pd.DataFrame]:
+    df_smard = pd.read_parquet(datapath + 'smard/' + 'history.parquet')
+    df_om = pd.read_parquet(datapath + 'openmeteo/' + 'history.parquet')
+    df_om_f = pd.read_parquet(datapath + 'openmeteo/' + 'forecast.parquet')
+    df_es = pd.read_parquet(datapath + 'epexspot/' + 'history.parquet')
+    df_entsoe = pd.read_parquet(datapath + 'entsoe/' + 'history.parquet')
+    # -------------------
+    if verbose:
+        print(f"SMARD data shapes hist={df_smard.shape} (days={len(df_smard)/24}) start={df_smard.index[0]} end={df_smard.index[-1]}")
+        print(f"ENTSOE data shapes hist={df_entsoe.shape} (days={len(df_entsoe)/24}) start={df_entsoe.index[0]} end={df_entsoe.index[-1]}")
+        print(f"Openmeteo data shapes hist={df_om.shape} (days={len(df_om)/24}) start={df_om.index[0]} end={df_om.index[-1]}")
+        print(f"Openmeteo data shapes forecast={df_om_f.shape} (days={len(df_om_f)/24}) start={df_om_f.index[0]} end={df_om_f.index[-1]}")
+        print(f"EPEXSPOT data shapes hist={df_es.shape} (days={len(df_es)/24}) start={df_es.index[0]} end={df_es.index[-1]}")
+    # -----------------
+    if target == 'wind_offshore_tenn':
+        if not region == 'DE_TENNET':
+            raise IOError(f"The region must be 'DE_TENNE' for target={target}")
+        if verbose: print(f"Target={target} Nans={df_entsoe[target].isna().sum().sum()}")
+        region_:dict = [reg for reg in de_regions if reg['name']==region][0]
+        reg_suffix = region_['suffix']
+        data_type = 'woff' # wind offshore
+        suffix = f'_{data_type}{reg_suffix}'
+        target = df_entsoe['wind_offshore' + reg_suffix]
+        om_suffixes = [wind_farm['suffix'] for wind_farm in offshore_windfarms if wind_farm['TSO'] == region_['TSO']]
+        columns_to_select = df_om.columns[df_om.columns.str.endswith(tuple(om_suffixes))]
+        df_hist = pd.merge(left=df_om[columns_to_select],right=target, left_index=True, right_index=True, how='left')
+        df_forecast = df_om_f[columns_to_select]
+        if not len(df_hist.columns) == len(df_forecast.columns)+1:
+            raise ValueError(f'The DataFrames have different columns. '
+                             f'hist={df_hist.shape} forecast={df_forecast.shape}')
+        if len(df_hist) <= 1 or len(df_forecast) <= 1:
+            raise ValueError(f'The DataFrames must have >1 rows '
+                             f'hist={df_hist.shape} forecast={df_forecast.shape}')
+        return df_hist.tail(len(df_forecast)*n_horizons), df_forecast
+    else:
+        raise NotImplementedError(f"Target {target} and region {region} are not implemented.")
 
 def handle_nans_with_interpolation(df: pd.DataFrame, name: str) -> pd.DataFrame:
     """
@@ -111,20 +151,6 @@ def preprocess_openmeteo_for_offshore_wind(df:pd.DataFrame, location_suffix="_hs
     Preprocesses weather data for forecasting offshore wind energy generation.
     Focuses on critical physical features and includes turbulence_intensity, wind_ramp, and wind_shear.
 
-    df contains the following columns with suffixes for different locations:
-        "temperature_2m",
-        "relative_humidity_2m",
-        "surface_pressure",
-        "wind_speed_10m",
-        "wind_speed_100m",
-        "wind_direction_10m",
-        "wind_direction_100m",
-        # additional
-        "precipitation",
-        "wind_gusts_10m",
-        "cloud_cover",
-        "shortwave_radiation"
-
     """
 
     # 1. Filter for the offshore wind farm location only
@@ -194,9 +220,6 @@ def preprocess_openmeteo_for_offshore_wind(df:pd.DataFrame, location_suffix="_hs
     drop_cols = [c for c in drop_vars if c in df.columns]
     df.drop(columns=drop_cols, inplace=True, errors="ignore")
 
-    # Handle missing values introduced by lagging and other computations
-    # df.dropna(inplace=True)
-
     return df
 
 def get_raw_weather_features(df_history:pd.DataFrame):
@@ -221,12 +244,14 @@ def input_preprocessing_pipeline_wind_offshore(datapath:str, verbose:bool, featu
     target = 'wind_offshore'
     # df = pd.read_parquet(data_dir + 'latest.parquet')
     df_smard = pd.read_parquet(datapath + 'smard/' + 'history.parquet') # energy generation and consumption
+    df_entsoe = pd.read_parquet(datapath + 'entsoe/' + 'history.parquet') # energy generation by TSO
     df_om = pd.read_parquet(datapath + 'openmeteo/' + 'history.parquet') # raw weather quantities for different locations
     df_om_f = pd.read_parquet(datapath + 'openmeteo/' + 'forecast.parquet') # weather forecasts for all locations
     df_es = pd.read_parquet(datapath + 'epexspot/' + 'history.parquet') # energy prices
 
     if verbose:
         print(f"SMARD data shapes hist={df_smard.shape} start={df_smard.index[0]} end={df_smard.index[-1]}")
+        print(f"ENTSOE data shapes hist={df_entsoe.shape} start={df_entsoe.index[0]} end={df_entsoe.index[-1]}")
         print(f"Openmeteo data shapes hist={df_om.shape} start={df_om.index[0]} end={df_om.index[-1]}")
         print(f"Openmeteo data shapes forecast={df_om_f.shape} start={df_om_f.index[0]} end={df_om_f.index[-1]}")
         print(f"EPEXSPOT data shapes hist={df_es.shape} start={df_es.index[0]} end={df_es.index[-1]}")
@@ -251,7 +276,7 @@ def input_preprocessing_pipeline_wind_offshore(datapath:str, verbose:bool, featu
         raise ValueError("ERROR! Nans in the dataframe")
 
     # Extract data for the offshore wind farm location and create new features
-    df_om_prep = preprocess_openmeteo_for_offshore_wind(df=df_om, location_suffix="_hsee")
+    df_om_prep = preprocess_openmeteo_for_offshore_wind(df=df_om, location_suffix="_woff_enbw")
     df_om_prep.dropna(inplace=True) # drop nans formed when lagged features were added
 
     horizon = 7 * 24
@@ -301,17 +326,19 @@ def input_preprocessing_pipeline_wind_offshore(datapath:str, verbose:bool, featu
 def main():
     verbose = True
     outdir = './output/'
+    database='../database/'
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
 
     tasks = [
         {
-            "target": "wind_offshore",
+            "target": "wind_offshore_tenn",
             "label": "Wind off-shore [MW]",
             "input_preprocessing_pipeline": {
                 'func':'input_preprocessing_pipeline_wind_offshore',
                 'kwargs':{'datapath':'../database/', 'features':[]}
             },
+
             "task_fine_tuning":[
                 # {'model':'Prophet',
                 #  'dataset_pars':{
@@ -327,19 +354,17 @@ def main():
                 #  },
                 # 'finetuning_pars':{'n_trials':120,'optim_metric':'rmse','cv_folds':3}},
 
-                # {'model':'XGBoost',
-                #  'dataset_pars':{
-                #      'forecast_horizon':None,
-                #      'target_scaler':'StandardScaler',
-                #      'feature_scaler':'StandardScaler',
-                #      'limit_pca_to_features':None,#'weather',
-                #      'feature_pca_pars':None,#{'n_components':0.95},
-                #      'fourier_features': {},
-                #      'add_cyclical_time_features':True,
-                #      'lags_target':24,'log_target':True,
-                #      'copy_input':True
-                #  },
-                #  'finetuning_pars':{'n_trials':5,'optim_metric':'rmse','cv_folds':3}},
+                {'model':'XGBoost',
+                 'dataset_pars':{
+                     'forecast_horizon':None,
+                     'target_scaler':'StandardScaler',
+                     'feature_scaler':'StandardScaler',
+                     'copy_input':True,
+                     'locations':[loc for loc in offshore_windfarms if loc['TSO']=='TenneT'],
+                     'add_cyclical_time_features':True,
+                     'feature_engineer':'WeatherFeatureEngineer'
+                 },
+                 'finetuning_pars':{'n_trials':5,'optim_metric':'rmse','cv_folds':3}},
                 #
                 # {'model':'ElasticNet',
                 #  'dataset_pars':{
@@ -380,53 +405,58 @@ def main():
                 # {'model':'Prophet', 'pars':{'cv_folds':5}},
                 # {'model':'XGBoost', 'pars':{'cv_folds':5}},
                 # {'model':'ElasticNet', 'pars':{'cv_folds':5}},
-                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','pars':{'cv_folds':5}}
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','pars':{'cv_folds':5}},
                 # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','pars':{'cv_folds':5}}
             ],
             "task_forecasting":[
                 # {'model':'Prophet'},
-                {'model':'XGBoost', 'past_folds':5},
-                {'model':'ElasticNet', 'past_folds':5},
-                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','past_folds':5},
-                {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','past_folds':5}
+                # {'model':'XGBoost', 'past_folds':5},
+                # {'model':'ElasticNet', 'past_folds':5},
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','past_folds':5},
+                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','past_folds':5}
             ],
             "task_plot":[
                 # {'model':'Prophet', 'n':2,
                 #  'name':"Prophet",'lw':0.7,'color':"red",'ci_alpha':0.0},
-                {'model':'XGBoost','n':2,
-                 'name':'XGBoost','lw':0.7,'color':"green",'ci_alpha':0.0,
-                 'train_forecast':'train'},
-                {'model':'ElasticNet','n':2,
-                 'name':'ElasticNet','lw':0.7,'color':"blue",'ci_alpha':0.0,
-                 'train_forecast':'train'},
-                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','n':2,
-                 'name':'Ensemble','lw':1.0,'color':"purple",'ci_alpha':0.2,
-                 'train_forecast':'train'},
-                {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','n':2,
-                 'name':'Ensemble','lw':1.0,'color':"magenta",'ci_alpha':0.2,
-                 'train_forecast':'train'},
+                # {'model':'XGBoost','n':2,
+                #  'name':'XGBoost','lw':0.7,'color':"green",'ci_alpha':0.0,
+                #  'train_forecast':'train'},
+                # {'model':'ElasticNet','n':2,
+                #  'name':'ElasticNet','lw':0.7,'color':"blue",'ci_alpha':0.0,
+                #  'train_forecast':'train'},
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','n':2,
+                #  'name':'Ensemble','lw':1.0,'color':"purple",'ci_alpha':0.2,
+                #  'train_forecast':'train'},
+                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','n':2,
+                #  'name':'Ensemble','lw':1.0,'color':"magenta",'ci_alpha':0.2,
+                #  'train_forecast':'train'},
             ],
             "task_summarize":[
                 # {'model':'Prophet', 'pars':{'cv_folds':5}},
-                {'model':'XGBoost', 'summary_metric':'rmse'},
-                {'model':'ElasticNet', 'summary_metric':'rmse'},
-                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)', 'summary_metric':'rmse'},
-                {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)', 'summary_metric':'rmse'},
+                # {'model':'XGBoost', 'summary_metric':'rmse'},
+                # {'model':'ElasticNet', 'summary_metric':'rmse'},
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)', 'summary_metric':'rmse'},
+                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)', 'summary_metric':'rmse'},
             ]
         }
     ]
 
+
     for task in tasks:
         target = task['target']
-        input_preprocessing_pipeline_ = task['input_preprocessing_pipeline']
-        if input_preprocessing_pipeline_['func'] == 'input_preprocessing_pipeline_wind_offshore':
-            df_hist, df_forecast = input_preprocessing_pipeline_wind_offshore(
-                **(input_preprocessing_pipeline_['kwargs'] | {'target':target, 'verbose':verbose})
-            )
-        else:
-            raise NotImplementedError(
-                f"Input preprocessing pipeline {input_preprocessing_pipeline_['func']} not implemented."
-            )
+        # input_preprocessing_pipeline_ = task['input_preprocessing_pipeline']
+        # if input_preprocessing_pipeline_['func'] == 'input_preprocessing_pipeline_wind_offshore':
+        #     df_hist, df_forecast = input_preprocessing_pipeline_wind_offshore(
+        #         **(input_preprocessing_pipeline_['kwargs'] | {'target':target, 'verbose':verbose})
+        #     )
+        # else:
+        #     raise NotImplementedError(
+        #         f"Input preprocessing pipeline {input_preprocessing_pipeline_['func']} not implemented."
+        #     )
+
+        df_hist, df_forecast = extract_from_database(
+            target=target,datapath=database,verbose=verbose,region='DE_TENNET',n_horizons=100
+        )
 
         processor = ForecastingTaskSingleTarget(
             df_history=df_hist,df_forecast=df_forecast,task=task,outdir=outdir,verbose=verbose

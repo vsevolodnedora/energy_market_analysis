@@ -48,9 +48,10 @@ def compare_columns(df1:pd.DataFrame, df2:pd.DataFrame):
     # Print results
     if not missing_in_df2 and not missing_in_df1:
         print("Both DataFrames have the same columns.")
+        return True
     else:
         if missing_in_df2:
             print("Columns in first DataFrame but missing in forecast df:", missing_in_df2)
         if missing_in_df1:
             print("Columns in second DataFrame but missing in history df:", missing_in_df1)
-
+        return False

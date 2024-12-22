@@ -6,7 +6,7 @@ from .utils import (
     compute_error_metrics
 )
 from data_modules import (
-    HistForecastDatasetBase, HistForecastDataset
+    HistForecastDataset
 )
 from .base_models import (
     BaseForecaster,XGBoostMapieRegressor,ElasticNetMapieRegressor,ProphetForecaster
@@ -17,7 +17,7 @@ class EnsembleForecaster_OLD(BaseForecaster):
             self,
             target: str,
             models: list[BaseForecaster],
-            datas: list[HistForecastDatasetBase],
+            datas: list[HistForecastDataset],
             ensemble_model:BaseForecaster,
             alpha:float=0.05,
             base_cv_folds:int=10,
@@ -49,12 +49,12 @@ class EnsembleForecaster_OLD(BaseForecaster):
         self.min_train_size = 3 * 30 * 24  # hours (3 months)
         self.base_cv_folds = base_cv_folds # number of times to fit-test base models to create train data for ensemble model
         self.meta_cv_folds = meta_cv_folds # number of times to fit-test ensemble model to test it
-        self.horizon = len(self.dss[0].get_forecast_index())
+        self.horizon = len(self.dss[0].forecast_idx)
 
         # -------------------------------------------------- #
         self.delta = delta_between_model_fits if not delta_between_model_fits is None else self.horizon
         self.cutoffs = compute_timeseries_split_cutoffs(
-            self.dss[0].get_index(),
+            self.dss[0].hist_idx,
             horizon=self.horizon,
             delta=self.delta,
             folds=self.base_cv_folds,
@@ -97,14 +97,14 @@ class EnsembleForecaster_OLD(BaseForecaster):
         '''
         ''' train the base forecasters get their forecast for out of sample data and train the metamodel on the result '''
         # Check that X_scaled_meta has the same index as the training data
-        if ((not X_meta_scaled is None) and (not X_meta_scaled.index.equals(self.dss[0].get_index()))):
+        if ((not X_meta_scaled is None) and (not X_meta_scaled.index.equals(self.dss[0].hist_idx))):
             raise ValueError(f"X_meta_scaled must have the same index as the training data. "
-                             f"Given X_meta_scaled={len(X_meta_scaled)} and expected {len(self.dss[0].get_index())}")
+                             f"Given X_meta_scaled={len(X_meta_scaled)} and expected {len(self.dss[0].hist_idx)}")
 
         print(f"Will forecast {len(self.cutoffs)} times {self.delta}-hour-horizons"
               f"with N={len(self.models)} base models to train 1 meta_model {self.meta_model.name}")
         # target column should be the same for all base models
-        y_scaled = self.dss[0].get_target_transformed()
+        y_scaled = self.dss[0].target_hist
         X_meta_train_list, y_meta_train_list = [], []
         # for each split train base models, evaluate on the test part of the window and store these forecasts
         for idx, cutoff in enumerate(self.cutoffs):
@@ -114,8 +114,8 @@ class EnsembleForecaster_OLD(BaseForecaster):
             # train base models
             for i in range(len(self.models)):
                 name = str(self.models[i].name)
-                X_for_model: pd.DataFrame = self.dss[i].get_exogenous_trasnformed()
-                y_for_model: pd.Series = self.dss[i].get_target_transformed()
+                X_for_model: pd.DataFrame = self.dss[i].exog_hist
+                y_for_model: pd.Series = self.dss[i].target_hist
 
                 self.models[i].fit(X_for_model[train_mask], y_for_model[train_mask])
 
@@ -201,8 +201,8 @@ class EnsembleForecaster_OLD(BaseForecaster):
         # train base forecasters on the entire dataset
         print(f"Training base forecasters on the entire dataset")
         for i in range(len(self.models)):
-            X_for_model: pd.DataFrame = self.dss[i].get_exogenous_trasnformed()
-            y_for_model: pd.Series = self.dss[i].get_target_transformed()
+            X_for_model: pd.DataFrame = self.dss[i].exog_hist
+            y_for_model: pd.Series = self.dss[i].target_hist
             self.models[i].fit(X_for_model, y_for_model)
 
         # fit the meta-model on the collected dataset
@@ -219,7 +219,7 @@ class EnsembleForecaster_OLD(BaseForecaster):
         # collect forecasts from base models
         for i in range(len(self.models)):
             name = self.models[i].name
-            X_for_model: pd.DataFrame = self.dss[i].get_forecast_exogenous()
+            X_for_model: pd.DataFrame = self.dss[i].exog_forecast
             y_model_forecast = self.models[i].forecast_window( X_for_model )
             self.all_forecasts[name][-1] = copy.deepcopy( y_model_forecast )
             for key in self.features_from_base_models:
@@ -265,7 +265,7 @@ class EnsembleForecaster(BaseForecaster):
             self,
             target: str,
             models: list[BaseForecaster],
-            datas: list[HistForecastDatasetBase],
+            datas: list[HistForecastDataset],
             ensemble_model:BaseForecaster,
             alpha:float=0.05,
             base_cv_folds:int=10,
@@ -297,12 +297,12 @@ class EnsembleForecaster(BaseForecaster):
         self.min_train_size = 3 * 30 * 24  # hours (3 months)
         self.base_cv_folds = base_cv_folds # number of times to fit-test base models to create train data for ensemble model
         self.meta_cv_folds = meta_cv_folds # number of times to fit-test ensemble model to test it
-        self.horizon = len(self.dss[0].get_forecast_index())
+        self.horizon = len(self.dss[0].forecast_idx())
 
         # -------------------------------------------------- #
         self.delta = delta_between_model_fits if not delta_between_model_fits is None else self.horizon
         self.cutoffs = compute_timeseries_split_cutoffs(
-            self.dss[0].get_index(),
+            self.dss[0].hist_idx(),
             horizon=self.horizon,
             delta=self.delta,
             folds=self.base_cv_folds,
@@ -345,14 +345,14 @@ class EnsembleForecaster(BaseForecaster):
         '''
         ''' train the base forecasters get their forecast for out of sample data and train the metamodel on the result '''
         # Check that X_scaled_meta has the same index as the training data
-        if ((not X_meta_scaled is None) and (not X_meta_scaled.index.equals(self.dss[0].get_index()))):
+        if ((not X_meta_scaled is None) and (not X_meta_scaled.index.equals(self.dss[0].hist_idx()))):
             raise ValueError(f"X_meta_scaled must have the same index as the training data. "
-                             f"Given X_meta_scaled={len(X_meta_scaled)} and expected {len(self.dss[0].get_index())}")
+                             f"Given X_meta_scaled={len(X_meta_scaled)} and expected {len(self.dss[0].hist_idx())}")
 
         print(f"Will forecast {len(self.cutoffs)} times {self.delta}-hour-horizons"
               f"with N={len(self.models)} base models to train 1 meta_model {self.meta_model.name}")
         # target column should be the same for all base models
-        y_scaled = self.dss[0].get_target_transformed()
+        y_scaled = self.dss[0].target_hist()
         X_meta_train_list, y_meta_train_list = [], []
         # for each split train base models, evaluate on the test part of the window and store these forecasts
         for idx, cutoff in enumerate(self.cutoffs):
@@ -362,8 +362,8 @@ class EnsembleForecaster(BaseForecaster):
             # train base models
             for i in range(len(self.models)):
                 name = str(self.models[i].name)
-                X_for_model: pd.DataFrame = self.dss[i].get_exogenous_trasnformed()
-                y_for_model: pd.Series = self.dss[i].get_target_transformed()
+                X_for_model: pd.DataFrame = self.dss[i].exog_hist()
+                y_for_model: pd.Series = self.dss[i].target_hist()
 
                 self.models[i].fit(X_for_model[train_mask], y_for_model[train_mask])
 
@@ -449,8 +449,8 @@ class EnsembleForecaster(BaseForecaster):
         # train base forecasters on the entire dataset
         print(f"Training base forecasters on the entire dataset")
         for i in range(len(self.models)):
-            X_for_model: pd.DataFrame = self.dss[i].get_exogenous_trasnformed()
-            y_for_model: pd.Series = self.dss[i].get_target_transformed()
+            X_for_model: pd.DataFrame = self.dss[i].exog_hist()
+            y_for_model: pd.Series = self.dss[i].target_hist()
             self.models[i].fit(X_for_model, y_for_model)
 
         # fit the meta-model on the collected dataset
@@ -467,7 +467,7 @@ class EnsembleForecaster(BaseForecaster):
         # collect forecasts from base models
         for i in range(len(self.models)):
             name = self.models[i].name
-            X_for_model: pd.DataFrame = self.dss[i].get_forecast_exogenous()
+            X_for_model: pd.DataFrame = self.dss[i].exog_forecast
             y_model_forecast = self.models[i].forecast_window( X_for_model )
             self.all_forecasts[name][-1] = copy.deepcopy( y_model_forecast )
             for key in self.features_from_base_models:
