@@ -35,7 +35,7 @@ from data_modules.data_classes import (
     validate_dataframe,
     HistForecastDataset,
     _create_time_features,
-    get_ds_parameters_for_optuna_trial
+    suggest_values_for_ds_pars_optuna
 )
 from data_modules.data_vis import plot_time_series_with_residuals
 from forecasting_modules.ensemble_model import (
@@ -471,7 +471,7 @@ class BaseModelTasks(TaskPaths):
         self.X_for_model = None
         self.y_for_model = None
         self.verbose = verbose
-        self.ds = None
+        self.base_ds = None
         self.forecaster = None
 
         self.results = {}
@@ -480,7 +480,7 @@ class BaseModelTasks(TaskPaths):
         self.cutoffs = []
 
         self.model_dataset_pars = None
-        self.model_pars = None
+        self.optuna_pars = None
 
     def clear(self):
         del self.X_for_model
@@ -491,19 +491,22 @@ class BaseModelTasks(TaskPaths):
         gc.collect()
 
     def set_dataset_from_ds(self, ds:HistForecastDataset):
-        self.ds = ds
+        self.base_ds = ds
 
-    def set_dataset_from_df(self, df_hist:pd.DataFrame, df_forecast:pd.DataFrame, pars:dict):
+    def _set_dataset_from_df(self, df_hist:pd.DataFrame, df_forecast:pd.DataFrame, pars:dict)->HistForecastDataset:
         if len(df_hist.columns)-1 != len(df_forecast.columns):
             raise ValueError(f'df_hist and df_forecast must have same number of columns')
         if len(df_hist.columns) == 0 or len(df_forecast.columns) == 0:
             raise ValueError(f'df_hist and df_forecast must have at least one column')
         pars = pars | {'verbose':self.verbose, 'target':self.target}
-        self.ds = HistForecastDataset(
+        base_ds = HistForecastDataset(
             df_historic=df_hist, df_forecast=df_forecast, pars=pars
         )
+        return base_ds
+    def set_dataset_from_df(self, df_hist:pd.DataFrame, df_forecast:pd.DataFrame, pars:dict):
+        self.base_ds = self._set_dataset_from_df(df_hist, df_forecast, pars)
 
-    def set_dataset_from_finetuned(self, df_hist:pd.DataFrame, df_forecast:pd.DataFrame)->tuple[dict,dict]:
+    def _set_dataset_from_finetuned(self, df_hist:pd.DataFrame, df_forecast:pd.DataFrame)->HistForecastDataset:
 
         dir = self.to_finetuned()
         if self.verbose:
@@ -512,15 +515,22 @@ class BaseModelTasks(TaskPaths):
         with open(dir+'dataset.json', 'r') as f:
             self.model_dataset_pars = json.load(f)
 
-        accepted_params = list(inspect.signature(HistForecastDataset.__init__).parameters.keys())[1:]  # Exclude 'self'
-        unexpected_params = {key: value for key, value in self.model_dataset_pars.items() if key not in accepted_params}
-        accepted_params = {key: value for key, value in self.model_dataset_pars.items() if key in accepted_params}
-        accepted_params = accepted_params | {'verbose':self.verbose}
-        self.ds = HistForecastDataset( df_hist=df_hist, df_forecast=df_forecast, **accepted_params )
+        with open(dir+'best_parameters.json', 'r') as f:
+            self.optuna_pars = json.load(f)
 
-        return accepted_params, unexpected_params
+        # accepted_params = list(inspect.signature(HistForecastDataset.__init__).parameters.keys())[1:]  # Exclude 'self'
+        # unexpected_params = {key: value for key, value in self.model_dataset_pars.items() if key not in accepted_params}
+        # accepted_params = {key: value for key, value in self.model_dataset_pars.items() if key in accepted_params}
+        self.model_dataset_pars = self.model_dataset_pars | {'verbose':self.verbose}
+        ds = HistForecastDataset(df_historic=df_hist, df_forecast=df_forecast, pars=self.model_dataset_pars)
+        return ds
 
-    def set_load_dataset_from_dir(self, dir:str, df_hist:pd.DataFrame, df_forecast:pd.DataFrame):
+    def set_dataset_from_finetuned(self, df_hist:pd.DataFrame, df_forecast:pd.DataFrame):
+        self.base_ds = self._set_dataset_from_finetuned(df_hist, df_forecast)
+        self.base_ds.run_preprocess_pipeline(self.optuna_pars | self.model_dataset_pars)
+
+
+    def _set_load_dataset_from_dir(self, dir:str, df_hist:pd.DataFrame, df_forecast:pd.DataFrame)->HistForecastDataset:
 
         dir = self.to_dir(dir=dir)
 
@@ -530,20 +540,31 @@ class BaseModelTasks(TaskPaths):
         with open(dir+'dataset.json', 'r') as f:
             self.model_dataset_pars = json.load(f)
 
-        accepted_params = list(inspect.signature(HistForecastDataset.__init__).parameters.keys())[1:]  # Exclude 'self'
-        unexpected_params = {key: value for key, value in self.model_dataset_pars.items() if key not in accepted_params}
-        accepted_params = {key: value for key, value in self.model_dataset_pars.items() if key in accepted_params}
+        with open(dir+'best_parameters.json', 'r') as f:
+            self.optuna_pars = json.load(f)
 
-        target_scaler = joblib.load(dir + 'target_scaler.pkl')
+        # accepted_params = list(inspect.signature(HistForecastDataset.__init__).parameters.keys())[1:]  # Exclude 'self'
+        # unexpected_params = {key: value for key, value in self.model_dataset_pars.items() if key not in accepted_params}
+        # accepted_params = {key: value for key, value in self.model_dataset_pars.items() if key in accepted_params}
 
-        feature_scaler = joblib.load(dir + 'feature_scaler.pkl')
+        # target_scaler = joblib.load(dir + 'target_scaler.pkl')
+        #
+        # feature_scaler = joblib.load(dir + 'feature_scaler.pkl')
 
-        ds_pars = accepted_params | {
-            'target_scaler':target_scaler, 'feature_scaler':feature_scaler, 'verbose':self.verbose
-        }
-        self.ds = HistForecastDataset( df_hist=df_hist, df_forecast=df_forecast, **ds_pars )
+        self.model_dataset_pars['target_scaler'] = dir + 'target_scaler.pkl'
+        self.model_dataset_pars['feature_scaler'] = dir + 'feature_scaler.pkl'
+        self.model_dataset_pars['verbose'] = self.verbose
+        #
+        # ds_pars = accepted_params | {
+        #     'target_scaler':target_scaler, 'feature_scaler':feature_scaler, 'verbose':self.verbose
+        # }
+        ds = HistForecastDataset(df_historic=df_hist, df_forecast=df_forecast, pars = self.model_dataset_pars)
+        return ds
 
-        return accepted_params , unexpected_params
+    def set_load_dataset_from_dir(self, dir:str, df_hist:pd.DataFrame, df_forecast:pd.DataFrame):
+        self.base_ds = self._set_load_dataset_from_dir(dir, df_hist, df_forecast)
+        self.base_ds.run_preprocess_pipeline(self.optuna_pars | self.model_dataset_pars)
+
 
     def set_forecaster_from_dir(self, dir:str) -> tuple[dict,dict]:
 
@@ -553,14 +574,14 @@ class BaseModelTasks(TaskPaths):
             print(f"Setting base forecaster {self.model_label} from directory {dir}")
 
         with open(dir+'best_parameters.json', 'r') as f:
-            self.model_pars = json.load(f)
+            self.optuna_pars = json.load(f)
 
         accepted_params = list(inspect.signature(HistForecastDataset.__init__).parameters.keys())[1:]  # Exclude 'self'
-        unexpected_params = {key: value for key, value in self.model_pars.items() if key not in accepted_params}
-        accepted_params = {key: value for key, value in self.model_pars.items() if key in accepted_params}
+        unexpected_params = {key: value for key, value in self.optuna_pars.items() if key not in accepted_params}
+        accepted_params = {key: value for key, value in self.optuna_pars.items() if key in accepted_params}
 
         self.forecaster = instantiate_base_forecaster(
-            model_name=self.name_base_model, target=self.ds.target, lags_target=self.ds.lags_target,
+            model_name=self.name_base_model, target=self.target,
             model_pars=accepted_params, verbose=self.verbose
         )
 
@@ -573,23 +594,23 @@ class BaseModelTasks(TaskPaths):
         if self.verbose:
             print(f"Loading base forecaster {self.model_label} from directory {dir}")
 
-        if self.ds is None:
-            raise ReferenceError(f"Dataset class for base forecaster {self.model_label} is not initialized")
+        # if self.base_ds is None:
+        #     raise ReferenceError(f"Dataset class for base forecaster {self.model_label} is not initialized")
 
         with open(dir+'best_parameters.json', 'r') as f:
-            self.model_pars = json.load(f)
+            self.optuna_pars = json.load(f)
 
         accepted_params = list(inspect.signature(HistForecastDataset.__init__).parameters.keys())[1:]  # Exclude 'self'
-        unexpected_params = {key: value for key, value in self.model_pars.items() if key not in accepted_params}
-        accepted_params = {key: value for key, value in self.model_pars.items() if key in accepted_params}
+        unexpected_params = {key: value for key, value in self.optuna_pars.items() if key not in accepted_params}
+        accepted_params = {key: value for key, value in self.optuna_pars.items() if key in accepted_params}
 
         self.forecaster = instantiate_base_forecaster(
-            model_name=self.name_base_model, target=self.ds.target, lags_target=self.ds.lags_target,
+            model_name=self.name_base_model, target=self.target,
             model_pars=accepted_params, verbose=self.verbose
         )
         self.forecaster.load_model(dir + 'model.joblib')
 
-        self.forecaster.lag_y_past = self.ds.target_hist
+        # self.forecaster.lag_y_past = self.base_ds.target_hist
 
         return accepted_params, unexpected_params
 
@@ -643,44 +664,50 @@ class BaseModelTasks(TaskPaths):
                        f"CI_width={metrics['prediction_interval_width']:.1f} "
                        f"sMAPE={metrics['smape']:.2f}")
 
-    def cv_train_test(self, folds:int, X_train:pd.DataFrame or None, y_train:pd.DataFrame or None, do_fit:bool):
+    def cv_train_test(self, folds:int, X_train:pd.DataFrame or None, y_train:pd.DataFrame or None, ds:HistForecastDataset or None, do_fit:bool):
 
-        if self.ds is None:
+        if ds is None:
+            ds = self.base_ds
+        else:
+            if self.verbose:
+                print(f"Using external dataset for {self.model_label}")
+
+        if ds is None:
             raise ReferenceError("Dataset class is not initialized")
-        if self.ds.exog_hist is None or self.ds.target_hist is None:
+        if ds.exog_hist is None or ds.target_hist is None:
             raise ValueError("Preprocessing of the features in the dataset class is not done")
         if self.forecaster is None:
             raise ReferenceError("Forecaster class is not initialized")
         if folds < 1:
             raise ValueError(f"CV is not possible with folds < 1 Given={folds}")
         if not self.cutoffs:
-            self.cutoffs = get_ts_cutoffs(self.ds, folds=folds)
+            self.cutoffs = get_ts_cutoffs(ds, folds=folds)
         if len(self.cutoffs) != folds:
             raise ValueError(f"There are already {self.cutoffs} cutoffs while passed folds={folds}")
         if X_train is None and y_train is None:
-            self.X_for_model: pd.DataFrame = self.ds.exog_hist
-            self.y_for_model: pd.Series = self.ds.target_hist
+            self.X_for_model: pd.DataFrame = ds.exog_hist
+            self.y_for_model: pd.Series = ds.target_hist
             if self.verbose:
                 print(f"Using full model dataset from {self.y_for_model.index[0]} to {self.y_for_model.index[-1]} "
                       f"with {len(self.y_for_model)/24/7} weeks "
-                      f"({len(self.y_for_model)/len(self.ds.forecast_idx)} horizons)")
+                      f"({len(self.y_for_model)/len(self.base_ds.forecast_idx)} horizons)")
             if self.verbose:
                 print(f"Running CV {folds} folds for {self.model_label}. "
                       f"Setting {len(self.X_for_model.columns)} "
-                      f"features from dataset (lags_target={self.ds.lags_target}))")
+                      f"features from dataset (lags_target={self.base_ds.lags_target}))")
         else:
             self.X_for_model = X_train
             self.y_for_model = y_train
             if self.verbose:
                 print(f"Running CV {folds} folds for {self.model_label}. "
-                      f"Given {len(self.X_for_model.columns)} features (lags_target={self.ds.lags_target}))")
+                      f"Given {len(self.X_for_model.columns)} features (lags_target={ds.lags_target}))")
 
         cutoffs = self.cutoffs # (self.ds, folds=folds)
 
-        target = self.ds.target_key
+        target = ds.target_key
 
         # sanity check that CV cutoffs are correctly set assuming multi-day forecasting horizon
-        delta = timedelta(hours=len(self.ds.forecast_idx))
+        delta = timedelta(hours=len(ds.forecast_idx))
         for idx, cutoff in enumerate(cutoffs):
             # Train matrix should have negth devisible for the length of the forecasting horizon,
             # ane be composed of N segments each of which start at 00 hour and ends at 23 hour
@@ -711,7 +738,7 @@ class BaseModelTasks(TaskPaths):
         for idx, cutoff in enumerate(cutoffs):
             train_mask = self.y_for_model.index < cutoff
             test_mask = (self.y_for_model.index >= cutoff) \
-                        & (self.y_for_model.index < cutoff + timedelta(hours=len(self.ds.forecast_idx)))
+                        & (self.y_for_model.index < cutoff + timedelta(hours=len(ds.forecast_idx)))
 
             if len(self.y_for_model[train_mask]) == 0 or len(self.y_for_model[test_mask]) == 0:
                 if self.verbose:
@@ -722,7 +749,7 @@ class BaseModelTasks(TaskPaths):
             if do_fit: self.forecaster.fit(self.X_for_model[train_mask], self.y_for_model[train_mask])
             # get forecast for the next 'horizon' (data unseen during train time)
             result:pd.DataFrame = self.forecaster.forecast_window(
-                self.X_for_model[test_mask], self.y_for_model[train_mask], lags_target=self.ds.lags_target,
+                self.X_for_model[test_mask], self.y_for_model[train_mask], lags_target=ds.lags_target,
             )
             # 'result' has f'{target}_actual' and f'{target}_fitted' columns with N=horizon number of timesteps
             result[f'{target}_actual'] = self.y_for_model[test_mask] # add actual target values to result for error estimation
@@ -732,7 +759,7 @@ class BaseModelTasks(TaskPaths):
             # collect results (Dataframe with actual, fitted, lower and upper) for each fold (still transformed!)
             self.results[cutoff] = result
             # compute error metrics (RMSE, sMAPE...) over the entire forecasted window
-            self.metrics[cutoff] = compute_error_metrics( target, result.apply(self.ds.inv_transform_target_series) )
+            self.metrics[cutoff] = compute_error_metrics(target, result.apply(ds.inv_transform_target_series))
             # print error metrics
             if self.verbose:
                 self.print_average_metrics(
@@ -756,22 +783,24 @@ class BaseModelTasks(TaskPaths):
     #     self.forecaster.fit(self.X_for_model, self.y_for_model)
 
     def finetune(self, trial:optuna.Trial, cv_metrics_folds:int):
-        if self.ds is None:
+        if self.base_ds is None:
             raise ReferenceError("Dataset class is not initialized")
 
-        self.ds.reset_engineered()
-        ds_config = get_ds_parameters_for_optuna_trial(self.target, trial)
-        ds_config.update(self.ds.init_pars)
-        self.ds.run_preprocess_pipeline(ds_config)
+        self.base_ds.reset_engineered()
+        ds_config = suggest_values_for_ds_pars_optuna(
+            self.base_ds.init_pars['feature_engineer'], trial=trial, fixed = self.base_ds.init_pars
+        )
+        ds_config.update(self.base_ds.init_pars)
+        self.base_ds.run_preprocess_pipeline(config=ds_config)
 
         self.forecaster = None
         params = get_parameters_for_optuna_trial(self.name_base_model, trial=trial)
         self.forecaster = instantiate_base_forecaster(
-            model_name=self.name_base_model, target=self.ds.target_key,
+            model_name=self.name_base_model, target=self.base_ds.target_key,
             model_pars=params, verbose=self.verbose
         )
 
-        self.cv_train_test(folds = cv_metrics_folds, X_train=None, y_train=None, do_fit=True)
+        self.cv_train_test(folds = cv_metrics_folds, ds=None, X_train=None, y_train=None, do_fit=True)
 
         average_metrics = self.get_average_metrics()
         res = float( average_metrics['rmse'] ) # Average over all CV folds
@@ -786,35 +815,41 @@ class BaseModelTasks(TaskPaths):
         return res
 
 
-    def save_results(self, dir:str):
+    def save_results(self, dir:str, ds:HistForecastDataset or None):
+
+        if ds is None:
+            ds = self.base_ds
 
         dir = self.to_dir(dir=dir)
         if len(self.results.keys()) == 0:
             raise ReferenceError(f"No results found for base model {self.model_label}")
 
         metadata = {
-            'start_date':self.ds.hist_idx[0].isoformat(),
-            'end_date':self.ds.hist_idx[-1].isoformat(),
-            'horizon':len(self.ds.forecast_idx),
-            'features':self.ds.exog_hist.columns.tolist(),
+            'start_date':ds.hist_idx[0].isoformat(),
+            'end_date':ds.hist_idx[-1].isoformat(),
+            'horizon':len(ds.forecast_idx),
+            'features':ds.exog_hist.columns.tolist(),
             'error_metrics':{key.isoformat() : val for key, val in self.metrics.items()}
         }
         with open(dir+'metadata.json', 'w') as f:
             json.dump(metadata, f, indent=4)
 
         df_result = pd.concat([
-            self.results[key].apply(self.ds.inv_transform_target_series) for key in list(self.results.keys())
+            self.results[key].apply(ds.inv_transform_target_series) for key in list(self.results.keys())
         ], axis=0)
         df_result.to_csv(dir+'result.csv')
 
         if self.verbose:
             print(f"Results of {self.model_label} fits are saved into {dir}")
 
-    def save_full_model(self, dir:str):
+    def save_full_model(self, dir:str, ds:HistForecastDataset or None):
+
+        if ds is None:
+           ds = self.base_ds
 
         dir = self.to_dir(dir=dir)
 
-        if self.ds is None:
+        if ds is None:
             raise ReferenceError("Dataset class is not initialized")
         if self.forecaster is None:
             raise ReferenceError("Forecaster is not initialized")
@@ -822,23 +857,23 @@ class BaseModelTasks(TaskPaths):
         check_is_fitted(self.forecaster.model)
         self.forecaster.save_model(dir + 'model.joblib')
 
-        if not self.ds.target_scaler is None:
-            joblib.dump(self.ds.target_scaler, dir+'target_scaler.pkl')
+        if not ds.target_scaler is None:
+            joblib.dump(ds.target_scaler, dir + 'target_scaler.pkl')
 
-        if not self.ds.feature_scaler is None:
-            joblib.dump(self.ds.feature_scaler, dir+'feature_scaler.pkl')
+        if not ds.feature_scaler is None:
+            joblib.dump(ds.feature_scaler, dir + 'feature_scaler.pkl')
 
         with open(dir+'dataset.json', 'w') as f:
             json.dump(self.model_dataset_pars, f, indent=4)
 
         with open(dir+'best_parameters.json', 'w') as f:
-            json.dump(self.model_pars, f, indent=4)
+            json.dump(self.optuna_pars, f, indent=4)
 
         if self.verbose:
             print(f"Metadata for the trained base model {self.model_label} and dataset are saved into {dir}")
 
     def run_save_forecast(self, folds:int):
-        if self.ds is None:
+        if self.base_ds is None:
             raise ReferenceError("Dataset class is not initialized")
         if self.forecaster is None:
             raise ReferenceError("Forecaster is not initialized")
@@ -847,10 +882,10 @@ class BaseModelTasks(TaskPaths):
         # self.cv_train_test(folds=folds, X_train=None, y_train=None, do_fit=False)
         # self.save_full_model(dir='forecast')
 
-        X_scaled = self.ds.exog_forecast
-        y_scaled = self.ds.target_hist
-        forecast = self.forecaster.forecast_window(X_scaled, y_scaled)
-        forecast = forecast.apply(self.ds.inv_transform_target_series)
+        X_scaled = self.base_ds.exog_forecast
+        y_scaled = self.base_ds.target_hist
+        forecast = self.forecaster.forecast_window(X_scaled, y_scaled, lags_target=self.base_ds.lags_target)
+        forecast = forecast.apply(self.base_ds.inv_transform_target_series)
         if self.verbose: print(f"Saving {self.to_forecast() + 'forecast.csv'}")
         forecast.to_csv(self.to_forecast() + 'forecast.csv')
 
@@ -865,7 +900,7 @@ class EnsembleModelTasks(BaseModelTasks):
         # self.workingdir = workingdir
         # self.model_dir = workingdir + 'meta_'+model_name+''.join(['_'+m for m in base_model_names])+'/'
         self.verbose = verbose
-        self.ds = None
+        self.meta_ds = None
         self.base_models = {
             model_name : BaseModelTasks(self.target, model_name, self.working_dir, verbose)
             for model_name in self.names_base_models
@@ -878,9 +913,26 @@ class EnsembleModelTasks(BaseModelTasks):
         self.y_meta = None
         self.cutoffs = None
 
-    def set_meta_X_y(self, X_meta:pd.DataFrame, y_meta:pd.Series):
-        self.y_meta = y_meta
-        self.X_meta = X_meta
+    def set_dataset_from_df(self, df_hist:pd.DataFrame, df_forecast:pd.DataFrame, pars:dict):
+        self.meta_ds = self._set_dataset_from_df(df_hist, df_forecast, pars)
+
+    def set_dataset_from_finetuned(self, df_hist:pd.DataFrame, df_forecast:pd.DataFrame):
+        self.meta_ds = self._set_dataset_from_finetuned(df_hist, df_forecast)
+        self.meta_ds.run_preprocess_pipeline(self.optuna_pars | self.model_dataset_pars)
+
+    def set_load_dataset_from_dir(self, dir:str, df_hist:pd.DataFrame, df_forecast:pd.DataFrame):
+        self.meta_ds = self._set_load_dataset_from_dir(dir, df_hist, df_forecast)
+        self.meta_ds.run_preprocess_pipeline(self.optuna_pars | self.model_dataset_pars)
+
+    def set_meta_X_y(self, X_meta:pd.DataFrame or None, y_meta:pd.Series or None):
+        if ((not X_meta is None) and (not y_meta is None)):
+            if self.verbose:
+                print(f"Manually setting X_meta and y_meta are None")
+            self.X_meta = X_meta
+            self.y_meta = y_meta
+        else:
+            self.X_meta = self.meta_ds.exog_hist
+            self.y_meta = self.meta_ds.target_hist
 
 
     def set_datasets_for_base_models_from_ds(self, ds:HistForecastDataset):
@@ -909,7 +961,7 @@ class EnsembleModelTasks(BaseModelTasks):
             print(f"Running CV {'train-test' if do_fit else 'test only'} {list(self.base_models.keys())} "
                   f"base model using their respective datasets")
         for base_model_name, base_model_class in self.base_models.items():
-            base_model_class.cv_train_test(cv_folds_base, None, None, do_fit=do_fit)
+            base_model_class.cv_train_test(cv_folds_base, None, None, ds=None, do_fit=do_fit)
 
     def create_X_y_for_model_from_base_models_cv_folds(
             self,
@@ -917,7 +969,8 @@ class EnsembleModelTasks(BaseModelTasks):
             use_base_models_pred_intervals:bool
     ):
 
-        target = self.ds.target
+        target = self.meta_ds.target_key
+
 
         if use_base_models_pred_intervals: features_from_base_models = ['fitted','lower','upper']
         else: features_from_base_models = ['fitted']
@@ -930,7 +983,7 @@ class EnsembleModelTasks(BaseModelTasks):
         if cv_folds_base < 3:
             raise ValueError(f"Number of CV folds for base models is too small. Should be >3 Given: {cv_folds_base}")
 
-        cutoffs = get_ts_cutoffs(self.ds, folds=cv_folds_base)
+        cutoffs = get_ts_cutoffs(self.meta_ds, folds=cv_folds_base)
         cutoffs = cutoffs[-cv_folds_base_to_use:]
 
         X_meta_train_list, y_meta_train_list = [], []
@@ -981,7 +1034,9 @@ class EnsembleModelTasks(BaseModelTasks):
                   f"Shape: X_train={self.X_for_model.shape}")
 
     def cv_train_test_ensemble(self, cv_folds_base:int, do_fit:bool):
-        self.cv_train_test(folds=cv_folds_base, X_train=self.X_for_model, y_train=self.y_for_model, do_fit=do_fit)
+        self.cv_train_test(
+            folds=cv_folds_base, X_train=self.X_for_model, y_train=self.y_for_model, ds=self.meta_ds, do_fit=do_fit
+        )
 
     def finetune(self, trial:optuna.Trial, cv_metrics_folds:int):
 
@@ -990,28 +1045,31 @@ class EnsembleModelTasks(BaseModelTasks):
         #     raise ValueError("There should be more CV folds for base models then for ensemble model. "
         #                      f"Given CV ensemble {cv_metrics_folds}+3 folds and base models {cv_folds_base} folds")
 
-        if self.ds is None:
+        if self.meta_ds is None:
             raise ReferenceError("Dataset class is not initialized")
+
+        self.meta_ds.reset_engineered()
+        ds_config = suggest_values_for_ds_pars_optuna(self.target, trial, fixed=self.meta_ds.init_pars)
+        ds_config.update(self.meta_ds.init_pars)
+        self.meta_ds.run_preprocess_pipeline(ds_config)
+
+
         self.forecaster = None
-
-
-
         params = get_parameters_for_optuna_trial(self.name_base_model, trial=trial)
         self.forecaster = instantiate_base_forecaster(
-            model_name=self.name_base_model, target=self.ds.target, lags_target=self.ds.lags_target,
+            model_name=self.name_base_model, target=self.meta_ds.target_key,
             model_pars=params, verbose=self.verbose
         )
 
+        use_base_models_pred_intervals = trial.suggest_categorical(
+                'use_base_models_pred_intervals', [True, False]
+        )
+
+        self.set_meta_X_y(X_meta=None, y_meta=None)
         self.create_X_y_for_model_from_base_models_cv_folds(
             cv_folds_base_to_use=cv_folds_base,
-            use_base_models_pred_intervals = False
+            use_base_models_pred_intervals = use_base_models_pred_intervals
         )
-        # trial.suggest_int(
-        #         'cv_folds_base_to_use', cv_metrics_folds+3, cv_folds_base
-        #     ),
-        #     use_base_models_pred_intervals=trial.suggest_categorical(
-        #         'use_base_models_pred_intervals', [True, False])
-        # )
 
         self.cv_train_test_ensemble(cv_folds_base=cv_metrics_folds, do_fit=True)
 
@@ -1031,27 +1089,33 @@ class EnsembleModelTasks(BaseModelTasks):
 
     def run_save_forecast(self, folds:int):
 
-        use_base_models_pred_intervals = self.model_pars['use_base_models_pred_intervals']
+        use_base_models_pred_intervals = self.optuna_pars['use_base_models_pred_intervals']
         if use_base_models_pred_intervals: features_from_base_models = ['fitted','lower','upper']
         else: features_from_base_models = ['fitted']
 
-        X_test = pd.DataFrame()
+        X_test = pd.DataFrame(index=self.meta_ds.forecast_idx)
         for base_model_name, base_model_class in self.base_models.items():
             dir = base_model_class.to_forecast()
             df_i = pd.read_csv(dir+'forecast.csv', index_col='date')
             df_i.index = pd.to_datetime(df_i.index)
-            df_i = df_i.apply(self.ds.transform_target_series)
+            df_i = df_i.apply(base_model_class.base_ds.transform_target_series)
             for key in features_from_base_models:
-                X_test[f'base_model_{base_model_name}_{key}'] = df_i[f'{self.ds.target}_{key}']
+                vals = df_i[f'{self.meta_ds.target_key}_{key}']
+                if vals.isnull().values.any():
+                    raise ValueError(f"Found NaNs in loaded {base_model_name} forecast. ")
+                X_test[f'base_model_{base_model_name}_{key}'] = vals
+                if len(X_test) != len(self.meta_ds.forecast_idx):
+                    raise ValueError(f"Expected {len(self.meta_ds.forecast_idx)} columns in X_test. Index mismatch.")
 
         if not self.X_meta is None:
             X_test = X_test.merge(self.X_meta, left_index=True, right_index=True)
 
-        if not validate_dataframe(X_test) or len(X_test) != len(self.ds.forecast_idx):
+        if not validate_dataframe(X_test) or len(X_test) != len(self.meta_ds.forecast_idx):
             raise ValueError("Validation check of forecasts_df failed.")
 
-        forecast = self.forecaster.forecast_window( X_test, self.y_meta )
-        forecast = forecast.apply(self.ds.inv_transform_target_series)
+        pars = self.optuna_pars | self.model_dataset_pars
+        forecast = self.forecaster.forecast_window( X_test, self.y_meta, lags_target=pars['lags_target'] )
+        forecast = forecast.apply(self.meta_ds.inv_transform_target_series)
 
         dir = self.to_forecast()
         if self.verbose: print(f"Saving {dir+'forecast.csv'}")
@@ -1182,11 +1246,6 @@ class ForecastingTaskSingleTarget:
         # common for all tasks for a given quantity
         dataset_pars['target'] = self.target
 
-        # use actual weather features
-        if 'limit_pca_to_features' in dataset_pars.keys() and dataset_pars['limit_pca_to_features'] == 'weather':
-            #dataset_pars['limit_pca_to_features'] = _get_weather_features(self.df_history)
-            raise NotImplementedError("Limit PCA features not implemented.")
-
         wrapper = EnsembleModelTasks(
             target=self.target, model_label=model_label, working_dir=self.outdir_, verbose=self.verbose
         )
@@ -1195,15 +1254,17 @@ class ForecastingTaskSingleTarget:
         with open(ft_outdir+'dataset.json', 'w') as f:
             json.dump(dataset_pars, f, indent=4)
 
-        ensemble_features = dataset_pars['ensemble_features']; del dataset_pars['ensemble_features']
+        # ensemble_features = dataset_pars['ensemble_features']; del dataset_pars['ensemble_features']
         wrapper.set_dataset_from_df(self.df_history, self.df_forecast, pars=dataset_pars)
         wrapper.set_datasets_for_base_models_from_finetuned(self.df_history, self.df_forecast)
         wrapper.set_base_models_from_dir(dir='finetuning')
-        if ensemble_features == 'cyclic_time':
-            wrapper.set_meta_X_y(
-                wrapper.ds._create_time_features(wrapper.ds.hist_idx()),
-                wrapper.ds.target_hist()
-            )
+        # if ensemble_features == 'cyclic_time':
+        #     wrapper.set_meta_X_y(
+        #         # _create_time_features(wrapper.ds.hist_idx()),
+        #         _create_time_features(self.df_history.index),
+        #         # wrapper.ds.target_hist()
+        #         self.df_history[self.target]
+        #     )
 
         wrapper.update_pretrain_base_models(
             cv_folds_base=finetuning_pars['cv_folds_base'], do_fit=True
@@ -1265,34 +1326,35 @@ class ForecastingTaskSingleTarget:
         wrapper = EnsembleModelTasks(
             target=self.target, model_label=model_label, working_dir=self.outdir_,verbose=self.verbose
         )
-        ds_pars, extra_pars = wrapper.set_dataset_from_finetuned(self.df_history, self.df_forecast)
+        wrapper.set_dataset_from_finetuned(self.df_history, self.df_forecast)
         wrapper.set_datasets_for_base_models_from_finetuned(self.df_history, self.df_forecast)
         wrapper.set_base_models_from_dir(dir='finetuning')
-        if extra_pars['ensemble_features'] == 'cyclic_time':
-            wrapper.set_meta_X_y(
-                _create_time_features(wrapper.ds.hist_idx),
-                wrapper.ds.target_hist
-            )
+        # if extra_pars['ensemble_features'] == 'cyclic_time':
+        #     wrapper.set_meta_X_y(
+        #         _create_time_features(wrapper.meta_ds.hist_idx),
+        #         wrapper.meta_ds.target_hist
+        #     )
         model_pars, extra_model_pars = wrapper.set_forecaster_from_dir(dir='finetuning')
         wrapper.update_pretrain_base_models(
             cv_folds_base=extra_model_pars['cv_folds_base'],#['cv_folds_base_to_use'],
             do_fit=True
         )
+        wrapper.set_meta_X_y(X_meta=None, y_meta=None)
         wrapper.create_X_y_for_model_from_base_models_cv_folds(
             cv_folds_base_to_use=extra_model_pars['cv_folds_base'],#['cv_folds_base_to_use'],
             use_base_models_pred_intervals=extra_model_pars['use_base_models_pred_intervals'],#['use_base_models_pred_intervals']
         )
         wrapper.cv_train_test(
             folds=pars['cv_folds'],
-            X_train=wrapper.X_for_model,y_train=wrapper.y_for_model,
+            X_train=wrapper.X_for_model,y_train=wrapper.y_for_model, ds=wrapper.meta_ds,
             do_fit=True
         )
 
         t_outdir = wrapper.to_dir('trained')
-        wrapper.save_full_model(dir='trained') # trained
-        wrapper.save_results(dir='trained')
+        wrapper.save_full_model(dir='trained', ds=wrapper.meta_ds) # trained
+        wrapper.save_results(dir='trained', ds=wrapper.meta_ds)
         with open(t_outdir+'dataset.json', 'w') as f:
-            json.dump(ds_pars | extra_pars, f, indent=4)
+            json.dump(wrapper.model_dataset_pars | wrapper.optuna_pars, f, indent=4)
 
     def process_training_task_base(self, t_task):
         model_label = t_task['model']
@@ -1301,16 +1363,16 @@ class ForecastingTaskSingleTarget:
         wrapper = BaseModelTasks(
             target=self.target, model_label=model_label, working_dir=self.outdir_,verbose=self.verbose
         )
-        ds_pars, extra_pars = wrapper.set_dataset_from_finetuned(self.df_history, self.df_forecast)
+        wrapper.set_dataset_from_finetuned(self.df_history, self.df_forecast)
         wrapper.set_forecaster_from_dir(dir='finetuning')
 
-        wrapper.cv_train_test(folds=pars['cv_folds'], X_train=None, y_train=None, do_fit=True)
+        wrapper.cv_train_test(folds=pars['cv_folds'], X_train=None, y_train=None, ds=None, do_fit=True)
 
         t_outdir = wrapper.to_dir('trained')
-        wrapper.save_full_model(dir='trained') # trained
-        wrapper.save_results(dir='trained')
+        wrapper.save_full_model(dir='trained', ds=None) # trained
+        wrapper.save_results(dir='trained', ds=None)
         with open(t_outdir+'dataset.json', 'w') as f:
-            json.dump(ds_pars | extra_pars, f, indent=4)
+            json.dump(wrapper.model_dataset_pars | wrapper.optuna_pars, f, indent=4)
 
     # ------ FORECASTING -------
 
@@ -1320,37 +1382,38 @@ class ForecastingTaskSingleTarget:
         wrapper = EnsembleModelTasks(
             target=self.target, model_label=model_label, working_dir=self.outdir_,verbose=self.verbose
         )
-        ds_pars, extra_pars = wrapper.set_load_dataset_from_dir(
+        wrapper.set_load_dataset_from_dir(
             dir='trained', df_hist=self.df_history, df_forecast=self.df_forecast
         )
         wrapper.set_load_datasets_for_base_models_from_dir(
             dir='trained', df_hist=self.df_history, df_forecast=self.df_forecast
         )
         wrapper.load_base_models_from_dir(dir='trained')
-        if extra_pars['ensemble_features'] == 'cyclic_time':
-            wrapper.set_meta_X_y(
-                _create_time_features(wrapper.ds.hist_idx),
-                wrapper.ds.target_hist
-            )
+        # if extra_pars['ensemble_features'] == 'cyclic_time':
+        #     wrapper.set_meta_X_y(
+        #         _create_time_features(wrapper.meta_ds.hist_idx),
+        #         wrapper.meta_ds.target_hist
+        #     )
 
         model_pars, extra_model_pars = wrapper.load_forecaster_from_dir(dir='trained')
         wrapper.update_pretrain_base_models(
             cv_folds_base=folds, do_fit=False
         )
+        wrapper.set_meta_X_y(X_meta=None, y_meta=None)
         wrapper.create_X_y_for_model_from_base_models_cv_folds(
             cv_folds_base_to_use=extra_model_pars['cv_folds_base'],
             use_base_models_pred_intervals=extra_model_pars['use_base_models_pred_intervals']
         )
         wrapper.cv_train_test_ensemble(cv_folds_base=folds, do_fit=False)
-        wrapper.save_results(dir='forecast')
+        wrapper.save_results(dir='forecast', ds=wrapper.meta_ds)
 
 
         # forecast (different feature set)
-        if extra_pars['ensemble_features'] == 'cyclic_time':
-            wrapper.set_meta_X_y(
-                _create_time_features(wrapper.ds.forecast_idx),
-                wrapper.ds.target_hist
-            )
+        # if extra_pars['ensemble_features'] == 'cyclic_time':
+        #     wrapper.set_meta_X_y(
+        #         _create_time_features(wrapper.meta_ds.forecast_idx),
+        #         wrapper.meta_ds.target_hist
+        #     )
 
         # wrapper.update_pretrain_base_models(
         #     cv_folds_base=folds, do_fit=False
@@ -1360,6 +1423,11 @@ class ForecastingTaskSingleTarget:
         #     use_base_models_pred_intervals=extra_model_pars['use_base_models_pred_intervals']
         # )
         # wrapper.cv_train_test_ensemble(cv_folds_base=extra_model_pars['cv_folds_base_to_use'], do_fit=False)
+        wrapper.set_meta_X_y(X_meta=wrapper.meta_ds.exog_forecast, y_meta=wrapper.meta_ds.target_hist)
+        # wrapper.create_X_y_for_model_from_base_models_cv_folds(
+        #     cv_folds_base_to_use=extra_model_pars['cv_folds_base'],
+        #     use_base_models_pred_intervals=extra_model_pars['use_base_models_pred_intervals']
+        # )
         wrapper.run_save_forecast(folds=folds)
 
     def process_forecasting_task_base(self, f_task):
@@ -1370,8 +1438,8 @@ class ForecastingTaskSingleTarget:
         )
         wrapper.set_load_dataset_from_dir(dir='trained', df_hist=self.df_history, df_forecast=self.df_forecast)
         wrapper.load_forecaster_from_dir(dir='trained')
-        wrapper.cv_train_test(folds=folds, X_train=None, y_train=None, do_fit=False)
-        wrapper.save_results(dir='forecast')
+        wrapper.cv_train_test(folds=folds, X_train=None, y_train=None, ds=None, do_fit=False)
+        wrapper.save_results(dir='forecast', ds=None)
         wrapper.run_save_forecast(folds=folds)
 
     # ------ OTHERS --------

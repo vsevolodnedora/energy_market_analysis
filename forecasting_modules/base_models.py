@@ -98,8 +98,8 @@ class BaseForecaster:
                                  f"y_train_scaled.index[-1] + 1 = {y_train_scaled.index[-1] + timedelta(hours=1)}"
                                  f"X_test.index[0] = {X_test.index[0]}")
 
-        if set(X_test.columns) != set(self.features):
-            raise ValueError("X_test.columns must match self.features")
+        # if set(X_test.columns) != set(self.features):
+        #     raise ValueError("X_test.columns must match self.features")
 
         forecast_values, lower, upper, X_futures = [], [], [], []
         # predict target for each time step in future features X_scaled
@@ -228,7 +228,7 @@ class XGBoostMapieRegressor(BaseForecaster):
         self.model.fit(X_scaled, y_scaled)
 
         # save data for feature importance analysis
-        self.features = X_scaled.columns.tolist()
+        # self.features = X_scaled.columns.tolist()
         # self.lag_y_past = y_scaled.copy()
 
     # def get_model_feature_importance(self, ):
@@ -277,7 +277,7 @@ class ElasticNetMapieRegressor(BaseForecaster):
 
         # Fit mapieregressor model
         self.model.fit(X_scaled, y_scaled)
-        self.features = X_scaled.columns.tolist()
+        # self.features = X_scaled.columns.tolist()
         # self.lag_y_past = y_scaled.copy()
 
     # def get_model_feature_importance(self)->pd.Series:
