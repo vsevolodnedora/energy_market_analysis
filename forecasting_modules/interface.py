@@ -6,147 +6,13 @@ from forecasting_modules.tasks import ForecastingTaskSingleTarget
 from data_collection_modules.locations import (
     locations, offshore_windfarms, onshore_windfarms, solarfarms, de_regions
 )
+from data_modules.data_loaders import (
+    extract_from_database,
+    clean_and_impute
+)
 
 
-def load_prepared_data(target:str,datapath:str, verbose:bool)  ->tuple[pd.DataFrame, pd.DataFrame]:
-
-    df_history = pd.read_parquet(f"{datapath}history.parquet")
-    df_forecast = pd.read_parquet(f"{datapath}forecast.parquet")
-
-    # for brevity and due to evolving market conditions we focus here only on 1 year of data
-    # df_history = df_history[pd.Timestamp(df_history.dropna(how='any', inplace=False).last_valid_index()) - limit_train_to:]
-
-    # assure that the columns in both dataframes match
-    df_features = df_history[[col for col in list(df_history.columns) if col != target]]
-    if not df_features.columns.equals(df_forecast.columns):
-        raise IOError("The DataFrames have different columns.")
-
-    if verbose:
-        print(f"History: {df_history.shape} from {df_history.index[0]} to {df_history.index[-1]} ({len(df_history.index)/7/24} weeks)")
-        print(f"Forecast: {df_forecast.shape} from {df_forecast.index[0]} to {df_forecast.index[-1]} ({len(df_forecast.index)/24} days)")
-
-    return df_history, df_forecast
-
-def extract_from_database(target:str, datapath:str, verbose:bool, region:str, n_horizons:int) ->tuple[pd.DataFrame, pd.DataFrame]:
-    df_smard = pd.read_parquet(datapath + 'smard/' + 'history.parquet')
-    df_om = pd.read_parquet(datapath + 'openmeteo/' + 'history.parquet')
-    df_om_f = pd.read_parquet(datapath + 'openmeteo/' + 'forecast.parquet')
-    df_es = pd.read_parquet(datapath + 'epexspot/' + 'history.parquet')
-    df_entsoe = pd.read_parquet(datapath + 'entsoe/' + 'history.parquet')
-    # -------------------
-    if verbose:
-        print(f"SMARD data shapes hist={df_smard.shape} (days={len(df_smard)/24}) start={df_smard.index[0]} end={df_smard.index[-1]}")
-        print(f"ENTSOE data shapes hist={df_entsoe.shape} (days={len(df_entsoe)/24}) start={df_entsoe.index[0]} end={df_entsoe.index[-1]}")
-        print(f"Openmeteo data shapes hist={df_om.shape} (days={len(df_om)/24}) start={df_om.index[0]} end={df_om.index[-1]}")
-        print(f"Openmeteo data shapes forecast={df_om_f.shape} (days={len(df_om_f)/24}) start={df_om_f.index[0]} end={df_om_f.index[-1]}")
-        print(f"EPEXSPOT data shapes hist={df_es.shape} (days={len(df_es)/24}) start={df_es.index[0]} end={df_es.index[-1]}")
-    # -----------------
-    if target == 'wind_offshore_tenn':
-        if not region == 'DE_TENNET':
-            raise IOError(f"The region must be 'DE_TENNE' for target={target}")
-        if verbose: print(f"Target={target} Nans={df_entsoe[target].isna().sum().sum()}")
-        region_:dict = [reg for reg in de_regions if reg['name']==region][0]
-        reg_suffix = region_['suffix']
-        data_type = 'woff' # wind offshore
-        suffix = f'_{data_type}{reg_suffix}'
-        target = df_entsoe['wind_offshore' + reg_suffix]
-        om_suffixes = [wind_farm['suffix'] for wind_farm in offshore_windfarms if wind_farm['TSO'] == region_['TSO']]
-        columns_to_select = df_om.columns[df_om.columns.str.endswith(tuple(om_suffixes))]
-        df_hist = pd.merge(left=df_om[columns_to_select],right=target, left_index=True, right_index=True, how='left')
-        df_forecast = df_om_f[columns_to_select]
-        if not len(df_hist.columns) == len(df_forecast.columns)+1:
-            raise ValueError(f'The DataFrames have different columns. '
-                             f'hist={df_hist.shape} forecast={df_forecast.shape}')
-        if len(df_hist) <= 1 or len(df_forecast) <= 1:
-            raise ValueError(f'The DataFrames must have >1 rows '
-                             f'hist={df_hist.shape} forecast={df_forecast.shape}')
-        return df_hist.tail(len(df_forecast)*n_horizons), df_forecast
-    else:
-        raise NotImplementedError(f"Target {target} and region {region} are not implemented.")
-
-def handle_nans_with_interpolation(df: pd.DataFrame, name: str) -> pd.DataFrame:
-    """
-    Checks each column of the DataFrame for NaNs. If a column has more than 3 consecutive NaNs,
-    it raises a ValueError. Otherwise, fills the NaNs using bi-directional interpolation.
-    """
-
-    df_copy = df.copy()
-
-    def check_consecutive_nans(series: pd.Series):
-        # Identify consecutive NaNs by grouping non-NaN segments and counting consecutive NaNs
-        consecutive_nans = (series.isna().astype(int)
-                            .groupby((~series.isna()).cumsum())
-                            .cumsum())
-        if consecutive_nans.max() > 3:
-            raise ValueError(f"Column '{series.name}' in {name} contains more than 3 consecutive NaNs.")
-
-    # Check all columns for consecutive NaNs first
-    for col in df_copy.columns:
-        check_consecutive_nans(df_copy[col])
-
-    # Interpolate all columns at once after confirming they're valid
-    df_copy = df_copy.interpolate(method='linear', limit_direction='both', axis=0)
-
-    return df_copy
-
-def fix_broken_periodicity_with_interpolation(df: pd.DataFrame, name: str) -> pd.DataFrame:
-    """
-    Fixes broken hourly periodicity by adding missing timestamps if fewer than 3 consecutive are missing.
-    Raises an error if more than 3 consecutive timestamps are missing.
-    Missing values are filled using time-based interpolation.
-    """
-
-    if not isinstance(df.index, pd.DatetimeIndex):
-        raise ValueError(f"The DataFrame {name} must have a datetime index.")
-
-    expected_index = pd.date_range(start=df.index.min(), end=df.index.max(), freq='H')
-    missing_timestamps = expected_index.difference(df.index)
-
-    if missing_timestamps.empty:
-        print(f"The DataFrame {name} is already hourly with no missing segments.")
-        return df
-
-    # Convert to a Series to check consecutive missing timestamps
-    missing_series = pd.Series(missing_timestamps)
-    groups = (missing_series.diff() != pd.Timedelta(hours=1)).cumsum()
-
-    # Check if any group has more than 3 missing points
-    group_counts = groups.value_counts()
-    if (group_counts > 3).any():
-        bad_group = group_counts[group_counts > 3].index[0]
-        raise ValueError(f"More than 3 consecutive missing timestamps detected: "
-                         f"{missing_series[groups == bad_group].values} in {name}")
-
-    # Reindex and interpolate
-    fixed_df = df.reindex(expected_index)
-    fixed_df = fixed_df.interpolate(method='time')
-
-    print(f"Added and interpolated {len(missing_timestamps)} missing timestamps in {name}.")
-
-    return fixed_df
-
-def validate_dataframe(df: pd.DataFrame, name: str = '', verbose:bool=False) -> pd.DataFrame:
-    """Check for NaNs, missing values, and periodicity in a time-series DataFrame."""
-
-    # Check for NaNs
-    if df.isnull().any().any():
-        if verbose: print(f"ERROR! {name} DataFrame contains NaN values.")
-        df = handle_nans_with_interpolation(df, name)
-
-    # Check if index is sorted in ascending order
-    if not df.index.is_monotonic_increasing:
-        if verbose: print(f"ERROR! {name} The index is not in ascending order.")
-        raise ValueError("Data is not in ascending order.")
-
-    # Check for hourly frequency with no missing segments
-    full_range = pd.date_range(start=df.index.min(), end=df.index.max(), freq='H')
-    if not full_range.equals(df.index):
-        if verbose: print(f"ERROR! {name} The data is not hourly or has missing segments.")
-        df = fix_broken_periodicity_with_interpolation(df, name)
-
-    return df
-
-def preprocess_openmeteo_for_offshore_wind(df:pd.DataFrame, location_suffix="_hsee")->pd.DataFrame:
+def OLD__preprocess_openmeteo_for_offshore_wind(df:pd.DataFrame, location_suffix="_hsee")->pd.DataFrame:
     """
     Preprocesses weather data for forecasting offshore wind energy generation.
     Focuses on critical physical features and includes turbulence_intensity, wind_ramp, and wind_shear.
@@ -222,7 +88,7 @@ def preprocess_openmeteo_for_offshore_wind(df:pd.DataFrame, location_suffix="_hs
 
     return df
 
-def get_raw_weather_features(df_history:pd.DataFrame):
+def OLD__get_raw_weather_features(df_history:pd.DataFrame):
     # list of openmeteo feature names (excluding suffix added for different locations)
     # patterns = [
     #     'cloud_cover', 'precipitation', 'relative_humidity_2m', 'shortwave_radiation',
@@ -238,7 +104,7 @@ def get_raw_weather_features(df_history:pd.DataFrame):
     print(f"Weather features found {len(weather_columns)}")
     return weather_columns
 
-def input_preprocessing_pipeline_wind_offshore(datapath:str, verbose:bool, features:list, target:str) \
+def OLD__input_preprocessing_pipeline_wind_offshore(datapath:str, verbose:bool, features:list, target:str) \
         -> tuple[pd.DataFrame, pd.DataFrame]:
 
     target = 'wind_offshore'
@@ -276,7 +142,7 @@ def input_preprocessing_pipeline_wind_offshore(datapath:str, verbose:bool, featu
         raise ValueError("ERROR! Nans in the dataframe")
 
     # Extract data for the offshore wind farm location and create new features
-    df_om_prep = preprocess_openmeteo_for_offshore_wind(df=df_om, location_suffix="_woff_enbw")
+    df_om_prep = OLD__preprocess_openmeteo_for_offshore_wind(df=df_om, location_suffix="_woff_enbw")
     df_om_prep.dropna(inplace=True) # drop nans formed when lagged features were added
 
     horizon = 7 * 24
@@ -305,7 +171,7 @@ def input_preprocessing_pipeline_wind_offshore(datapath:str, verbose:bool, featu
         # preprocess some features
         if feature  == 'weather':
             # TODO IMPROVE (USE OPENMETEO CLASS HERE)
-            weather_features:list = get_raw_weather_features(df_hist)
+            weather_features:list = OLD__get_raw_weather_features(df_hist)
             features_to_restrict += weather_features
     if not features:
         if verbose: print(f"No features selected for {target}. Using all features: \n{df_forecast.columns.tolist()}")
@@ -323,144 +189,32 @@ def input_preprocessing_pipeline_wind_offshore(datapath:str, verbose:bool, featu
 
     return df_hist, df_forecast
 
-def main():
-    verbose = True
-    outdir = './output/'
-    database='../database/'
+def process_task_list(task_list:list, outdir:str, database:str, verbose:bool):
+
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
 
-    tasks = [
-        {
-            "target": "wind_offshore_tenn",
-            "label": "Wind off-shore [MW]",
-            # "input_preprocessing_pipeline": {
-            #     'func':'input_preprocessing_pipeline_wind_offshore',
-            #     'kwargs':{'datapath':'../database/', 'features':[]}
-            # },
+    cv_folds_ft = 3
+    cv_folds_eval = 5
 
-            "task_fine_tuning":[
-                # {'model':'Prophet',
-                #  'dataset_pars':{
-                #      'forecast_horizon':None,
-                #      'target_scaler':'StandardScaler',
-                #      'feature_scaler':'StandardScaler',
-                #      'feature_pca_pars' : None,
-                #      'limit_pca_to_features':None,#'weather',
-                #      'fourier_features' : {'period':24, 'order':3},
-                #      'add_cyclical_time_features':True,
-                #      'lags_target':None,'log_target':True,
-                #      'copy_input':True
-                #  },
-                # 'finetuning_pars':{'n_trials':120,'optim_metric':'rmse','cv_folds':3}},
-
-                # {'model':'XGBoost',
-                #  'dataset_pars':{
-                #      'log_target':True,
-                #      'forecast_horizon':None,
-                #      'target_scaler':'StandardScaler',
-                #      'feature_scaler':'StandardScaler',
-                #      'copy_input':True,
-                #      'locations':[loc for loc in offshore_windfarms if loc['TSO']=='TenneT'],
-                #      'add_cyclical_time_features':True,
-                #      'feature_engineer':'WeatherFeatureEngineer'
-                #  },
-                #  'finetuning_pars':{'n_trials':5,'optim_metric':'rmse','cv_folds':3}},
-                #
-                # {'model':'ElasticNet',
-                #  'dataset_pars':{
-                #      'log_target':True,
-                #      'forecast_horizon':None,
-                #      'target_scaler':'StandardScaler',
-                #      'feature_scaler':'StandardScaler',
-                #      'copy_input':True,
-                #      'locations':[loc for loc in offshore_windfarms if loc['TSO']=='TenneT'],
-                #      'add_cyclical_time_features':True,
-                #      'feature_engineer':'WeatherFeatureEngineer'
-                #  },
-                #  'finetuning_pars':{'n_trials':5,'optim_metric':'rmse','cv_folds':3}},
-                #
-                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)',
-                #  'dataset_pars': {
-                #      'log_target':True,
-                #      'forecast_horizon':None,
-                #      'target_scaler':'StandardScaler',
-                #      'feature_scaler':'StandardScaler',
-                #      'add_cyclical_time_features':True,
-                #      'locations':[loc for loc in offshore_windfarms if loc['TSO']=='TenneT'],
-                #      'feature_engineer': None,#'WeatherFeatureEngineer',
-                #      'lags_target': None,
-                #      'copy_input':True
-                #
-                #  },
-                #  'finetuning_pars':{'n_trials':5,
-                #                     'optim_metric':'rmse',
-                #                     'cv_folds':3,
-                #                     'cv_folds_base':4,
-                #                     'use_base_models_pred_intervals':False}}
-            ],
-            "task_training":[
-                # {'model':'Prophet', 'pars':{'cv_folds':5}},
-                # {'model':'XGBoost', 'pars':{'cv_folds':5}},
-                # {'model':'ElasticNet', 'pars':{'cv_folds':5}},
-                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','pars':{'cv_folds':5}},
-                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','pars':{'cv_folds':5}}
-            ],
-            "task_forecasting":[
-                # {'model':'Prophet'},
-                # {'model':'XGBoost', 'past_folds':5},
-                # {'model':'ElasticNet', 'past_folds':5},
-                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','past_folds':5},
-                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','past_folds':5}
-            ],
-            "task_plot":[
-                # {'model':'Prophet', 'n':2,
-                #  'name':"Prophet",'lw':0.7,'color':"red",'ci_alpha':0.0},
-                {'model':'XGBoost','n':2,
-                 'name':'XGBoost','lw':0.7,'color':"green",'ci_alpha':0.0,
-                 'train_forecast':'train'},
-                {'model':'ElasticNet','n':2,
-                 'name':'ElasticNet','lw':0.7,'color':"blue",'ci_alpha':0.0,
-                 'train_forecast':'train'},
-                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','n':2,
-                 'name':'Ensemble','lw':1.0,'color':"purple",'ci_alpha':0.2,
-                 'train_forecast':'train'},
-                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','n':2,
-                #  'name':'Ensemble','lw':1.0,'color':"magenta",'ci_alpha':0.2,
-                #  'train_forecast':'train'},
-            ],
-            "task_summarize":[
-                # {'model':'Prophet', 'pars':{'cv_folds':5}},
-                # {'model':'XGBoost', 'summary_metric':'rmse'},
-                # {'model':'ElasticNet', 'summary_metric':'rmse'},
-                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)', 'summary_metric':'rmse'},
-                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)', 'summary_metric':'rmse'},
-            ]
-        }
-    ]
-
-
-    for task in tasks:
+    for task in task_list:
         target = task['target']
-        # input_preprocessing_pipeline_ = task['input_preprocessing_pipeline']
-        # if input_preprocessing_pipeline_['func'] == 'input_preprocessing_pipeline_wind_offshore':
-        #     df_hist, df_forecast = input_preprocessing_pipeline_wind_offshore(
-        #         **(input_preprocessing_pipeline_['kwargs'] | {'target':target, 'verbose':verbose})
-        #     )
-        # else:
-        #     raise NotImplementedError(
-        #         f"Input preprocessing pipeline {input_preprocessing_pipeline_['func']} not implemented."
-        #     )
+        region = task['region']
 
+        # get features + target (historic) and features (forecast) from database
         df_hist, df_forecast = extract_from_database(
-            target=target,datapath=database,verbose=verbose,region='DE_TENNET',n_horizons=100
+            target=target,datapath=database,verbose=verbose,region=region,n_horizons=100
         )
 
+        # clean data from nans and outliers
+        df_hist, df_forecast = clean_and_impute(df_hist=df_hist,df_forecast=df_forecast,target=target,verbose=verbose)
+
+        # initialize the processor for tasks
         processor = ForecastingTaskSingleTarget(
             df_history=df_hist,df_forecast=df_forecast,task=task,outdir=outdir,verbose=verbose
         )
 
-        # process task to fine-tune the forecasting model
+        # process task to fine-tune the forecasting model. Note: ensemble tasks require base models to be processed first
         if task['task_fine_tuning']:
             for ft_task in task['task_fine_tuning']:
                 if ft_task['model'].__contains__('ensemble'):
@@ -490,6 +244,125 @@ def main():
         if task['task_summarize']:
             processor.process_task_determine_the_best_model(task, outdir=outdir+target+'/')
 
+
+def main():
+
+    cv_folds_ft = 3
+    cv_folds_eval = 5
+    task_list = [
+        {
+            "target": "wind_offshore_tenn",
+            "region": "DE_TENNET",
+            "label": "Wind off-shore [MW]",
+            "task_fine_tuning":[
+                # {'model':'Prophet',
+                #  'dataset_pars':{
+                #      'forecast_horizon':None,
+                #      'target_scaler':'StandardScaler',
+                #      'feature_scaler':'StandardScaler',
+                #      'feature_pca_pars' : None,
+                #      'limit_pca_to_features':None,#'weather',
+                #      'fourier_features' : {'period':24, 'order':3},
+                #      'add_cyclical_time_features':True,
+                #      'lags_target':None,'log_target':True,
+                #      'copy_input':True
+                #  },
+                # 'finetuning_pars':{'n_trials':120,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+
+                # {'model':'XGBoost',
+                #  'dataset_pars':{
+                #      'log_target':True,
+                #      'forecast_horizon':None,
+                #      'target_scaler':'StandardScaler',
+                #      'feature_scaler':'StandardScaler',
+                #      'copy_input':True,
+                #      'locations':[loc['name'] for loc in offshore_windfarms if loc['TSO']=='TenneT'],
+                #      'add_cyclical_time_features':True,
+                #      'feature_engineer':'WeatherFeatureEngineer'
+                #  },
+                #  'finetuning_pars':{'n_trials':45,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+
+                # {'model':'ElasticNet',
+                #  'dataset_pars':{
+                #      'log_target':True,
+                #      'forecast_horizon':None,
+                #      'target_scaler':'StandardScaler',
+                #      'feature_scaler':'StandardScaler',
+                #      'copy_input':True,
+                #      'locations':[loc for loc in offshore_windfarms if loc['TSO']=='TenneT'],
+                #      'add_cyclical_time_features':True,
+                #      'feature_engineer':'WeatherFeatureEngineer'
+                #  },
+                #  'finetuning_pars':{'n_trials':45,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)',
+                #  'dataset_pars': {
+                #      'log_target':True,
+                #      'forecast_horizon':None,
+                #      'target_scaler':'StandardScaler',
+                #      'feature_scaler':'StandardScaler',
+                #      'add_cyclical_time_features':True,
+                #      'locations':[loc for loc in offshore_windfarms if loc['TSO']=='TenneT'],
+                #      'feature_engineer': None,#'WeatherFeatureEngineer',
+                #      'lags_target': None,
+                #      'copy_input':True
+                #
+                #  },
+                #  'finetuning_pars':{'n_trials':25,
+                #                     'optim_metric':'rmse',
+                #                     'cv_folds':cv_folds_ft,
+                #                     'cv_folds_base':35, # at least cv_folds_eval + 1
+                #                     'use_base_models_pred_intervals':False}}
+            ],
+            "task_training":[
+                # {'model':'Prophet', 'pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'XGBoost', 'pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'ElasticNet', 'pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','pars':{'cv_folds':cv_folds_eval}}
+            ],
+            "task_forecasting":[
+                # {'model':'Prophet'},
+                # {'model':'XGBoost', 'past_folds':cv_folds_eval},
+                # {'model':'ElasticNet', 'past_folds':cv_folds_eval},
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','past_folds':cv_folds_eval},
+                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','past_folds':cv_folds_eval}
+            ],
+            "task_plot":[
+                # {'model':'Prophet', 'n':2,
+                #  'name':"Prophet",'lw':0.7,'color':"red",'ci_alpha':0.0},
+                {'model':'XGBoost','n':4,
+                 'name':'XGBoost','lw':0.7,'color':"green",'ci_alpha':0.0,
+                 'train_forecast':'train'},
+                # {'model':'ElasticNet','n':2,
+                #  'name':'ElasticNet','lw':0.7,'color':"blue",'ci_alpha':0.0,
+                #  'train_forecast':'train'},
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','n':2,
+                #  'name':'Ensemble','lw':1.0,'color':"purple",'ci_alpha':0.2,
+                #  'train_forecast':'train'},
+                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','n':2,
+                #  'name':'Ensemble','lw':1.0,'color':"magenta",'ci_alpha':0.2,
+                #  'train_forecast':'train'},
+            ],
+            "task_summarize":[
+                # {'model':'Prophet', 'pars':{'cv_folds':5}},
+                # {'model':'XGBoost', 'summary_metric':'rmse'},
+                # {'model':'ElasticNet', 'summary_metric':'rmse'},
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)', 'summary_metric':'rmse'},
+                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)', 'summary_metric':'rmse'},
+            ]
+        }
+    ]
+
+    # process_task_list(task_list=task_list, outdir='./output/', database='../database/', verbose=True)
+
+    for t in task_list:
+        t['target'] = "wind_offshore_50hz"
+        t['region'] = "DE_50HZ"
+        for tt in t['task_fine_tuning']:
+            tt['dataset_pars']['locations'] = [loc['name'] for loc in offshore_windfarms if loc['TSO']=='50Hertz']
+
+    process_task_list(task_list=task_list, outdir='./output/', database='../database/', verbose=True)
 
 if __name__ == '__main__':
     main()
