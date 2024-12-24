@@ -2,6 +2,7 @@ name: Update
 
 on:
   push:
+    branches: [ "main" ]
     paths:
       - 'data/**'
 jobs:

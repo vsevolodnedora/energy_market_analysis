@@ -3,6 +3,9 @@ name: Sync New Files
 on:
   schedule:
     - cron: "0 */3 * * *" # Runs every 3 hour, adjust as needed
+  push:
+    branches:
+      - main # Ensures this workflow only triggers on the main branch
 jobs:
   # ---------------------------------------------------------------	
   check-and-copy-new-file:
