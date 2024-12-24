@@ -1,0 +1,34 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "deploy/**"  # Only trigger when files in 'deploy' change
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the repository
+      - name: Check out main branch
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Ensure all branches are available
+
+      # 2. Verify contents of deploy folder (optional)
+      - name: List files in deploy folder
+        run: |
+          echo "Listing files in deploy folder:"
+          ls -R ./deploy
+
+      # 3. Deploy to gh-pages
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./deploy  # Only publish contents of 'deploy' folder
+          publish_branch: gh-pages
+          commit_message: "Automated deployment: Updated GitHub Pages"
