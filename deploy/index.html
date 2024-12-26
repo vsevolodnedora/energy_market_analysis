@@ -3,40 +3,209 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GitHub Pages Test</title>
+    <title>Wind Forecasts</title>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f9;
-            color: #333;
+            margin: 20px;
+        }
+        .chart-container {
+            margin-bottom: 20px;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .controls {
+            margin-top: 20px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            height: 100vh;
+            align-items: center;
+            gap: 10px;
         }
-        h1 {
-            color: #4CAF50;
-            font-size: 3rem;
+        .controls label {
+            font-size: 1rem;
+            cursor: pointer;
         }
-        p {
-            font-size: 1.2rem;
-            color: #555;
+        .controls input[type="checkbox"] {
+            margin-right: 5px;
         }
-        footer {
-            margin-top: 20px;
-            font-size: 0.8rem;
-            color: #aaa;
+        .controls button {
+            padding: 8px 16px;
+            font-size: 1rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .controls button:hover {
+            background-color: #0056b3;
+        }
+        .mode-switch {
+            margin-bottom: 10px;
         }
     </style>
 </head>
 <body>
-    <h1>Hello, World!</h1>
-    <p>Your GitHub Pages site is working!</p>
-    <footer>
-        &copy; 2024 Your Name
-    </footer>
+    <h1>Offshore Wind Forecasts</h1>
+
+    <div id="error-message" class="error"></div>
+
+    <div id="chart" class="chart-container"></div>
+
+    <div class="controls">
+        <div class="mode-switch">
+            <label><input type="radio" name="mode" value="current" checked onchange="switchMode()"> Current</label>
+            <label><input type="radio" name="mode" value="past" onchange="switchMode()"> Past</label>
+        </div>
+        <div id="current-controls">
+            <label><input type="checkbox" id="50hz-checkbox" onchange="updateChart()"> wind_offshore_50hz</label>
+            <label><input type="checkbox" id="tenn-checkbox" onchange="updateChart()"> wind_offshore_tenn</label>
+            <label><input type="checkbox" id="total-checkbox" onchange="updateChart()"> wind_offshore</label>
+
+        </div>
+        <div id="past-controls" style="display: none;">
+            <label><input type="checkbox" id="50hz-past-checkbox" onchange="updateChart()"> wind_offshore_50hz (past)</label>
+            <label><input type="checkbox" id="tenn-past-checkbox" onchange="updateChart()"> wind_offshore_tenn (past)</label>
+            <label><input type="checkbox" id="total-past-checkbox" onchange="updateChart()"> wind_offshore (past)</label>
+        </div>
+    </div>
+
+    <script>
+        const chartOptions = {
+            chart: {
+                type: 'line',
+                height: 350
+            },
+            series: [],
+            xaxis: {
+                type: 'datetime',
+            },
+            yaxis: {
+                title: {
+                    text: 'Offshore Wind Generation [MW]'
+                }
+            },
+            stroke: {
+                width: 2
+            },
+            title: {
+                text: 'Wind Forecasts',
+                align: 'center'
+            }
+        };
+
+        const chart = new ApexCharts(document.querySelector("#chart"), chartOptions);
+        chart.render();
+
+        async function fetchData(variable, file) {
+            try {
+                const response = await fetch(`data/forecasts/${variable}/${file}`);
+                if (!response.ok) {
+                    throw new Error(`Failed to load ${variable}`);
+                }
+                const data = await response.json();
+                return data.map(([timestamp, value]) => ({ x: new Date(timestamp), y: value }));
+            } catch (error) {
+                document.getElementById('error-message').textContent = error.message;
+                return null;
+            }
+        }
+
+        async function updateChart() {
+            document.getElementById('error-message').textContent = '';
+            const seriesData = [];
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+        
+            function lightenColor(color, percent) {
+                const num = parseInt(color.slice(1), 16),
+                      amt = Math.round(2.55 * percent),
+                      R = (num >> 16) + amt,
+                      G = (num >> 8 & 0x00FF) + amt,
+                      B = (num & 0x0000FF) + amt;
+                return `#${(0x1000000 + (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 + 
+                             (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 + 
+                             (B < 255 ? (B < 1 ? 0 : B) : 255)).toString(16).slice(1).toUpperCase()}`;
+            }
+        
+            if (mode === 'current') {
+                if (document.getElementById('50hz-checkbox').checked) {
+                    const data = await fetchData('wind_offshore_50hz', 'XGBoost_curr_fitted.json');
+                    if (data) {
+                        const fittedColor = '#1E90FF'; // Replace with desired base color
+                        seriesData.push({ name: 'wind_offshore_50hz', data: data, color: fittedColor, dashArray: 0  });
+                    }
+                }
+        
+                if (document.getElementById('tenn-checkbox').checked) {
+                    const data = await fetchData('wind_offshore_tenn', 'XGBoost_curr_fitted.json');
+                    if (data) {
+                        const fittedColor = '#FF6347'; // Replace with desired base color
+                        seriesData.push({ name: 'wind_offshore_tenn', data: data, color: fittedColor, dashArray: 0  });
+                    }
+                }
+
+                if (document.getElementById('total-checkbox').checked) {
+                    const data = await fetchData('wind_offshore', 'XGBoost_curr_fitted.json');
+                    if (data) {
+                        const fittedColor = '#000000'; // Replace with desired base color
+                        seriesData.push({ name: 'wind_offshore', data: data, color: fittedColor, dashArray: 0  });
+                    }
+                }
+            } else if (mode === 'past') {
+                if (document.getElementById('50hz-past-checkbox').checked) {
+                    const fittedData = await fetchData('wind_offshore_50hz', 'XGBoost_prev_fitted.json');
+                    const actualData = await fetchData('wind_offshore_50hz', 'XGBoost_prev_actual.json');
+                    if (fittedData) {
+                        const fittedColor = '#1E90FF'; // Replace with desired base color
+                        const lighterColor = lightenColor(fittedColor, 50); // Adjust percentage for lightness
+                        seriesData.push({ name: 'wind_offshore_50hz (Fitted)', data: fittedData, color: fittedColor, dashArray: 0 });
+                        if (actualData) {
+                            seriesData.push({ name: 'wind_offshore_50hz (Actual)', data: actualData, color: lighterColor, dashArray: 5 });
+                        }
+                    }
+                }
+        
+                if (document.getElementById('tenn-past-checkbox').checked) {
+                    const fittedData = await fetchData('wind_offshore_tenn', 'XGBoost_prev_fitted.json');
+                    const actualData = await fetchData('wind_offshore_tenn', 'XGBoost_prev_actual.json');
+                    if (fittedData) {
+                        const fittedColor = '#FF6347'; // Replace with desired base color
+                        const lighterColor = lightenColor(fittedColor, 50); // Adjust percentage for lightness
+                        seriesData.push({ name: 'wind_offshore_tenn (Fitted)', data: fittedData, color: fittedColor, dashArray: 0 });
+                        if (actualData) {
+                            seriesData.push({ name: 'wind_offshore_tenn (Actual)', data: actualData, color: lighterColor, dashArray: 5 });
+                        }
+                    }
+                }
+
+                if (document.getElementById('total-past-checkbox').checked) {
+                    const fittedData = await fetchData('wind_offshore', 'XGBoost_prev_fitted.json');
+                    const actualData = await fetchData('wind_offshore', 'XGBoost_prev_actual.json');
+                    if (fittedData) {
+                        const fittedColor = '#000000'; // Replace with desired base color
+                        const lighterColor = lightenColor(fittedColor, 50); // Adjust percentage for lightness
+                        seriesData.push({ name: 'wind_offshore (Fitted)', data: fittedData, color: fittedColor, dashArray: 0 });
+                        if (actualData) {
+                            seriesData.push({ name: 'wind_offshore (Actual)', data: actualData, color: lighterColor, dashArray: 5 });
+                        }
+                    }
+                }
+            }
+    
+            chart.updateSeries(seriesData);
+        }
+        
+
+        function switchMode() {
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+            document.getElementById('current-controls').style.display = mode === 'current' ? 'block' : 'none';
+            document.getElementById('past-controls').style.display = mode === 'past' ? 'block' : 'none';
+            updateChart();
+        }
+    </script>
 </body>
 </html>
