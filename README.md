@@ -2,6 +2,8 @@
 
 Welcome to the **MLOps Forecasting Framework**, an open-source project designed to forecast energy-related quantities in Germany up to a week ahead. This framework combines modularity, scalability, and automation to create an efficient multi-step forecasting pipeline. The project is being developed and released in stages, with detailed documentation provided via [Medium](https://medium.com/@vsevolod.nedora).
 
+Webpage: https://vsevolodnedora.github.io/energy_market_analysis/ 
+
 ## Features
 
 - **Daily Data Collection**: Automated data retrieval from public APIs:
