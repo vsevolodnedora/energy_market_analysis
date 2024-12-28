@@ -3,7 +3,7 @@ from glob import glob
 import pandas as pd
 import gc
 
-from .utils import validate_dataframe
+from .utils import validate_dataframe_simple
 
 def update_epexspot_from_files(today:pd.Timestamp,data_dir:str,verbose:bool,raw_data_dir='./data/DE-LU/DayAhead_MRC/'):
 

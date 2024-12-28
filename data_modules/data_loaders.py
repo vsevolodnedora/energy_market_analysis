@@ -5,7 +5,9 @@ from data_collection_modules.collect_data_openmeteo import OpenMeteo
 from data_collection_modules.locations import (
     locations, offshore_windfarms, onshore_windfarms, solarfarms, de_regions
 )
-
+from data_modules.utils import (
+    validate_dataframe
+)
 
 def load_prepared_data(target:str,datapath:str, verbose:bool)  ->tuple[pd.DataFrame, pd.DataFrame]:
 
@@ -26,7 +28,7 @@ def load_prepared_data(target:str,datapath:str, verbose:bool)  ->tuple[pd.DataFr
 
     return df_history, df_forecast
 
-def extract_from_database(target:str, datapath:str, verbose:bool, region:str, n_horizons:int) \
+def extract_from_database(target:str, datapath:str, verbose:bool, region:str, n_horizons:int, horizon:int) \
         -> tuple[pd.DataFrame, pd.DataFrame]:
     df_smard = pd.read_parquet(datapath + 'smard/' + 'history.parquet')
     df_om = pd.read_parquet(datapath + 'openmeteo/' + 'history.parquet')
@@ -40,6 +42,13 @@ def extract_from_database(target:str, datapath:str, verbose:bool, region:str, n_
         print(f"Openmeteo data shapes hist={df_om.shape} (days={len(df_om)/24}) start={df_om.index[0]} end={df_om.index[-1]}")
         print(f"Openmeteo data shapes forecast={df_om_f.shape} (days={len(df_om_f)/24}) start={df_om_f.index[0]} end={df_om_f.index[-1]}")
         print(f"EPEXSPOT data shapes hist={df_es.shape} (days={len(df_es)/24}) start={df_es.index[0]} end={df_es.index[-1]}")
+    if horizon < len(df_om_f):
+        if verbose: print("Forecast dataframe has {} rows while {} rows are requested. Trimming...")
+        df_om_f = df_om_f.iloc[:horizon]
+        assert len(df_om_f) == horizon
+        assert (df_om_f.index[-1].hour == 23 and
+                df_om_f.index[-1].minute == 0 and
+                df_om_f.index[-1].second == 0)
     # -----------------
     if target in ['wind_offshore_tenn','wind_offshore_50hz']:
         if target == 'wind_offshore_tenn' and region != 'DE_TENNET':
@@ -79,89 +88,11 @@ def extract_from_database(target:str, datapath:str, verbose:bool, region:str, n_
     if not df_forecast.index[0] == df_hist.index[-1]+pd.Timedelta(hours=1):
         raise ValueError(f"Forecast dataframe must have index[0] = historic index[-1] + 1 hour")
 
+    expected_range = pd.date_range(start=df_hist.index.min(), end=df_hist.index.max(), freq='h')
+    if not df_hist.index.equals(expected_range):
+        raise ValueError("full_index must be continuous with hourly frequency.")
+
     return df_hist, df_forecast
-
-def handle_nans_with_interpolation(df: pd.DataFrame, name: str) -> pd.DataFrame:
-    """
-    Checks each column of the DataFrame for NaNs. If a column has more than 3 consecutive NaNs,
-    it raises a ValueError. Otherwise, fills the NaNs using bi-directional interpolation.
-    """
-
-    df_copy = df.copy()
-
-    def check_consecutive_nans(series: pd.Series):
-        # Identify consecutive NaNs by grouping non-NaN segments and counting consecutive NaNs
-        consecutive_nans = (series.isna().astype(int)
-                            .groupby((~series.isna()).cumsum())
-                            .cumsum())
-        if consecutive_nans.max() > 3:
-            raise ValueError(f"Column '{series.name}' in {name} contains more than 3 consecutive NaNs.")
-
-    # Check all columns for consecutive NaNs first
-    for col in df_copy.columns:
-        check_consecutive_nans(df_copy[col])
-
-    # Interpolate all columns at once after confirming they're valid
-    df_copy = df_copy.interpolate(method='linear', limit_direction='both', axis=0)
-
-    return df_copy
-
-def fix_broken_periodicity_with_interpolation(df: pd.DataFrame, name: str) -> pd.DataFrame:
-    """
-    Fixes broken hourly periodicity by adding missing timestamps if fewer than 3 consecutive are missing.
-    Raises an error if more than 3 consecutive timestamps are missing.
-    Missing values are filled using time-based interpolation.
-    """
-
-    if not isinstance(df.index, pd.DatetimeIndex):
-        raise ValueError(f"The DataFrame {name} must have a datetime index.")
-
-    expected_index = pd.date_range(start=df.index.min(), end=df.index.max(), freq='H')
-    missing_timestamps = expected_index.difference(df.index)
-
-    if missing_timestamps.empty:
-        print(f"The DataFrame {name} is already hourly with no missing segments.")
-        return df
-
-    # Convert to a Series to check consecutive missing timestamps
-    missing_series = pd.Series(missing_timestamps)
-    groups = (missing_series.diff() != pd.Timedelta(hours=1)).cumsum()
-
-    # Check if any group has more than 3 missing points
-    group_counts = groups.value_counts()
-    if (group_counts > 3).any():
-        bad_group = group_counts[group_counts > 3].index[0]
-        raise ValueError(f"More than 3 consecutive missing timestamps detected: "
-                         f"{missing_series[groups == bad_group].values} in {name}")
-
-    # Reindex and interpolate
-    fixed_df = df.reindex(expected_index)
-    fixed_df = fixed_df.interpolate(method='time')
-
-    print(f"Added and interpolated {len(missing_timestamps)} missing timestamps in {name}.")
-
-    return fixed_df
-
-def validate_dataframe(df: pd.DataFrame, name: str = '', verbose:bool=False) -> pd.DataFrame:
-    """Check for NaNs, missing values, and periodicity in a time-series DataFrame."""
-
-    # Check for NaNs
-    if df.isnull().any().any():
-        if verbose: print(f"ERROR! {name} DataFrame contains NaN values.")
-        df = handle_nans_with_interpolation(df, name)
-
-    # Check if index is sorted in ascending order
-    if not df.index.is_monotonic_increasing:
-        if verbose: print(f"ERROR! {name} The index is not in ascending order.")
-        raise ValueError("Data is not in ascending order.")
-
-    # Check for hourly frequency with no missing segments
-    full_range = pd.date_range(start=df.index.min(), end=df.index.max(), freq='H')
-    if not full_range.equals(df.index):
-        if verbose: print(f"ERROR! {name} The data is not hourly or has missing segments.")
-        df = fix_broken_periodicity_with_interpolation(df, name)
-
-    return df
 
 def mask_outliers_and_unphysical_values(df_hist: pd.DataFrame, df_forecast: pd.DataFrame, verbose: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
@@ -250,24 +181,24 @@ def mask_outliers_and_unphysical_values(df_hist: pd.DataFrame, df_forecast: pd.D
             continue
 
         # 4) Compute outlier bounds from the (cleaned) historical data
-        lower_bound, upper_bound = compute_outlier_bounds(df_hist[col].dropna())
+        # lower_bound, upper_bound = compute_outlier_bounds(df_hist[col].dropna())
 
-        # 5) Mask outliers in both dataframes
-        hist_outliers = (df_hist[col] < lower_bound) | (df_hist[col] > upper_bound)
-        # If col not in df_forecast.columns, we already continued above
-        forecast_outliers = (df_forecast[col] < lower_bound) | (df_forecast[col] > upper_bound)
-
-        # df_hist.loc[hist_outliers, col] = np.nan
-        # df_forecast.loc[forecast_outliers, col] = np.nan
-
-        # 6) Verbose logging
-        if verbose:
-            if hist_outliers.any():
-                n_hist_outliers = hist_outliers.sum()
-                print(f"WARNING [HIST] {n_hist_outliers} outliers in '{col}'.")
-            if forecast_outliers.any():
-                n_forecast_outliers = forecast_outliers.sum()
-                print(f"WARNING [FORECAST] {n_forecast_outliers} outliers in '{col}'.")
+        # # 5) Mask outliers in both dataframes
+        # hist_outliers = df_hist[col][ (df_hist[col] < lower_bound) | (df_hist[col] > upper_bound) ]
+        # # If col not in df_forecast.columns, we already continued above
+        # forecast_outliers = df_forecast[col][ (df_forecast[col] < lower_bound) | (df_forecast[col] > upper_bound) ]
+        #
+        # # df_hist.loc[hist_outliers, col] = np.nan
+        # # df_forecast.loc[forecast_outliers, col] = np.nan
+        #
+        # # 6) Verbose logging
+        # if verbose:
+        #     if hist_outliers.sum() > 0:
+        #         n_hist_outliers = hist_outliers.sum()
+        #         print(f"WARNING [HIST] {n_hist_outliers} outliers in '{col}'.")
+        #     if forecast_outliers.sum() > 0:
+        #         n_forecast_outliers = forecast_outliers.sum()
+        #         print(f"WARNING [FORECAST] {n_forecast_outliers} outliers in '{col}'.")
 
     return df_hist, df_forecast
 
@@ -275,4 +206,7 @@ def clean_and_impute(df_hist, df_forecast, target, verbose:bool)->tuple[pd.DataF
     df_hist, df_forecast = mask_outliers_and_unphysical_values(df_hist, df_forecast, verbose)
     df_hist = validate_dataframe(df_hist, 'df_hist', verbose=verbose)
     df_forecast = validate_dataframe(df_forecast, 'df_forecast', verbose=verbose)
+    expected_range = pd.date_range(start=df_hist.index.min(), end=df_hist.index.max(), freq='h')
+    if not df_hist.index.equals(expected_range):
+        raise ValueError("full_index must be continuous with hourly frequency.")
     return df_hist, df_forecast

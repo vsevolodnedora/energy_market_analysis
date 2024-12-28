@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def validate_dataframe(df: pd.DataFrame, text:str = '') -> bool:
+def validate_dataframe_simple(df: pd.DataFrame, text:str = '') -> bool:
     if not df.index.is_monotonic_increasing:
         raise ValueError(f"DataFrame index is not sorted in ascending order | {text}")
 

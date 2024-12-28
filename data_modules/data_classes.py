@@ -14,8 +14,10 @@ from statsmodels.tsa.deterministic import DeterministicProcess, Fourier
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, MaxAbsScaler, RobustScaler
 
-from data_collection_modules.utils import compare_columns, validate_dataframe
+from data_collection_modules.utils import compare_columns, validate_dataframe_simple
 from data_collection_modules.locations import locations
+from data_modules.utils import validate_dataframe
+
 
 def create_holiday_weekend_series(df_index):
     # Create a Germany holiday calendar
@@ -159,6 +161,10 @@ class WeatherFeatureEngineer:
             print(f"Preprocessing result Shapes {df.shape} -> {combined_df.shape}"
                   f" Start {df.index[0]} -> {combined_df.index[0]}"
                   f" End {df.index[-3]} -> {combined_df.index[-1]}")
+
+        expected_range = pd.date_range(start=combined_df.index.min(), end=combined_df.index.max(), freq='h')
+        if not combined_df.index.equals(expected_range):
+            raise ValueError("combined_df must be continuous with hourly frequency.")
 
         return combined_df
 
@@ -404,6 +410,10 @@ class HistForecastDataset:
             df_historic:pd.DataFrame, df_forecast:pd.DataFrame or None, pars:dict
     ):
 
+        expected_range = pd.date_range(start=df_historic.index.min(), end=df_historic.index.max(), freq='h')
+        if not df_historic.index.equals(expected_range):
+            raise ValueError("full_index must be continuous with hourly frequency.")
+
         self.target_key = pars['target']
         self.verbose = pars['verbose']
 
@@ -437,7 +447,7 @@ class HistForecastDataset:
             raise ValueError("df_historic and df_forecast must have same columns")
 
         # check if there are no nans or missing values or non-monotonicities
-        is_df_valid = validate_dataframe(self.df_historic_)
+        is_df_valid = validate_dataframe_simple(self.df_historic_)
         if not is_df_valid:
             # todo implement imputing mechanism
             raise ValueError("Nans in the history dataframe")
@@ -465,9 +475,9 @@ class HistForecastDataset:
             raise ValueError("Forecast dataframe should start exactly one timestep after the historic index")
         if not len(df_forecast_) % 24 == 0:
             raise ValueError(f"Horizon must be divisible by 24 (at least one day). Given {len(df_forecast_)}")
-        if not validate_dataframe(df_hist_):
+        if not validate_dataframe_simple(df_hist_):
             raise ValueError(f"Historic dataframe failed to validate")
-        if not validate_dataframe(df_forecast_):
+        if not validate_dataframe_simple(df_forecast_):
             raise ValueError(f"Forecast dataframe failed to validate")
 
         ''' ------- HISTORIC TARGET ------- '''
@@ -531,7 +541,9 @@ class HistForecastDataset:
             o_feat = WeatherFeatureEngineer(config, verbose=self.verbose)
             n_h, n_f = len(df_hist_), len(df_forecast_)
             df_tmp = pd.concat([df_hist_,df_forecast_],axis=0)
+            assert len(df_tmp) == n_h + n_f
             df_tmp = o_feat(df_tmp)
+            df_tmp = validate_dataframe(df_tmp)
             df_hist_, df_forecast_ = df_tmp[:df_forecast_.index[0]-pd.Timedelta(hours=1)], df_tmp[df_forecast_.index[0]:]
 
             assert len(df_forecast_) == n_f
@@ -539,6 +551,10 @@ class HistForecastDataset:
             df_hist_ = df_hist_.dropna(inplace=False) # in case there are lagged features -- nans are introguded
         elif config['feature_engineer'] is None:
             df_hist_ = pd.DataFrame(index=df_hist_.index)
+
+        expected_range = pd.date_range(start=df_hist_.index.min(), end=df_hist_.index.max(), freq='h')
+        if not df_hist_.index.equals(expected_range):
+            raise ValueError("df_hist_ must be continuous with hourly frequency.")
 
         ''' ---- BASIC FEATURE ENGINEERING AND HISTORIC FEATURES ----- '''
 
@@ -602,7 +618,7 @@ class HistForecastDataset:
         exog = _adjust_dataframe_to_divisible_by_N( exog, len(df_forecast_), self.verbose )
         df_target = df_target[exog.index]
 
-        if not validate_dataframe(exog):
+        if not validate_dataframe_simple(exog):
             raise ValueError("Error in validating dataframe with engineered features")
 
         ''' ---- BASIC FEATURE ENGINEERING AND FUTURE FEATURES ----- '''
@@ -626,11 +642,15 @@ class HistForecastDataset:
             for lag in range(1, self.lags_target+1):
                 exog_forecast[f'{self.target_key}_lag_{lag}'] = -1
 
-        if not validate_dataframe(exog_forecast):
+        if not validate_dataframe_simple(exog_forecast):
             raise ValueError("Error in validating dataframe with engineered forecasted features")
 
         if not compare_columns(exog, exog_forecast):
             raise ValueError("Error in validating dataframe with engineered forecasted features")
+
+        expected_range = pd.date_range(start=exog.index.min(), end=exog.index.max(), freq='h')
+        if not exog.index.equals(expected_range):
+            raise ValueError("exog must be continuous with hourly frequency.")
 
 
         return exog, exog_forecast, df_target

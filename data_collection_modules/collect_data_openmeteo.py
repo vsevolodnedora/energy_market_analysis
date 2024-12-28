@@ -9,19 +9,32 @@ from data_collection_modules.locations import locations
 class OpenMeteo:
     variables_standard = (
         # basic
-        "temperature_2m",
+        "temperature_2m", # degrees, Celsius
         "relative_humidity_2m",
-        "surface_pressure",
-        "wind_speed_10m",
-        "wind_speed_100m",
-        "wind_direction_10m",
-        "wind_direction_100m",
+        "surface_pressure",     # pressure hPa,
+        "wind_speed_10m", # velocity, m/s
+        "wind_speed_100m", # velocity, m/s
+        "wind_direction_10m",# degree, deg.
+        "wind_direction_100m",# degree, deg.
         # additional
         "precipitation",
         "wind_gusts_10m",
         "cloud_cover",
         "shortwave_radiation"
     )
+    phys_limits = {
+        "temperature_2m": (-45., 50.),  # Extreme global temperature range; robust for outliers.
+        "relative_humidity_2m": (0, 100),  # Physical constraint of humidity percentage.
+        "surface_pressure": (900., 1080.),  # Typical for Germany; excludes extreme altitudes.
+        "wind_speed_10m": (0., 200),  # km/h Conservative; rare globally, but robust for outliers.
+        "wind_speed_100m": (0., 200),  # km/h Same as 10m; aligns with rare global extremes.
+        "wind_direction_10m": (0., 360),  # Wind direction inherently constrained to this range.
+        "wind_direction_100m": (0., 360),  # Same as 10m; inherent constraint.
+        "precipitation": (0, 100),  # Accounts for intense rainfall events in Germany.
+        "wind_gusts_10m": (0., 300),  # km/h Conservative for error filtering; rare globally.
+        "cloud_cover": (0, 100),  # Physical constraint of cloud coverage percentage.
+        "shortwave_radiation": (0, 1000),  # Peak solar radiation under clear skies.
+    }
 
     def __init__(self, start_date: pd.Timestamp, locations: dict, verbose: bool = False):
         self.start_date = start_date
@@ -136,16 +149,8 @@ class OpenMeteo:
         return df
 
 def check_phys_limits_in_data(df: pd.DataFrame) -> pd.DataFrame:
-    physical_limits = dict(
-        temperature_2m=(-60.,60.), # degrees, Celsius
-        visibility=(0., 1e4), # distance, meters
-        surface_pressure=(870.,1080.), # pressure hPa,
-        realtive_humidity_2m=(0.,100), # humidity, percent
-        wind_speed_10m=(0.,113), # velocity, m/s
-        wind_direction_10m=(0.,360), # degree, deg.
-        clouds_all=(0., 100.) # percent?
-    )
-    for key, lim in physical_limits.items():
+
+    for key, lim in OpenMeteo.phys_limits.items():
         for loc in locations:
             kkey = key+loc['suffix']
             if kkey in df:

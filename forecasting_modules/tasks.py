@@ -25,6 +25,7 @@ from sklearn.utils.validation import check_is_fitted
 
 from scipy.stats import friedmanchisquare
 
+from data_collection_modules.utils import validate_dataframe_simple
 from forecasting_modules.utils import (
     compute_timeseries_split_cutoffs,
     compute_error_metrics,
@@ -175,20 +176,18 @@ def instantiate_base_forecaster(model_name:str, target:str, model_pars:dict, ver
     else:
         raise NotImplementedError(f"Fine-tuning parameter set for {model_name} not implemented")
 
-def get_ts_cutoffs(ds:HistForecastDataset,folds:int):
-    if ds is None:
-        raise ReferenceError("Dataset class is not initialized")
-    horizon = len(ds.forecast_idx) # number of timesteps to forecast
-    if not horizon % 24 == 0:
-        raise ValueError(f"Horizon must be divisible by 24 (at least one day). Given {horizon}")
-    cutoffs = compute_timeseries_split_cutoffs(
-        ds.hist_idx,
-        horizon=horizon,
-        delta=horizon,
-        folds=folds,
-        min_train_size=3*30*24
-    )
-    return cutoffs # last one is the latest one
+# def get_ts_cutoffs(ds:HistForecastDataset,folds:int)->tuple[list[pd.Timestamp], list[tuple[pd.DatetimeIndex, pd.DatetimeIndex]]]:
+#     if ds is None:
+#         raise ReferenceError("Dataset class is not initialized")
+#     horizon = len(ds.forecast_idx) # number of timesteps to forecast
+#     if not horizon % 24 == 0:
+#         raise ValueError(f"Horizon must be divisible by 24 (at least one day). Given {horizon}")
+#     return compute_timeseries_split_cutoffs(
+#         ds.hist_idx,
+#         horizon=horizon,
+#         folds=folds,
+#         min_train_size=5*horizon
+#     )
 
 def get_ensemble_name_and_model_names(model_name:str):
     match = re.search(r'\[(.*?)\]', model_name)
@@ -478,8 +477,8 @@ class BaseModelTasks(TaskPaths):
 
         super().__init__(target, model_label, working_dir, verbose)
 
-        self.X_for_model = None
-        self.y_for_model = None
+        # self.X_for_model = None
+        # self.y_for_model = None
         self.verbose = verbose
         self.base_ds = None
         self.forecaster = None
@@ -493,7 +492,12 @@ class BaseModelTasks(TaskPaths):
         self.optuna_pars = None
 
 
-    def train_evaluate_out_of_sample(self, folds:int, X_train: pd.DataFrame or None, y_train: pd.DataFrame or None, ds: HistForecastDataset or None, do_fit:bool):
+    def train_evaluate_out_of_sample(
+            self, folds:int, X_train: pd.DataFrame or None, y_train: pd.DataFrame or None,
+            ds: HistForecastDataset or None, do_fit:bool)->tuple[pd.DataFrame,pd.Series]:
+
+        print('\n')
+        print(f'--- ENTERING train_evaluate_out_of_sample() model={self.model_label} --- ')
 
         if ds is None:
             ds = self.base_ds
@@ -510,45 +514,57 @@ class BaseModelTasks(TaskPaths):
         if folds < 1:
             raise ValueError(f"CV is not possible with folds < 1 Given={folds}")
 
-        if not self.cutoffs:
-            self.cutoffs = get_ts_cutoffs(ds, folds=folds) # last one is the latest one
-        if len(self.cutoffs) != folds:
-            raise ValueError(f"There are already {self.cutoffs} cutoffs while passed folds={folds}")
+        # if not self.cutoffs:
+        #     self.cutoffs = get_ts_cutoffs(ds, folds=folds) # last one is the latest one
+        #     if self.verbose:
+        #         print(f"Setting cutoffs N={len(self.cutoffs)} with cutoff[0]={self.cutoffs[0]}")
+        # if len(self.cutoffs) != folds:
+        #     raise ValueError(f"There are already {self.cutoffs} cutoffs while passed folds={folds}")
+
+        X_for_model = X_train
+        y_for_model = y_train
 
         if X_train is None and y_train is None:
-            self.X_for_model: pd.DataFrame = ds.exog_hist
-            self.y_for_model: pd.Series = ds.target_hist
+            X_for_model: pd.DataFrame = ds.exog_hist
+            y_for_model: pd.Series = ds.target_hist
             if self.verbose:
-                print(f"Using full model dataset from {self.y_for_model.index[0]} to {self.y_for_model.index[-1]} "
-                      f"with {len(self.y_for_model)/24/7} weeks "
-                      f"({len(self.y_for_model)/len(self.base_ds.forecast_idx)} horizons)")
+                print(f"Using full model dataset from {y_for_model.index[0]} to {y_for_model.index[-1]} "
+                      f"with {len(y_for_model)/24/7} weeks "
+                      f"({len(y_for_model)/len(ds.forecast_idx)} horizons)")
             if self.verbose:
                 print(f"Running CV {folds} folds for {self.model_label}. "
-                      f"Setting {len(self.X_for_model.columns)} "
-                      f"features from dataset (lags_target={self.base_ds.lags_target}))")
+                      f"Setting {len(X_for_model.columns)} "
+                      f"features from dataset (lags_target={ds.lags_target}))")
         else:
-            self.X_for_model = X_train
-            self.y_for_model = y_train
             if self.verbose:
-                print(f"Running CV {folds} folds for {self.model_label}. "
-                      f"Given {len(self.X_for_model.columns)} features (lags_target={ds.lags_target}))")
-
-        cutoffs = self.cutoffs # (self.ds, folds=folds)
+                print(f"Using external dataset X_train={X_train.shape} y_train={y_train.shape} "
+                      f"Running CV {folds} folds for {self.model_label}. "
+                      f"Given {len(X_for_model.columns)} features (lags_target={ds.lags_target}))")
 
         target = ds.target_key
 
-        # sanity check that CV cutoffs are correctly set assuming multi-day forecasting horizon
-        delta = timedelta(hours=len(ds.forecast_idx))
-        for idx, cutoff in enumerate(cutoffs):
-            # Train matrix should have negth devisible for the length of the forecasting horizon,
-            # ane be composed of N segments each of which start at 00 hour and ends at 23 hour
-            train_mask = self.y_for_model.index < cutoff
-            # test mask should start at 00 hour and end on 23 hour (several full days)
-            test_mask = (self.y_for_model.index >= cutoff) \
-                        & (self.y_for_model.index < cutoff + delta)
+        if not len(y_for_model) % len(ds.forecast_idx) == 0:
+            print(f"Train: {y_for_model.index[0]} to {y_for_model.index[-1]} ({len(y_for_model.index)/7/24} weeks, "
+                  f"{len(y_for_model.index)/len(ds.forecast_idx)} horizons) Horizon={len(ds.forecast_idx)/7/24} weeks")
+            print(f"Test: {ds.forecast_idx[0]} to {ds.forecast_idx[-1]}")
+            raise ValueError("Train set size should be divisible by the test size")
 
-            train_idx = self.y_for_model[train_mask].index
-            test_idx = self.y_for_model[test_mask].index
+        # cutoffs, splits = get_ts_cutoffs(ds, folds=folds) # last one is the latest one
+        cutoffs, splits = compute_timeseries_split_cutoffs(
+            # ds.hist_idx,
+            X_for_model.index,
+            horizon=len(ds.forecast_idx),
+            folds=folds,
+            # min_train_size=len(X_for_model.index) - folds * len(ds.forecast_idx),
+        )
+
+        if self.verbose:
+            print(f"Setting cutoffs N={len(cutoffs)} with cutoff[0]={cutoffs[0]}")
+
+        # sanity check that CV cutoffs are correctly set assuming multi-day forecasting horizon
+        for idx, (c, (train_idx, test_idx)) in enumerate(zip(cutoffs, splits), start=1):
+            # train_idx = y_for_model[train_i].index
+            # test_idx = y_for_model[test_i].index
 
             # in case there is no data due to externally set cutoffs
             if idx > 0 and len(train_idx) == 0 or len(test_idx) == 0:
@@ -562,44 +578,44 @@ class BaseModelTasks(TaskPaths):
                 print(f"Test: {test_idx[0]} to {test_idx[-1]}")
                 raise ValueError("Train set size should be divisible by the test size")
 
-            if not len(test_idx) & 24:
-                print(f"Test: {test_idx[0]} to {test_idx[-1]} N={len(test_idx)}")
-                raise ValueError("Test set size should be divisible by 24")
+            # if not len(test_idx) & 24:
+            #     print(f"Test: {test_idx[0]} to {test_idx[-1]} N={len(test_idx)}")
+            #     raise ValueError("Test set size should be divisible by 24")
 
+            if train_idx[-1] > X_for_model.index[-1]:
+                raise ValueError(f"train_idx[-1]={train_idx[-1]} > X_for_model.index[-1]={X_for_model.index[-1]}")
+            if train_idx[0] < X_for_model.index[0]:
+                raise ValueError(f"train_idx[0]={train_idx[0]} < X_for_model.index[0]={X_for_model.index[0]}")
 
-        # perform CV for each fold (cutoff)
-        for idx, cutoff in enumerate(cutoffs):
-            train_mask = self.y_for_model.index < cutoff
-            test_mask = (self.y_for_model.index >= cutoff) \
-                        & (self.y_for_model.index < cutoff + timedelta(hours=len(ds.forecast_idx)))
+        for idx, (c, (train_idx, test_idx)) in enumerate(zip(cutoffs, splits), start=1):
 
-            if len(self.y_for_model[train_mask]) == 0 or len(self.y_for_model[test_mask]) == 0:
+            if len(train_idx) == 0 or len(test_idx) == 0:
                 if self.verbose:
                     print(f"Warning! Empty train data batch idx={idx}/{len(cutoffs)}. Skipping.")
                 continue
 
             # fit MapieRegressor(estimator=xbg.XBGRegressor(), method='naive', cv='prefit') model on the past data for current fold
-            if do_fit: self.forecaster.fit(self.X_for_model[train_mask], self.y_for_model[train_mask])
+            if do_fit: self.forecaster.fit(X_for_model.loc[train_idx], y_for_model.loc[train_idx])
             # get forecast for the next 'horizon' (data unseen during train time)
             result:pd.DataFrame = self.forecaster.forecast_window(
-                self.X_for_model[test_mask], self.y_for_model[train_mask], lags_target=ds.lags_target,
+                X_for_model.loc[test_idx], y_for_model.loc[train_idx], lags_target=ds.lags_target,
             )
             # 'result' has f'{target}_actual' and f'{target}_fitted' columns with N=horizon number of timesteps
-            result[f'{target}_actual'] = self.y_for_model[test_mask] # add actual target values to result for error estimation
+            result[f'{target}_actual'] = y_for_model.loc[test_idx] # add actual target values to result for error estimation
             # undo transformations
             if len(result[f'{target}_fitted'][~np.isfinite(result[f'{target}_fitted'])]) > 0:
                 raise ValueError(f"Forecasting result contains nans. Fitted={result[f'{target}_fitted']}")
             # collect results (Dataframe with actual, fitted, lower and upper) for each fold (still transformed!)
-            self.results[cutoff] = result
+            self.results[c] = result
             # compute error metrics (RMSE, sMAPE...) over the entire forecasted window
-            self.metrics[cutoff] = compute_error_metrics(target, result.apply(ds.inv_transform_target_series))
+            self.metrics[c] = compute_error_metrics(target, result.apply(ds.inv_transform_target_series))
             # print error metrics
             if self.verbose:
                 self.print_average_metrics(
-                    f"Fold {idx}/{len(cutoffs)} cutoff={cutoff} | "
+                    f"Fold {idx}/{len(cutoffs)} cutoff={c} | "
                     f"{'FIT' if do_fit else 'INF'} | {self.model_label} | " + \
-                    f"Train={self.X_for_model[train_mask].shape} ",
-                    self.metrics[cutoff]
+                    f"Train={X_for_model.loc[train_idx].shape} ",
+                    self.metrics[c]
                 )
 
         # print averaged over all CV folds error metrics
@@ -608,9 +624,15 @@ class BaseModelTasks(TaskPaths):
                 f"Average over {len(self.metrics)} folds | {self.model_label} | ",
                 get_average_metrics(self.metrics))
 
+        # self.X_for_model = X_for_model
+        # self.y_for_model = y_for_model
+
+        print(f'--- ENTERING train_evaluate_out_of_sample() model={self.model_label} --- ')
+        return X_for_model, y_for_model
+
     def clear(self):
-        del self.X_for_model
-        del self.y_for_model
+        # del self.X_for_model
+        # del self.y_for_model
         del self.results
         del self.metrics
         del self.contributions
@@ -843,7 +865,7 @@ class BaseModelTasks(TaskPaths):
         if self.verbose:
             print(f"Metadata for the trained base model {self.model_label} and dataset are saved into {dir}")
 
-    def run_save_forecast(self, folds:int):
+    def run_save_forecast(self, X_test:pd.DataFrame or None, y_train:pd.DataFrame or None, folds:int):
         if self.base_ds is None:
             raise ReferenceError("Dataset class is not initialized")
         if self.forecaster is None:
@@ -853,9 +875,9 @@ class BaseModelTasks(TaskPaths):
         # self.cv_train_test(folds=folds, X_train=None, y_train=None, do_fit=False)
         # self.save_full_model(dir='forecast')
 
-        X_scaled = self.base_ds.exog_forecast
-        y_scaled = self.base_ds.target_hist
-        forecast = self.forecaster.forecast_window(X_scaled, y_scaled, lags_target=self.base_ds.lags_target)
+        if X_test is None: X_test = self.base_ds.exog_forecast
+        if y_train is None: y_train = self.base_ds.target_hist # needed for lagged target as features
+        forecast = self.forecaster.forecast_window(X_test, y_train, lags_target=self.base_ds.lags_target)
         forecast = forecast.apply(self.base_ds.inv_transform_target_series)
         if self.verbose: print(f"Saving {self.to_forecast() + 'forecast.csv'}")
         forecast.to_csv(self.to_forecast() + 'forecast.csv')
@@ -877,11 +899,11 @@ class EnsembleModelTasks(BaseModelTasks):
             for model_name in self.names_base_models
         }
 
-        self.X_for_model = None
-        self.y_for_model = None
+        # self.X_ensemble = None
+        # self.y_ensemble = None
 
-        self.X_meta = None
-        self.y_meta = None
+        # self.X_meta = None
+        # self.y_meta = None
         self.cutoffs = None
 
     def set_dataset_from_df(self, df_hist:pd.DataFrame, df_forecast:pd.DataFrame, pars:dict):
@@ -895,15 +917,20 @@ class EnsembleModelTasks(BaseModelTasks):
         self.meta_ds = self._set_load_dataset_from_dir(dir, df_hist, df_forecast)
         self.meta_ds.run_preprocess_pipeline(self.optuna_pars | self.model_dataset_pars)
 
-    def set_meta_X_y(self, X_meta:pd.DataFrame or None, y_meta:pd.Series or None):
-        if ((not X_meta is None) and (not y_meta is None)):
-            if self.verbose:
-                print(f"Manually setting X_meta and y_meta are None")
-            self.X_meta = X_meta
-            self.y_meta = y_meta
-        else:
-            self.X_meta = self.meta_ds.exog_hist
-            self.y_meta = self.meta_ds.target_hist
+    # def set_meta_X_y(self, X_meta:pd.DataFrame or None, y_meta:pd.Series or None):
+    #     if ((not X_meta is None) and (not y_meta is None)):
+    #         if self.verbose:
+    #             print(f"Manually setting X_meta={len(X_meta)} and y_meta={len(y_meta)} "
+    #                   f"(While current meta dataset has "
+    #                   f"X_meta={len(self.meta_ds.exog_hist)} and y_meta={len(self.meta_ds.target_hist)}).")
+    #         self.X_meta = X_meta
+    #         self.y_meta = y_meta
+    #     else:
+    #         self.X_meta = self.meta_ds.exog_hist
+    #         self.y_meta = self.meta_ds.target_hist
+    #
+    #     if not len(self.X_meta) == len(self.y_meta):
+    #         raise ValueError(f"Size of X_meta={self.X_meta.shape} and y_meta={self.y_meta.shape} do not match")
 
 
     def set_datasets_for_base_models_from_ds(self, ds:HistForecastDataset):
@@ -927,18 +954,36 @@ class EnsembleModelTasks(BaseModelTasks):
         for base_model_name, base_model_class in self.base_models.items():
             base_model_class.load_forecaster_from_dir(dir=dir)
 
-    def update_pretrain_base_models(self, cv_folds_base:int, do_fit:bool):
+    def train_evaluate_out_of_sample_base_models(self, cv_folds_base:int, do_fit:bool):
         if self.verbose:
             print(f"Running CV {'train-test' if do_fit else 'test only'} {list(self.base_models.keys())} "
                   f"base model using their respective datasets")
         for base_model_name, base_model_class in self.base_models.items():
-            base_model_class.train_evaluate_out_of_sample(cv_folds_base, None, None, ds=None, do_fit=do_fit)
+            base_model_class.train_evaluate_out_of_sample(
+                cv_folds_base+1, None, None, ds=None, do_fit=do_fit
+            )
 
     def create_X_y_for_model_from_base_models_cv_folds(
-            self,
+            self, X_meta:pd.DataFrame or None, y_meta : pd.Series or None,
             cv_folds_base_to_use:int,
-            use_base_models_pred_intervals:bool
-    ):
+            use_base_models_pred_intervals:bool ) -> tuple[pd.DataFrame, pd.Series]:
+
+        if ((not X_meta is None) and (not y_meta is None)):
+            if self.verbose:
+                print(f"Manually setting X_meta={len(X_meta)} and y_meta={len(y_meta)} "
+                      f"(While current meta dataset has "
+                      f"X_meta={len(self.meta_ds.exog_hist)} and y_meta={len(self.meta_ds.target_hist)}).")
+            X_meta = X_meta
+            y_meta = y_meta
+        else:
+            X_meta = self.meta_ds.exog_hist
+            y_meta = self.meta_ds.target_hist
+
+        if not len(X_meta) == len(self.meta_ds.exog_hist):
+            raise ValueError('X_meta and y_meta have different length')
+
+        if not len(X_meta) == len(y_meta):
+            raise ValueError(f"Size of X_meta={X_meta.shape} and y_meta={y_meta.shape} do not match")
 
         target = self.meta_ds.target_key
 
@@ -954,18 +999,38 @@ class EnsembleModelTasks(BaseModelTasks):
         if cv_folds_base < 3:
             raise ValueError(f"Number of CV folds for base models is too small. Should be >3 Given: {cv_folds_base}")
 
-        cutoffs = get_ts_cutoffs(self.meta_ds, folds=cv_folds_base)
-        cutoffs = cutoffs[-cv_folds_base_to_use:]
-
         X_meta_train_list, y_meta_train_list = [], []
-        for i_cutoff, cutoff in enumerate(cutoffs):
+
+
+        # cutoffs, splits = get_ts_cutoffs(self.meta_ds, folds=cv_folds_base) # last one is the latest one
+        cutoffs, splits = compute_timeseries_split_cutoffs(
+            X_meta.index,
+            horizon=len(self.meta_ds.forecast_idx),
+            folds=cv_folds_base,
+            # min_train_size=5*len(self.meta_ds.forecast_idx)
+        )
+
+        if self.verbose:
+            print(f"Setting cutoffs N={len(cutoffs)} with cutoff[0]={cutoffs[0]}")
+
+        cutoffs = cutoffs[-cv_folds_base_to_use:]
+        splits = splits[-cv_folds_base_to_use:]
+
+        # sanity check that CV cutoffs are correctly set assuming multi-day forecasting horizon
+        for idx, (c, (train_i, test_i)) in enumerate(zip(cutoffs, splits), start=1):
+
+        # cutoffs = get_ts_cutoffs(self.meta_ds, folds=cv_folds_base)
+        # cutoffs = cutoffs[-cv_folds_base_to_use:]
+        #
+        # X_meta_train_list, y_meta_train_list = [], []
+        # for i_cutoff, cutoff in enumerate(cutoffs):
 
             # get indexes for train-test split
             resutls:dict = self.base_models[list(self.base_models.keys())[0]].results
-            if not cutoff in list(resutls.keys()):
-                raise ValueError(f"Expected cutoff {cutoff} is not in results.keys()={list(resutls.keys())}")
+            # if not cutoff in list(resutls.keys()):
+            #     raise ValueError(f"Expected cutoff {cutoff} is not in results.keys()={list(resutls.keys())}")
 
-            target_actual = resutls[cutoff][f'{target}_actual']
+            target_actual = resutls[c][f'{target}_actual']
             curr_tst_index = target_actual.index
             forecasts_df = pd.DataFrame(index=curr_tst_index)
 
@@ -973,10 +1038,15 @@ class EnsembleModelTasks(BaseModelTasks):
             for base_model_name, base_model_class in self.base_models.items():
                 for key in features_from_base_models:
                     forecasts_df[f'base_model_{base_model_name}_{key}'] = \
-                        base_model_class.results[cutoff][f'{target}_{key}']
+                        base_model_class.results[c][f'{target}_{key}']
+
             # add meta-features
-            if not self.X_meta is None:
-                forecasts_df = forecasts_df.merge(self.X_meta.loc[curr_tst_index], left_index=True, right_index=True)
+            if not X_meta is None:
+                # plt.plot(curr_tst_index, [1] * len(curr_tst_index), '|', color='blue')
+                # Plot testing indices
+                # plt.plot(X_meta.index, [2] * len(X_meta.index), '|', color='orange')
+                # plt.show()
+                forecasts_df = forecasts_df.merge(X_meta.loc[curr_tst_index], left_index=True, right_index=True)
 
             X_meta_train_list.append(forecasts_df)
             y_meta_train_list.append(target_actual)
@@ -987,27 +1057,28 @@ class EnsembleModelTasks(BaseModelTasks):
 
         # check if shapes are correct
         model_names = list(self.base_models.keys())
-        if not self.X_meta is None:
+        if not X_meta is None:
             if not (len(X_meta_model_train.columns) ==
-                    len(self.X_meta.columns) + len(model_names)*len(features_from_base_models)):
-                raise ValueError(f"Expected {len(self.X_meta.columns)+len(model_names)} columns in "
+                    len(X_meta.columns) + len(model_names)*len(features_from_base_models)):
+                raise ValueError(f"Expected {len(X_meta.columns)+len(model_names)} columns in "
                                  f"X_meta_model_train. Got={len(X_meta_model_train.columns)}")
         else:
             if not (len(X_meta_model_train.columns) == len(model_names)):
                 raise ValueError(f"Expected {len(model_names)} columns in "
                                  f"X_meta_model_train. Got={len(X_meta_model_train.columns)}")
 
-        self.X_for_model = X_meta_model_train
-        self.y_for_model = y_meta_model_train
+        # self.X_ensemble = X_meta_model_train
+        # self.y_ensemble = y_meta_model_train
 
         if self.verbose:
-            print(f"Trining data for meta-model {self.model_label} is collected. "
-                  f"Shape: X_train={self.X_for_model.shape}")
+            print(f"Trining data for meta-model {self.model_label} is collected")
 
-    def cv_train_test_ensemble(self, cv_folds_base:int, do_fit:bool):
-        self.train_evaluate_out_of_sample(
-            folds=cv_folds_base, X_train=self.X_for_model, y_train=self.y_for_model, ds=self.meta_ds, do_fit=do_fit
-        )
+        return X_meta_model_train, y_meta_model_train
+
+    # def cv_train_test_ensemble(self, cv_folds_base:int, do_fit:bool):
+    #     self.train_evaluate_out_of_sample(
+    #         folds=cv_folds_base, X_train=self.X_for_model, y_train=self.y_for_model, ds=self.meta_ds, do_fit=do_fit
+    #     )
 
     def finetune(self, trial:optuna.Trial, cv_metrics_folds:int):
 
@@ -1036,19 +1107,23 @@ class EnsembleModelTasks(BaseModelTasks):
                 'use_base_models_pred_intervals', [True, False]
         )
 
-        self.set_meta_X_y(X_meta=None, y_meta=None)
-        self.create_X_y_for_model_from_base_models_cv_folds(
+        # self.set_meta_X_y(X_meta=self.meta_ds.exog_hist, y_meta=self.meta_ds.target_hist)
+        X_ensemble, y_ensemble = self.create_X_y_for_model_from_base_models_cv_folds(
+            X_meta=self.meta_ds.exog_hist, y_meta=self.meta_ds.target_hist,
             cv_folds_base_to_use=cv_folds_base,
             use_base_models_pred_intervals = use_base_models_pred_intervals
         )
 
-        self.cv_train_test_ensemble(cv_folds_base=cv_metrics_folds, do_fit=True)
+        self.train_evaluate_out_of_sample(
+            folds=cv_metrics_folds, X_train=X_ensemble, y_train=y_ensemble, ds=self.meta_ds, do_fit=True
+        )
+
 
         average_metrics = get_average_metrics(self.metrics)
         res = float( average_metrics['rmse'] ) # Average over all CV folds
 
-        del self.X_for_model; self.X_for_model = None
-        del self.y_for_model; self.y_for_model = None
+        del X_ensemble; X_ensemble = None
+        del y_ensemble; y_ensemble = None
         del self.results; self.results = {}
         del self.metrics; self.metrics = {}
         del self.contributions; self.contributions = {}
@@ -1058,13 +1133,13 @@ class EnsembleModelTasks(BaseModelTasks):
         return res
 
 
-    def run_save_forecast(self, folds:int):
+    def run_save_forecast(self, X_test:pd.DataFrame or None, y_train:pd.DataFrame or None, folds:int):
 
         use_base_models_pred_intervals = self.optuna_pars['use_base_models_pred_intervals']
         if use_base_models_pred_intervals: features_from_base_models = ['fitted','lower','upper']
         else: features_from_base_models = ['fitted']
 
-        X_test = pd.DataFrame(index=self.meta_ds.forecast_idx)
+        X_test_ = pd.DataFrame(index=self.meta_ds.forecast_idx)
         for base_model_name, base_model_class in self.base_models.items():
             dir = base_model_class.to_forecast()
             df_i = pd.read_csv(dir+'forecast.csv', index_col='date')
@@ -1074,18 +1149,19 @@ class EnsembleModelTasks(BaseModelTasks):
                 vals = df_i[f'{self.meta_ds.target_key}_{key}']
                 if vals.isnull().values.any():
                     raise ValueError(f"Found NaNs in loaded {base_model_name} forecast. ")
-                X_test[f'base_model_{base_model_name}_{key}'] = vals
-                if len(X_test) != len(self.meta_ds.forecast_idx):
+                X_test_[f'base_model_{base_model_name}_{key}'] = vals
+                if len(X_test_) != len(self.meta_ds.forecast_idx):
                     raise ValueError(f"Expected {len(self.meta_ds.forecast_idx)} columns in X_test. Index mismatch.")
 
-        if not self.X_meta is None:
-            X_test = X_test.merge(self.X_meta, left_index=True, right_index=True)
+        if not X_test is None:
+            X_test_ = X_test_.merge(X_test, left_index=True, right_index=True)
 
-        if not validate_dataframe(X_test) or len(X_test) != len(self.meta_ds.forecast_idx):
+        if not validate_dataframe_simple(X_test_) or len(X_test_) != len(self.meta_ds.forecast_idx):
             raise ValueError("Validation check of forecasts_df failed.")
 
         pars = self.optuna_pars | self.model_dataset_pars
-        forecast = self.forecaster.forecast_window( X_test, self.y_meta, lags_target=pars['lags_target'] )
+        if y_train is None: y_train = self.meta_ds.target_hist # needed for lagged target as features
+        forecast = self.forecaster.forecast_window( X_test_, y_train, lags_target=pars['lags_target'] )
         forecast = forecast.apply(self.meta_ds.inv_transform_target_series)
 
         dir = self.to_forecast()
@@ -1237,7 +1313,8 @@ class ForecastingTaskSingleTarget:
         #         self.df_history[self.target]
         #     )
 
-        wrapper.update_pretrain_base_models(
+
+        wrapper.train_evaluate_out_of_sample_base_models(
             cv_folds_base=finetuning_pars['cv_folds_base'], do_fit=True
         )
 
@@ -1291,33 +1368,27 @@ class ForecastingTaskSingleTarget:
         model_label = t_task['model']
         pars = t_task['pars']
 
-        # train_ensemble_model(
-        #     outdir_, model_name, target, df_history, df_forecast, pars,False
-        # )
         wrapper = EnsembleModelTasks(
             target=self.target, model_label=model_label, working_dir=self.outdir_,verbose=self.verbose
         )
         wrapper.set_dataset_from_finetuned(self.df_history, self.df_forecast)
         wrapper.set_datasets_for_base_models_from_finetuned(self.df_history, self.df_forecast)
         wrapper.set_base_models_from_dir(dir='finetuning')
-        # if extra_pars['ensemble_features'] == 'cyclic_time':
-        #     wrapper.set_meta_X_y(
-        #         _create_time_features(wrapper.meta_ds.hist_idx),
-        #         wrapper.meta_ds.target_hist
-        #     )
+
         model_pars, extra_model_pars = wrapper.set_forecaster_from_dir(dir='finetuning')
-        wrapper.update_pretrain_base_models(
+        wrapper.train_evaluate_out_of_sample_base_models(
             cv_folds_base=extra_model_pars['cv_folds_base'],#['cv_folds_base_to_use'],
             do_fit=True
         )
-        wrapper.set_meta_X_y(X_meta=None, y_meta=None)
-        wrapper.create_X_y_for_model_from_base_models_cv_folds(
-            cv_folds_base_to_use=extra_model_pars['cv_folds_base'],#['cv_folds_base_to_use'],
-            use_base_models_pred_intervals=extra_model_pars['use_base_models_pred_intervals'],#['use_base_models_pred_intervals']
+
+        # wrapper.set_meta_X_y(X_meta=wrapper.meta_ds.exog_hist, y_meta=wrapper.meta_ds.target_hist)
+        X_ensemble, y_ensemble = wrapper.create_X_y_for_model_from_base_models_cv_folds(
+            X_meta=wrapper.meta_ds.exog_hist, y_meta=wrapper.meta_ds.target_hist,
+            cv_folds_base_to_use=extra_model_pars['cv_folds_base'],
+            use_base_models_pred_intervals=extra_model_pars['use_base_models_pred_intervals'],
         )
         wrapper.train_evaluate_out_of_sample(
-            folds=pars['cv_folds'],
-            X_train=wrapper.X_for_model,y_train=wrapper.y_for_model, ds=wrapper.meta_ds,
+            folds=pars['cv_folds'], X_train=X_ensemble,y_train=y_ensemble, ds=wrapper.meta_ds,
             do_fit=True
         )
 
@@ -1360,22 +1431,19 @@ class ForecastingTaskSingleTarget:
             dir='trained', df_hist=self.df_history, df_forecast=self.df_forecast
         )
         wrapper.load_base_models_from_dir(dir='trained')
-        # if extra_pars['ensemble_features'] == 'cyclic_time':
-        #     wrapper.set_meta_X_y(
-        #         _create_time_features(wrapper.meta_ds.hist_idx),
-        #         wrapper.meta_ds.target_hist
-        #     )
-
         model_pars, extra_model_pars = wrapper.load_forecaster_from_dir(dir='trained')
-        wrapper.update_pretrain_base_models(
-            cv_folds_base=folds, do_fit=False
-        )
-        wrapper.set_meta_X_y(X_meta=None, y_meta=None)
-        wrapper.create_X_y_for_model_from_base_models_cv_folds(
+        wrapper.train_evaluate_out_of_sample_base_models(cv_folds_base=folds, do_fit=False)
+
+        # wrapper.set_meta_X_y( X_meta=wrapper.meta_ds.exog_hist, y_meta=wrapper.meta_ds.target_hist)
+        X_ensemble, y_ensemble = wrapper.create_X_y_for_model_from_base_models_cv_folds(
+            X_meta=wrapper.meta_ds.exog_hist, y_meta=wrapper.meta_ds.target_hist,
             cv_folds_base_to_use=extra_model_pars['cv_folds_base'],
             use_base_models_pred_intervals=extra_model_pars['use_base_models_pred_intervals']
         )
-        wrapper.cv_train_test_ensemble(cv_folds_base=folds, do_fit=False)
+        wrapper.train_evaluate_out_of_sample(
+            folds=folds, X_train=X_ensemble,y_train=y_ensemble, ds=wrapper.meta_ds,
+            do_fit=False
+        )
         wrapper.save_results(dir='forecast', ds=wrapper.meta_ds)
 
 
@@ -1394,12 +1462,12 @@ class ForecastingTaskSingleTarget:
         #     use_base_models_pred_intervals=extra_model_pars['use_base_models_pred_intervals']
         # )
         # wrapper.cv_train_test_ensemble(cv_folds_base=extra_model_pars['cv_folds_base_to_use'], do_fit=False)
-        wrapper.set_meta_X_y(X_meta=wrapper.meta_ds.exog_forecast, y_meta=wrapper.meta_ds.target_hist)
+        # wrapper.set_meta_X_y(X_meta=wrapper.meta_ds.exog_forecast, y_meta=np.zeros_like(wrapper.meta_ds.exog_forecast))
         # wrapper.create_X_y_for_model_from_base_models_cv_folds(
         #     cv_folds_base_to_use=extra_model_pars['cv_folds_base'],
         #     use_base_models_pred_intervals=extra_model_pars['use_base_models_pred_intervals']
         # )
-        wrapper.run_save_forecast(folds=folds)
+        wrapper.run_save_forecast(X_test=wrapper.meta_ds.exog_forecast, y_train=None, folds=folds)
 
     def process_forecasting_task_base(self, f_task):
         model_label = f_task['model']
@@ -1411,7 +1479,7 @@ class ForecastingTaskSingleTarget:
         wrapper.load_forecaster_from_dir(dir='trained')
         wrapper.train_evaluate_out_of_sample(folds=folds, X_train=None, y_train=None, ds=None, do_fit=False)
         wrapper.save_results(dir='forecast', ds=None)
-        wrapper.run_save_forecast(folds=folds)
+        wrapper.run_save_forecast(X_test=None, y_train=None, folds=folds)
 
     # ------ OTHERS --------
 

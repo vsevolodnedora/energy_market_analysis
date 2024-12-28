@@ -9,6 +9,7 @@
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
+            transition: background-color 0.3s, color 0.3s;
         }
         .chart-container {
             margin-bottom: 20px;
@@ -18,83 +19,150 @@
             font-weight: bold;
         }
         .controls {
-            margin-top: 20px;
             display: flex;
-            flex-direction: column;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 10px;
             align-items: center;
+        }
+        .controls-label {
+            font-size: 1rem;
+            white-space: nowrap;
+        }
+        .controls-buttons {
+            display: flex;
+            flex-wrap: wrap;
             gap: 10px;
         }
         .controls label {
             font-size: 1rem;
             cursor: pointer;
+            white-space: nowrap;
         }
         .controls input[type="checkbox"] {
             margin-right: 5px;
         }
-        .controls button {
-            padding: 8px 16px;
-            font-size: 1rem;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s;
+        .slider-container {
+            margin-top: 10px;
+            text-align: center;
         }
-        .controls button:hover {
-            background-color: #0056b3;
+        .settings-frame {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
         }
-        .mode-switch {
-            margin-bottom: 10px;
+        .forecast-frame {
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .dark-mode {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        .dark-mode .error {
+            color: #ff6666;
+        }
+        .dark-mode .settings-frame, .dark-mode .forecast-frame {
+            border-color: #333;
         }
     </style>
 </head>
-<body>
-    <h1>Offshore Wind Forecasts</h1>
+<body class="dark-mode">
+    <div class="settings-frame">
+        <label><input type="checkbox" id="dark-mode-toggle" checked onchange="toggleDarkMode()"> Dark Mode</label>
+    </div>
 
-    <div id="error-message" class="error"></div>
+    <div class="forecast-frame">
+        <h1>Offshore Wind Forecasts</h1>
 
-    <div id="chart" class="chart-container"></div>
+        <div id="error-message" class="error"></div>
 
-    <div class="controls">
-        <div class="mode-switch">
-            <label><input type="radio" name="mode" value="current" checked onchange="switchMode()"> Current</label>
-            <label><input type="radio" name="mode" value="past" onchange="switchMode()"> Past</label>
+        <div class="chart-container">
+            <div id="chart"></div>
         </div>
-        <div id="current-controls">
-            <label><input type="checkbox" id="50hz-checkbox" onchange="updateChart()"> wind_offshore_50hz</label>
-            <label><input type="checkbox" id="tenn-checkbox" onchange="updateChart()"> wind_offshore_tenn</label>
-            <label><input type="checkbox" id="total-checkbox" onchange="updateChart()"> wind_offshore</label>
 
+        <div class="controls">
+            <span class="controls-label">TSO Area:</span>
+            <div class="controls-buttons">
+                <label><input type="checkbox" id="50hz-checkbox" onchange="updateChart()"> 50Hz</label>
+                <label><input type="checkbox" id="tenn-checkbox" onchange="updateChart()"> TenneT</label>
+                <label><input type="checkbox" id="total-checkbox" checked onchange="updateChart()"> Total</label>
+            </div>
         </div>
-        <div id="past-controls" style="display: none;">
-            <label><input type="checkbox" id="50hz-past-checkbox" onchange="updateChart()"> wind_offshore_50hz (past)</label>
-            <label><input type="checkbox" id="tenn-past-checkbox" onchange="updateChart()"> wind_offshore_tenn (past)</label>
-            <label><input type="checkbox" id="total-past-checkbox" onchange="updateChart()"> wind_offshore (past)</label>
+
+        <div class="slider-container">
+            <label for="past-data-slider">Amount of past data to show:</label>
+            <input type="range" id="past-data-slider" min="1" max="100" step="1" value="20" onchange="updateChart()">
         </div>
     </div>
 
     <script>
+        let isDarkMode = true;
+
         const chartOptions = {
             chart: {
                 type: 'line',
-                height: 350
+                height: 350,
+                toolbar: {
+                    show: true
+                }
             },
             series: [],
             xaxis: {
                 type: 'datetime',
+                labels: {
+                    style: {
+                        colors: isDarkMode ? '#e0e0e0' : '#000'
+                    }
+                },
+                title: {
+                    style: {
+                        color: isDarkMode ? '#e0e0e0' : '#000'
+                    }
+                }
             },
             yaxis: {
                 title: {
-                    text: 'Offshore Wind Generation [MW]'
+                    text: 'Offshore Wind Power',
+                    style: {
+                        color: isDarkMode ? '#e0e0e0' : '#000'
+                    }
+                },
+                labels: {
+                    style: {
+                        colors: isDarkMode ? '#e0e0e0' : '#000'
+                    }
                 }
+            },
+            annotations: {
+                xaxis: []
             },
             stroke: {
                 width: 2
             },
             title: {
                 text: 'Wind Forecasts',
-                align: 'center'
+                align: 'center',
+                style: {
+                    color: isDarkMode ? '#e0e0e0' : '#000'
+                }
+            },
+            tooltip: {
+                shared: true,
+                theme: isDarkMode ? 'dark' : 'light',
+                x: {
+                    format: 'dd MMM yyyy HH:mm'
+                }
+            },
+            legend: {
+                labels: {
+                    colors: isDarkMode ? '#e0e0e0' : '#000',
+                    useSeriesColors: false
+                }
             }
         };
 
@@ -115,97 +183,202 @@
             }
         }
 
+        const colorMap = {
+            'wind_offshore_50hz': '#1E90FF',
+            'wind_offshore_tenn': '#FF6347',
+            'wind_offshore': '#2E8B57'
+        };
+
+        const aliases = {
+            'wind_offshore_tenn': 'TenneT',
+            'wind_offshore_50hz': '50Hz',
+            'wind_offshore': 'Total'
+        };
+
+        function lightenColor(color, percent) {
+            const num = parseInt(color.slice(1), 16),
+                  amt = Math.round(2.55 * percent),
+                  R = (num >> 16) + amt,
+                  G = (num >> 8 & 0x00FF) + amt,
+                  B = (num & 0x0000FF) + amt;
+            return `#${(0x1000000 + (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 + 
+                          (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 + 
+                          (B < 255 ? (B < 1 ? 0 : B) : 255)).toString(16).slice(1).toUpperCase()}`;
+        }
+
         async function updateChart() {
             document.getElementById('error-message').textContent = '';
             const seriesData = [];
-            const mode = document.querySelector('input[name="mode"]:checked').value;
-        
-            function lightenColor(color, percent) {
-                const num = parseInt(color.slice(1), 16),
-                      amt = Math.round(2.55 * percent),
-                      R = (num >> 16) + amt,
-                      G = (num >> 8 & 0x00FF) + amt,
-                      B = (num & 0x0000FF) + amt;
-                return `#${(0x1000000 + (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 + 
-                             (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 + 
-                             (B < 255 ? (B < 1 ? 0 : B) : 255)).toString(16).slice(1).toUpperCase()}`;
-            }
-        
-            if (mode === 'current') {
-                if (document.getElementById('50hz-checkbox').checked) {
-                    const data = await fetchData('wind_offshore_50hz', 'XGBoost_curr_fitted.json');
-                    if (data) {
-                        const fittedColor = '#1E90FF'; // Replace with desired base color
-                        seriesData.push({ name: 'wind_offshore_50hz', data: data, color: fittedColor, dashArray: 0  });
-                    }
-                }
-        
-                if (document.getElementById('tenn-checkbox').checked) {
-                    const data = await fetchData('wind_offshore_tenn', 'XGBoost_curr_fitted.json');
-                    if (data) {
-                        const fittedColor = '#FF6347'; // Replace with desired base color
-                        seriesData.push({ name: 'wind_offshore_tenn', data: data, color: fittedColor, dashArray: 0  });
-                    }
-                }
+            const annotations = [];
 
-                if (document.getElementById('total-checkbox').checked) {
-                    const data = await fetchData('wind_offshore', 'XGBoost_curr_fitted.json');
-                    if (data) {
-                        const fittedColor = '#000000'; // Replace with desired base color
-                        seriesData.push({ name: 'wind_offshore', data: data, color: fittedColor, dashArray: 0  });
-                    }
-                }
-            } else if (mode === 'past') {
-                if (document.getElementById('50hz-past-checkbox').checked) {
-                    const fittedData = await fetchData('wind_offshore_50hz', 'XGBoost_prev_fitted.json');
-                    const actualData = await fetchData('wind_offshore_50hz', 'XGBoost_prev_actual.json');
-                    if (fittedData) {
-                        const fittedColor = '#1E90FF'; // Replace with desired base color
-                        const lighterColor = lightenColor(fittedColor, 50); // Adjust percentage for lightness
-                        seriesData.push({ name: 'wind_offshore_50hz (Fitted)', data: fittedData, color: fittedColor, dashArray: 0 });
-                        if (actualData) {
-                            seriesData.push({ name: 'wind_offshore_50hz (Actual)', data: actualData, color: lighterColor, dashArray: 5 });
-                        }
-                    }
-                }
-        
-                if (document.getElementById('tenn-past-checkbox').checked) {
-                    const fittedData = await fetchData('wind_offshore_tenn', 'XGBoost_prev_fitted.json');
-                    const actualData = await fetchData('wind_offshore_tenn', 'XGBoost_prev_actual.json');
-                    if (fittedData) {
-                        const fittedColor = '#FF6347'; // Replace with desired base color
-                        const lighterColor = lightenColor(fittedColor, 50); // Adjust percentage for lightness
-                        seriesData.push({ name: 'wind_offshore_tenn (Fitted)', data: fittedData, color: fittedColor, dashArray: 0 });
-                        if (actualData) {
-                            seriesData.push({ name: 'wind_offshore_tenn (Actual)', data: actualData, color: lighterColor, dashArray: 5 });
-                        }
-                    }
-                }
+            const pastDataRatio = document.getElementById('past-data-slider').value / 100;
 
-                if (document.getElementById('total-past-checkbox').checked) {
-                    const fittedData = await fetchData('wind_offshore', 'XGBoost_prev_fitted.json');
-                    const actualData = await fetchData('wind_offshore', 'XGBoost_prev_actual.json');
-                    if (fittedData) {
-                        const fittedColor = '#000000'; // Replace with desired base color
-                        const lighterColor = lightenColor(fittedColor, 50); // Adjust percentage for lightness
-                        seriesData.push({ name: 'wind_offshore (Fitted)', data: fittedData, color: fittedColor, dashArray: 0 });
-                        if (actualData) {
-                            seriesData.push({ name: 'wind_offshore (Actual)', data: actualData, color: lighterColor, dashArray: 5 });
-                        }
+            async function addSeries(variable, pastFile, currentFile, lowerFile, upperFile) {
+                const pastFittedData = await fetchData(variable, pastFile);
+                const pastActualData = await fetchData(variable, 'XGBoost_prev_actual.json');
+                const currentData = await fetchData(variable, currentFile);
+                const lowerData = await fetchData(variable, lowerFile);
+                const upperData = await fetchData(variable, upperFile);
+                const baseColor = colorMap[variable];
+                const lighterColor = lightenColor(baseColor, 70);
+                const alias = aliases[variable];
+            
+                if (pastFittedData) {
+                    const pastDataToShow = Math.floor(pastFittedData.length * pastDataRatio);
+                    seriesData.push({
+                        name: `${alias} (Past Fitted)`,
+                        data: pastFittedData.slice(-pastDataToShow),
+                        color: baseColor,
+                    });
+                }
+                if (pastActualData) {
+                    const pastDataToShow = Math.floor(pastActualData.length * pastDataRatio);
+                    seriesData.push({
+                        name: `${alias} (Past Actual)`,
+                        data: pastActualData.slice(-pastDataToShow),
+                        color: lighterColor,
+                    });
+                }
+                if (currentData) {
+                    seriesData.push({
+                        name: `${alias} (Current)`,
+                        data: currentData,
+                        color: baseColor,
+                    });
+            
+                    if (currentData.length > 0) {
+                        annotations.push({
+                            x: currentData[0].x.getTime(),
+                            borderColor: '#808080',
+                            label: {
+                                text: 'Last Forecast',
+                                style: {
+                                    color: '#FFFFFF',
+                                    background: '#808080',
+                                },
+                            },
+                        });
                     }
+                }
+                if (lowerData && upperData && lowerData.length === upperData.length) {
+                    // Create a polygon-like dataset by combining lower and upper bounds
+                    const forecastPolygon = [
+                        ...lowerData.map((point, index) => ({
+                            x: point.x,
+                            y: point.y, // Lower bound
+                        })),
+                        ...upperData.map((point, index) => ({
+                            x: upperData[upperData.length - 1 - index].x, // Reverse the upper data
+                            y: upperData[upperData.length - 1 - index].y, // Upper bound
+                        })),
+                    ];
+            
+                    // Add as a "polygon-like" area
+                    if (forecastPolygon.length > 0) {
+                        seriesData.push({
+                            name: `${alias} (Forecast Interval)`,
+                            type: 'area', // Ensures area rendering
+                            data: forecastPolygon,
+                            color: lightenColor(baseColor, 10),
+                            fillOpacity: 0.3,
+                            showInLegend: true,
+                            fill: {
+                                type: 'solid', // Ensure solid or gradient fill
+                                gradient: {
+                                    shade: 'light',
+                                    type: 'vertical',
+                                    shadeIntensity: 0.4,
+                                    gradientToColors: [lightenColor(baseColor, 40),baseColor],
+                                    inverseColors: false,
+                                    opacityFrom: 0.4,
+                                    opacityTo: 0.4,
+                                },
+                            },
+                        });
+                    }
+                } else {
+                    console.error('Lower and upper data are inconsistent or missing!');
                 }
             }
-    
-            chart.updateSeries(seriesData);
+            
+            
+            
+
+            if (document.getElementById('50hz-checkbox').checked) {
+                await addSeries('wind_offshore_50hz', 'XGBoost_prev_fitted.json', 'XGBoost_curr_fitted.json', 'XGBoost_curr_lower.json', 'XGBoost_curr_upper.json');
+            }
+
+            if (document.getElementById('tenn-checkbox').checked) {
+                await addSeries('wind_offshore_tenn', 'XGBoost_prev_fitted.json', 'XGBoost_curr_fitted.json', 'XGBoost_curr_lower.json', 'XGBoost_curr_upper.json');
+            }
+
+            if (document.getElementById('total-checkbox').checked) {
+                await addSeries('wind_offshore', 'XGBoost_prev_fitted.json', 'XGBoost_curr_fitted.json', 'XGBoost_curr_lower.json', 'XGBoost_curr_upper.json');
+            }
+
+            chart.updateOptions({
+                series: seriesData,
+                annotations: {
+                    xaxis: annotations
+                },
+                tooltip: {
+                    theme: isDarkMode ? 'dark' : 'light'
+                },
+                xaxis: {
+                    labels: {
+                        style: {
+                            colors: isDarkMode ? '#e0e0e0' : '#000'
+                        }
+                    },
+                    title: {
+                        style: {
+                            color: isDarkMode ? '#e0e0e0' : '#000'
+                        }
+                    }
+                },
+                yaxis: {
+                    title: {
+                        text: 'Offshore Wind Power',
+                        style: {
+                            color: isDarkMode ? '#e0e0e0' : '#000'
+                        }
+                    },
+                    labels: {
+                        style: {
+                            colors: isDarkMode ? '#e0e0e0' : '#000'
+                        }
+                    }
+                },
+                legend: {
+                    labels: {
+                        colors: isDarkMode ? '#e0e0e0' : '#000',
+                        useSeriesColors: false
+                    }
+                },
+                fill: {
+                    type: 'gradient', // Global gradient fill configuration (for polygons and areas)
+                    gradient: {
+                        shade: 'light',
+                        type: 'vertical',
+                        shadeIntensity: 0.5,
+                        inverseColors: false,
+                        opacityFrom: 0.8,
+                        opacityTo: 0.5,
+                        stops: [40, 100], // Start and end points of the gradient
+                    },
+                }
+            });
         }
-        
 
-        function switchMode() {
-            const mode = document.querySelector('input[name="mode"]:checked').value;
-            document.getElementById('current-controls').style.display = mode === 'current' ? 'block' : 'none';
-            document.getElementById('past-controls').style.display = mode === 'past' ? 'block' : 'none';
+        function toggleDarkMode() {
+            const body = document.body;
+            body.classList.toggle('dark-mode');
+            isDarkMode = !isDarkMode;
             updateChart();
         }
+
+        // Initial chart update
+        updateChart();
     </script>
 </body>
 </html>
