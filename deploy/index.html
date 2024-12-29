@@ -279,6 +279,10 @@
         try {
             const response = await fetch(url);
             if (!response.ok) {
+                document.getElementById(containerId).innerHTML = `
+                <p style="color:red;">
+                    <strong>Error:</strong> Failed to load markdown: ${url}.
+                </p>`;
                 throw new Error(`Failed to load markdown: ${url}`);
             }
             const markdownText = await response.text();
