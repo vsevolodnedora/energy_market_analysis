@@ -276,17 +276,25 @@
 
     // Helper function to load Markdown from a given URL, parse it, and insert into container
     async function loadMarkdown(url, containerId) {
+        const fallbackUrl = "https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/" + url;
+    
         try {
-            const response = await fetch(url);
+            // Attempt to fetch the file from the local path
+            let response = await fetch(url);
+    
+            // If the response is not OK, throw an error to trigger the fallback
             if (!response.ok) {
-                document.getElementById(containerId).innerHTML = `
-                <p style="color:red;">
-                    <strong>Error:</strong> Failed to load markdown: ${url}.
-                </p>`;
-                throw new Error(`Failed to load markdown: ${url}`);
+                console.warn(`Failed to load markdown from local path: ${url}. Trying fallback URL.`);
+                response = await fetch(fallbackUrl);
             }
+    
+            // If the fallback response is also not OK, throw an error
+            if (!response.ok) {
+                throw new Error(`Failed to load markdown from both local and fallback URLs.`);
+            }
+    
             const markdownText = await response.text();
-
+    
             // Use showdown to convert the markdown to HTML
             const converter = new showdown.Converter({
                 tables: true,
@@ -297,18 +305,17 @@
                 emoji: true,
                 parseImgDimensions: true, // Parse image dimensions
                 openLinksInNewWindow: true, // Open links in new tab
-                simpleLineBreaks: true // Treat single line breaks as <br> 
-
+                simpleLineBreaks: true, // Treat single line breaks as <br>
             });
             const html = converter.makeHtml(markdownText);
-
+    
             // Insert HTML into the container
             document.getElementById(containerId).innerHTML = html;
         } catch (error) {
             console.error(error);
             document.getElementById(containerId).innerHTML = `
                 <p style="color:red;">
-                  <strong>Error:</strong> Could not load description.
+                    <strong>Error:</strong> Could not load description.
                 </p>`;
         }
     }
