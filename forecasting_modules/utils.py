@@ -1,8 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import copy
-from datetime import timedelta
+import copy, json
+from datetime import timedelta, datetime
 
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, mean_absolute_percentage_error
 
@@ -830,3 +830,9 @@ def compute_error_metrics_aggregate_over_cv_runs(
 
     return res
 
+def save_datetime_now(outdir:str):
+    # save when fine-tuning was done
+    today = pd.Timestamp(datetime.today()).tz_localize(tz='UTC')
+    today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
+    with open(f'{outdir}datetime.json', "w") as file:
+        json.dump({"datetime": today.isoformat()}, file)

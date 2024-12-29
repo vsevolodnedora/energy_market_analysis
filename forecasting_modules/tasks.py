@@ -30,7 +30,8 @@ from forecasting_modules.utils import (
     compute_timeseries_split_cutoffs,
     compute_error_metrics,
     compute_error_metrics_aggregate_over_horizon,
-    compute_error_metrics_aggregate_over_cv_runs
+    compute_error_metrics_aggregate_over_cv_runs,
+    save_datetime_now
 )
 from data_modules.data_classes import (
     validate_dataframe,
@@ -104,7 +105,7 @@ def save_optuna_results(study:optuna.Study, extra_pars:dict, outdir:str):
         json.dump(best_trial_details, f, indent=4)
 
     # Save best parameters to CSV
-    with open(f'{outdir}_best_parameters.csv', 'w', newline='') as file:
+    with open(f'{outdir}best_parameters.csv', 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Parameter', 'Value'])
         for key, value in best_params.items():
@@ -112,7 +113,10 @@ def save_optuna_results(study:optuna.Study, extra_pars:dict, outdir:str):
 
     # Convert the complete study results to a DataFrame and save to CSV
     results_df = study.trials_dataframe(attrs=('number', 'value', 'params', 'state'))
-    results_df.to_csv(f'{outdir}_complete_study_results.csv', index=False)
+    results_df.to_csv(f'{outdir}complete_study_results.csv', index=False)
+
+    save_datetime_now(outdir) # save when the training was done
+
 
 def get_parameters_for_optuna_trial(model_name, trial:optuna.trial):
 
@@ -832,6 +836,8 @@ class BaseModelTasks(TaskPaths):
         ], axis=0)
         df_result.to_csv(dir+'result.csv')
 
+        save_datetime_now(dir) # save when the training was done
+
         if self.verbose:
             print(f"Results of {self.model_label} fits are saved into {dir}")
 
@@ -1397,6 +1403,7 @@ class ForecastingTaskSingleTarget:
         wrapper.save_results(dir='trained', ds=wrapper.meta_ds)
         with open(t_outdir+'dataset.json', 'w') as f:
             json.dump(wrapper.model_dataset_pars | wrapper.optuna_pars, f, indent=4)
+
 
     def process_training_task_base(self, t_task):
         model_label = t_task['model']

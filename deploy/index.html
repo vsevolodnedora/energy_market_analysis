@@ -1,384 +1,616 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wind Forecasts</title>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            transition: background-color 0.3s, color 0.3s;
-        }
-        .chart-container {
-            margin-bottom: 20px;
-        }
-        .error {
-            color: red;
-            font-weight: bold;
-        }
-        .controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 10px;
-            align-items: center;
-        }
-        .controls-label {
-            font-size: 1rem;
-            white-space: nowrap;
-        }
-        .controls-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .controls label {
-            font-size: 1rem;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-        .controls input[type="checkbox"] {
-            margin-right: 5px;
-        }
-        .slider-container {
-            margin-top: 10px;
-            text-align: center;
-        }
-        .settings-frame {
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin-bottom: 20px;
-            border-radius: 5px;
-        }
-        .forecast-frame {
-            border: 1px solid #ccc;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-        .dark-mode {
-            background-color: #121212;
-            color: #e0e0e0;
-        }
-        .dark-mode .error {
-            color: #ff6666;
-        }
-        .dark-mode .settings-frame, .dark-mode .forecast-frame {
-            border-color: #333;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Multiple Wind Forecasts (Collapsible)</title>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/showdown/dist/showdown.min.js"></script>
+  
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    .error {
+      color: red;
+      font-weight: bold;
+    }
+    .dark-mode {
+      background-color: #202020;
+      color: #e0e0e0;
+    }
+    .dark-mode .error {
+      color: #ff6666;
+    }
+    details {
+      margin-bottom: 20px;
+      border: 1px solid #797979;
+      border-radius: 5px;
+      padding: 10px;
+    }
+    details summary {
+      cursor: pointer;
+      font-size: 1.1rem;
+      outline: none; /* to remove the default Chrome outline */
+    }
+    .chart-container {
+      margin-top: 15px;
+    }
+    .markdown-container {
+        margin-top: 15px;
+        padding: 10px;
+        background-color: #f9f9f9;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 0.9rem;
+        line-height: 1.6;
+      }
+      .dark-mode .markdown-container {
+        background-color: #444444;
+        border-color: #444;
+        color: #e0e0e0;
+      }
+      .markdown-container h2 {
+        font-size: 1.2rem;
+        margin-top: 1em;
+      }
+      .markdown-container p {
+        margin: 0.5em 0;
+      }
+      .chart-description-separator {
+        border: none;
+        height: 2px;
+        background-color: #ccc;
+        margin: 20px 0;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+    }
+      
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+      
+    th {
+        background-color: #f4f4f4;
+    }
+
+    /* Blockquote */
+    blockquote {
+        border-left: 4px solid #ccc;
+        margin: 1em 0;
+        padding-left: 1em;
+        font-style: italic;
+        color: #555;
+    }
+    
+    /* Header 3 */
+    h3 {
+        font-size: 1.25em;
+        margin-top: 1em;
+        margin-bottom: 0.5em;
+    }
+    
+    /* Ensure other headers are styled properly */
+    h1, h2, h3, h4, h5, h6 {
+        margin-top: 1em;
+        margin-bottom: 0.5em;
+    }
+  </style>
 </head>
 <body class="dark-mode">
-    <div class="settings-frame">
-        <label><input type="checkbox" id="dark-mode-toggle" checked onchange="toggleDarkMode()"> Dark Mode</label>
+  <div class="settings-frame">
+    <label
+      ><input
+        type="checkbox"
+        id="dark-mode-toggle"
+        unchecked
+        onchange="toggleDarkMode()"
+      />
+      Dark Mode</label
+    >
+  </div>
+
+  <h1>German Energy Market Predictive Analytics</h1>
+
+  <div id="error-message" class="error"></div>
+
+
+
+  <!-- First chart collapsible -->
+  <details open>
+    <summary>Offshore Wind Power Forecast</summary>
+    <div class="chart-container" id="chart1"></div>
+
+    <!-- You can replicate some of your controls here if needed -->
+    <div class="controls">
+      <span class="controls-label">TSO Area:</span>
+      <div class="controls-buttons">
+        <label><input type="checkbox" id="50hz-checkbox-1" onchange="updateChart1()"> 50Hz</label>
+        <label><input type="checkbox" id="tenn-checkbox-1" onchange="updateChart1()"> TenneT</label>
+        <label><input type="checkbox" id="total-checkbox-1" checked onchange="updateChart1()"> Total</label>
+      </div>
     </div>
-
-    <div class="forecast-frame">
-        <h1>Offshore Wind Forecasts</h1>
-
-        <div id="error-message" class="error"></div>
-
-        <div class="chart-container">
-            <div id="chart"></div>
-        </div>
-
-        <div class="controls">
-            <span class="controls-label">TSO Area:</span>
-            <div class="controls-buttons">
-                <label><input type="checkbox" id="50hz-checkbox" onchange="updateChart()"> 50Hz</label>
-                <label><input type="checkbox" id="tenn-checkbox" onchange="updateChart()"> TenneT</label>
-                <label><input type="checkbox" id="total-checkbox" checked onchange="updateChart()"> Total</label>
-            </div>
-        </div>
-
-        <div class="slider-container">
-            <label for="past-data-slider">Amount of past data to show:</label>
-            <input type="range" id="past-data-slider" min="1" max="100" step="1" value="20" onchange="updateChart()">
-        </div>
+    <div class="slider-container">
+      <label for="past-data-slider-1">Amount of past data to show:</label>
+      <input
+        type="range"
+        id="past-data-slider-1"
+        min="1"
+        max="100"
+        step="1"
+        value="20"
+        onchange="updateChart1()"
+      />
     </div>
+    
+    <!-- Divider to separate chart and description -->
+    <hr class="chart-description-separator">
 
-    <script>
-        let isDarkMode = true;
+    <!-- Separate toggle for chart description -->
+    <details id="chart1-description-details">
+        <summary>Show/Hide Description</summary>
+        <div id="chart1-description-container">
+          <!-- The markdown file content will be loaded here dynamically -->
+        </div>
+    </details>
+      
+  </details>
 
-        const chartOptions = {
-            chart: {
-                type: 'line',
-                height: 350,
-                toolbar: {
-                    show: true
-                }
-            },
-            series: [],
-            xaxis: {
-                type: 'datetime',
-                labels: {
-                    style: {
-                        colors: isDarkMode ? '#e0e0e0' : '#000'
-                    }
-                },
-                title: {
-                    style: {
-                        color: isDarkMode ? '#e0e0e0' : '#000'
-                    }
-                }
-            },
-            yaxis: {
-                title: {
-                    text: 'Offshore Wind Power',
-                    style: {
-                        color: isDarkMode ? '#e0e0e0' : '#000'
-                    }
-                },
-                labels: {
-                    style: {
-                        colors: isDarkMode ? '#e0e0e0' : '#000'
-                    }
-                }
-            },
-            annotations: {
-                xaxis: []
-            },
-            stroke: {
-                width: 2
-            },
-            title: {
-                text: 'Wind Forecasts',
-                align: 'center',
-                style: {
-                    color: isDarkMode ? '#e0e0e0' : '#000'
-                }
-            },
-            tooltip: {
-                shared: true,
-                theme: isDarkMode ? 'dark' : 'light',
-                x: {
-                    format: 'dd MMM yyyy HH:mm'
-                }
-            },
-            legend: {
-                labels: {
-                    colors: isDarkMode ? '#e0e0e0' : '#000',
-                    useSeriesColors: false
-                }
-            }
-        };
 
-        const chart = new ApexCharts(document.querySelector("#chart"), chartOptions);
-        chart.render();
 
-        async function fetchData(variable, file) {
-            try {
-                const response = await fetch(`data/forecasts/${variable}/${file}`);
-                if (!response.ok) {
-                    throw new Error(`Failed to load ${variable}`);
-                }
-                const data = await response.json();
-                return data.map(([timestamp, value]) => ({ x: new Date(timestamp), y: value }));
-            } catch (error) {
-                document.getElementById('error-message').textContent = error.message;
-                return null;
-            }
+  <!-- Second chart collapsible -->
+  <details>
+    <summary>Onshore Forecast (PLACEHOLDER)</summary>
+    <div class="chart-container" id="chart2"></div>
+
+    <!-- Potentially different (or same) controls for the second chart -->
+    <div class="controls">
+      <span class="controls-label">TSO Area:</span>
+      <div class="controls-buttons">
+        <label><input type="checkbox" id="50hz-checkbox-2" onchange="updateChart2()"> 50Hz</label>
+        <label><input type="checkbox" id="tenn-checkbox-2" onchange="updateChart2()"> TenneT</label>
+        <label><input type="checkbox" id="total-checkbox-2" checked onchange="updateChart2()"> Total</label>
+      </div>
+    </div>
+    <div class="slider-container">
+      <label for="past-data-slider-2">Amount of past data to show:</label>
+      <input
+        type="range"
+        id="past-data-slider-2"
+        min="1"
+        max="100"
+        step="1"
+        value="20"
+        onchange="updateChart2()"
+      />
+    </div>
+  </details>
+
+
+
+  <!-- =====================================| SCRIPT |=====================================  -->
+
+
+  <script>
+    
+    let isDarkMode = true;
+
+    // A helper to track whether each chart was created
+    let chart1Created = false;
+    let chart2Created = false;
+
+    let chartInstance1 = null;
+    let chartInstance2 = null;
+
+    let chart1DescLoaded = false;
+    let chart2DescLoaded = false;
+
+    // Common chart options that can be reused
+    function getBaseChartOptions() {
+      return {
+        chart: {
+          type: 'line',
+          height: 350,
+          toolbar: { show: true }
+        },
+        series: [],
+        xaxis: {
+          type: 'datetime',
+          labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } },
+          title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } }
+        },
+        yaxis: {
+          title: {
+            text: 'Offshore Wind Power',
+            style: { color: isDarkMode ? '#e0e0e0' : '#000' }
+          },
+          labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } }
+        },
+        annotations: { xaxis: [] },
+        stroke: { width: 2 },
+
+        tooltip: {
+          shared: true,
+          theme: isDarkMode ? 'dark' : 'light',
+          x: { format: 'dd MMM yyyy HH:mm' }
+        },
+        legend: {
+          labels: { colors: isDarkMode ? '#e0e0e0' : '#000', useSeriesColors: false }
         }
+      };
+    }
 
-        const colorMap = {
-            'wind_offshore_50hz': '#1E90FF',
-            'wind_offshore_tenn': '#FF6347',
-            'wind_offshore': '#2E8B57'
-        };
+    // Listen for the toggle event on each <details> to create the chart if not already created
+    document.querySelector('details:nth-of-type(1)').addEventListener('toggle', async function(e) {
+      if (e.target.open && !chart1Created) {
+        chart1Created = true;
+        chartInstance1 = await createChart('#chart1');
+        updateChart1(); // first update
+      }
+    });
 
-        const aliases = {
-            'wind_offshore_tenn': 'TenneT',
-            'wind_offshore_50hz': '50Hz',
-            'wind_offshore': 'Total'
-        };
+    document.querySelector('details:nth-of-type(2)').addEventListener('toggle', async function(e) {
+      if (e.target.open && !chart2Created) {
+        chart2Created = true;
+        chartInstance2 = await createChart('#chart2');
+        updateChart2(); // first update
+      }
+    });
 
-        function lightenColor(color, percent) {
-            const num = parseInt(color.slice(1), 16),
-                  amt = Math.round(2.55 * percent),
-                  R = (num >> 16) + amt,
-                  G = (num >> 8 & 0x00FF) + amt,
-                  B = (num & 0x0000FF) + amt;
-            return `#${(0x1000000 + (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 + 
-                          (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 + 
-                          (B < 255 ? (B < 1 ? 0 : B) : 255)).toString(16).slice(1).toUpperCase()}`;
+    // Listen for toggle on the chart #1 description details
+    document .getElementById('chart1-description-details').addEventListener('toggle', async function (e) {
+        // If the user is opening the details and it's not loaded yet...
+        if (e.target.open && !chart1DescLoaded) {
+            chart1DescLoaded = true;
+            await loadMarkdown('/data/forecasts/wind_offshore_notes.md', 'chart1-description-container');
         }
+    });    
 
-        async function updateChart() {
-            document.getElementById('error-message').textContent = '';
-            const seriesData = [];
-            const annotations = [];
-
-            const pastDataRatio = document.getElementById('past-data-slider').value / 100;
-
-            async function addSeries(variable, pastFile, currentFile, lowerFile, upperFile) {
-                const pastFittedData = await fetchData(variable, pastFile);
-                const pastActualData = await fetchData(variable, 'XGBoost_prev_actual.json');
-                const currentData = await fetchData(variable, currentFile);
-                const lowerData = await fetchData(variable, lowerFile);
-                const upperData = await fetchData(variable, upperFile);
-                const baseColor = colorMap[variable];
-                const lighterColor = lightenColor(baseColor, 70);
-                const alias = aliases[variable];
-            
-                if (pastFittedData) {
-                    const pastDataToShow = Math.floor(pastFittedData.length * pastDataRatio);
-                    seriesData.push({
-                        name: `${alias} (Past Fitted)`,
-                        data: pastFittedData.slice(-pastDataToShow),
-                        color: baseColor,
-                    });
-                }
-                if (pastActualData) {
-                    const pastDataToShow = Math.floor(pastActualData.length * pastDataRatio);
-                    seriesData.push({
-                        name: `${alias} (Past Actual)`,
-                        data: pastActualData.slice(-pastDataToShow),
-                        color: lighterColor,
-                    });
-                }
-                if (currentData) {
-                    seriesData.push({
-                        name: `${alias} (Current)`,
-                        data: currentData,
-                        color: baseColor,
-                    });
-            
-                    if (currentData.length > 0) {
-                        annotations.push({
-                            x: currentData[0].x.getTime(),
-                            borderColor: '#808080',
-                            label: {
-                                text: 'Last Forecast',
-                                style: {
-                                    color: '#FFFFFF',
-                                    background: '#808080',
-                                },
-                            },
-                        });
-                    }
-                }
-                if (lowerData && upperData && lowerData.length === upperData.length) {
-                    // Create a polygon-like dataset by combining lower and upper bounds
-                    const forecastPolygon = [
-                        ...lowerData.map((point, index) => ({
-                            x: point.x,
-                            y: point.y, // Lower bound
-                        })),
-                        ...upperData.map((point, index) => ({
-                            x: upperData[upperData.length - 1 - index].x, // Reverse the upper data
-                            y: upperData[upperData.length - 1 - index].y, // Upper bound
-                        })),
-                    ];
-            
-                    // Add as a "polygon-like" area
-                    if (forecastPolygon.length > 0) {
-                        seriesData.push({
-                            name: `${alias} (Forecast Interval)`,
-                            type: 'area', // Ensures area rendering
-                            data: forecastPolygon,
-                            color: lightenColor(baseColor, 10),
-                            fillOpacity: 0.3,
-                            showInLegend: true,
-                            fill: {
-                                type: 'solid', // Ensure solid or gradient fill
-                                gradient: {
-                                    shade: 'light',
-                                    type: 'vertical',
-                                    shadeIntensity: 0.4,
-                                    gradientToColors: [lightenColor(baseColor, 40),baseColor],
-                                    inverseColors: false,
-                                    opacityFrom: 0.4,
-                                    opacityTo: 0.4,
-                                },
-                            },
-                        });
-                    }
-                } else {
-                    console.error('Lower and upper data are inconsistent or missing!');
-                }
+    // Helper function to load Markdown from a given URL, parse it, and insert into container
+    async function loadMarkdown(url, containerId) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Failed to load markdown: ${url}`);
             }
-            
-            
-            
+            const markdownText = await response.text();
 
-            if (document.getElementById('50hz-checkbox').checked) {
-                await addSeries('wind_offshore_50hz', 'XGBoost_prev_fitted.json', 'XGBoost_curr_fitted.json', 'XGBoost_curr_lower.json', 'XGBoost_curr_upper.json');
-            }
+            // Use showdown to convert the markdown to HTML
+            const converter = new showdown.Converter({
+                tables: true,
+                ghCompatibleHeaderId: true,
+                simplifiedAutoLink: true,
+                strikethrough: true,
+                tasklists: true,
+                emoji: true,
+                parseImgDimensions: true, // Parse image dimensions
+                openLinksInNewWindow: true, // Open links in new tab
+                simpleLineBreaks: true // Treat single line breaks as <br> 
 
-            if (document.getElementById('tenn-checkbox').checked) {
-                await addSeries('wind_offshore_tenn', 'XGBoost_prev_fitted.json', 'XGBoost_curr_fitted.json', 'XGBoost_curr_lower.json', 'XGBoost_curr_upper.json');
-            }
-
-            if (document.getElementById('total-checkbox').checked) {
-                await addSeries('wind_offshore', 'XGBoost_prev_fitted.json', 'XGBoost_curr_fitted.json', 'XGBoost_curr_lower.json', 'XGBoost_curr_upper.json');
-            }
-
-            chart.updateOptions({
-                series: seriesData,
-                annotations: {
-                    xaxis: annotations
-                },
-                tooltip: {
-                    theme: isDarkMode ? 'dark' : 'light'
-                },
-                xaxis: {
-                    labels: {
-                        style: {
-                            colors: isDarkMode ? '#e0e0e0' : '#000'
-                        }
-                    },
-                    title: {
-                        style: {
-                            color: isDarkMode ? '#e0e0e0' : '#000'
-                        }
-                    }
-                },
-                yaxis: {
-                    title: {
-                        text: 'Offshore Wind Power',
-                        style: {
-                            color: isDarkMode ? '#e0e0e0' : '#000'
-                        }
-                    },
-                    labels: {
-                        style: {
-                            colors: isDarkMode ? '#e0e0e0' : '#000'
-                        }
-                    }
-                },
-                legend: {
-                    labels: {
-                        colors: isDarkMode ? '#e0e0e0' : '#000',
-                        useSeriesColors: false
-                    }
-                },
-                fill: {
-                    type: 'gradient', // Global gradient fill configuration (for polygons and areas)
-                    gradient: {
-                        shade: 'light',
-                        type: 'vertical',
-                        shadeIntensity: 0.5,
-                        inverseColors: false,
-                        opacityFrom: 0.8,
-                        opacityTo: 0.5,
-                        stops: [40, 100], // Start and end points of the gradient
-                    },
-                }
             });
+            const html = converter.makeHtml(markdownText);
+
+            // Insert HTML into the container
+            document.getElementById(containerId).innerHTML = html;
+        } catch (error) {
+            console.error(error);
+            document.getElementById(containerId).innerHTML = `
+                <p style="color:red;">
+                  <strong>Error:</strong> Could not load description.
+                </p>`;
+        }
+    }
+
+    // If you want to destroy the chart on close to free memory, you can do so:
+    // document.querySelector('details:nth-of-type(1)').addEventListener('toggle', function(e) {
+    //   if (!e.target.open && chartInstance1) {
+    //     chartInstance1.destroy();
+    //     chartInstance1 = null;
+    //     chart1Created = false;
+    //   }
+    // });
+
+    // Create a new chart in a given container
+    async function createChart(containerSelector) {
+      const options = getBaseChartOptions();
+      const newChart = new ApexCharts(document.querySelector(containerSelector), options);
+      await newChart.render();
+      return newChart;
+    }
+
+
+    // Helper color maps, etc., can be reused
+    const colorMap = {
+      'wind_offshore_50hz': '#1E90FF',
+      'wind_offshore_tenn': '#FF6347',
+      'wind_offshore': '#2E8B57'
+    };
+
+    const aliases = {
+      'wind_offshore_50hz': '50Hz',
+      'wind_offshore_tenn': 'TenneT',
+      'wind_offshore': 'Total'
+    };
+
+    // Example update functions for each chart
+    async function updateChart1() {
+      if (!chartInstance1) return; // if chart not yet created
+
+      document.getElementById('error-message').textContent = '';
+      const seriesData = [];
+      const annotations = [];
+
+      // Grab controls
+      const show50hz = document.getElementById('50hz-checkbox-1').checked;
+      const showTenn = document.getElementById('tenn-checkbox-1').checked;
+      const showTotal = document.getElementById('total-checkbox-1').checked;
+      const pastDataRatio = document.getElementById('past-data-slider-1').value / 100;
+
+      // Reuse the same logic you had for adding series
+      async function addSeries(variable, pastFile, currentFile, lowerFile, upperFile) {
+        const baseColor = colorMap[variable];
+        const alias = aliases[variable];
+
+        const pastFittedData = await fetchData(variable, pastFile);
+        const pastActualData = await fetchData(variable, 'XGBoost_prev_actual.json');
+        const currentData = await fetchData(variable, currentFile);
+        const lowerData = await fetchData(variable, lowerFile);
+        const upperData = await fetchData(variable, upperFile);
+
+        if (pastFittedData) {
+          const pastToShow = Math.floor(pastFittedData.length * pastDataRatio);
+          seriesData.push({
+            name: `${alias} (Past Fitted)`,
+            data: pastFittedData.slice(-pastToShow),
+            color: baseColor,
+            type: 'line'
+          });
         }
 
-        function toggleDarkMode() {
-            const body = document.body;
-            body.classList.toggle('dark-mode');
-            isDarkMode = !isDarkMode;
-            updateChart();
+        if (pastActualData) {
+          const pastToShow = Math.floor(pastActualData.length * pastDataRatio);
+          seriesData.push({
+            name: `${alias} (Past Actual)`,
+            data: pastActualData.slice(-pastToShow),
+            color: lightenColor(baseColor, 40),
+            type: 'line',
+            dashStyle: 'Dash'
+          });
         }
 
-        // Initial chart update
-        updateChart();
+        if (currentData) {
+          seriesData.push({
+            name: `${alias} (Current)`,
+            data: currentData,
+            color: baseColor,
+            type: 'line'
+          });
+          if (currentData.length > 0) {
+            annotations.push({
+              x: currentData[0].x.getTime(),
+              borderColor: '#808080',
+              label: {
+                text: 'Last Forecast',
+                style: { color: '#FFFFFF', background: '#808080' }
+              }
+            });
+          }
+        }
+
+        if (lowerData && upperData && lowerData.length === upperData.length) {
+          const forecastPolygon = [
+            ...lowerData.map((point) => ({ x: point.x, y: point.y })),
+            ...upperData
+              .slice()
+              .reverse()
+              .map((point) => ({ x: point.x, y: point.y }))
+          ];
+          if (forecastPolygon.length > 0) {
+            seriesData.push({
+              name: `${alias} (Forecast Interval)`,
+              type: 'area',
+              data: forecastPolygon,
+              color: baseColor,
+              fillOpacity: 0.3,
+              showInLegend: true,
+              fill: {
+                type: 'gradient',
+                gradient: {
+                  shade: 'light',
+                  type: 'vertical',
+                  shadeIntensity: 0.4,
+                  gradientToColors: [lightenColor(baseColor, 40), baseColor],
+                  inverseColors: false,
+                  opacityFrom: 0.4,
+                  opacityTo: 0.4
+                }
+              }
+            });
+          }
+        }
+      }
+
+      if (show50hz) {
+        await addSeries(
+          'wind_offshore_50hz',
+          'XGBoost_prev_fitted.json',
+          'XGBoost_curr_fitted.json',
+          'XGBoost_curr_lower.json',
+          'XGBoost_curr_upper.json'
+        );
+      }
+      if (showTenn) {
+        await addSeries(
+          'wind_offshore_tenn',
+          'XGBoost_prev_fitted.json',
+          'XGBoost_curr_fitted.json',
+          'XGBoost_curr_lower.json',
+          'XGBoost_curr_upper.json'
+        );
+      }
+      if (showTotal) {
+        await addSeries(
+          'wind_offshore',
+          'XGBoost_prev_fitted.json',
+          'XGBoost_curr_fitted.json',
+          'XGBoost_curr_lower.json',
+          'XGBoost_curr_upper.json'
+        );
+      }
+
+      // Example: add "Now" line
+      const now = new Date();
+      annotations.push({
+        x: now.getTime(),
+        borderColor: '#FF0000',
+        label: { text: 'Now', style: { color: '#FFF', background: '#FF0000' } }
+      });
+
+      chartInstance1.updateOptions({
+        series: seriesData,
+        annotations: { xaxis: annotations },
+        tooltip: { theme: isDarkMode ? 'dark' : 'light' },
+        xaxis: {
+          labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } },
+          title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } }
+        },
+        yaxis: {
+          title: {
+            text: 'Offshore Wind Power',
+            style: { color: isDarkMode ? '#e0e0e0' : '#000' }
+          },
+          labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } }
+        },
+        legend: {
+          labels: { colors: isDarkMode ? '#e0e0e0' : '#000' }
+        }
+      });
+    }
+
+    async function updateChart2() {
+      if (!chartInstance2) return; // if chart not yet created
+      document.getElementById('error-message').textContent = '';
+      const seriesData = [];
+      const annotations = [];
+
+      const show50hz = document.getElementById('50hz-checkbox-2').checked;
+      const showTenn = document.getElementById('tenn-checkbox-2').checked;
+      const showTotal = document.getElementById('total-checkbox-2').checked;
+      const pastDataRatio = document.getElementById('past-data-slider-2').value / 100;
+
+      // Reuse or adapt the same addSeries logic:
+      async function addSeries(variable, pastFile, currentFile, lowerFile, upperFile) {
+        // ... same logic as updateChart1
+        // For brevity, you could create a shared function if the logic is exactly the same
+      }
+
+      // For demonstration, just do something simpler:
+      if (show50hz) {
+        // Example: push a dummy dataset
+        seriesData.push({
+          name: '50Hz (Dummy)',
+          data: [
+            { x: new Date(), y: Math.random() * 1000 },
+            { x: new Date(Date.now() + 3600e3), y: Math.random() * 1000 }
+          ],
+          color: '#1E90FF'
+        });
+      }
+      if (showTenn) {
+        seriesData.push({
+          name: 'TenneT (Dummy)',
+          data: [
+            { x: new Date(), y: Math.random() * 1000 },
+            { x: new Date(Date.now() + 3600e3), y: Math.random() * 1000 }
+          ],
+          color: '#FF6347'
+        });
+      }
+      if (showTotal) {
+        seriesData.push({
+          name: 'Total (Dummy)',
+          data: [
+            { x: new Date(), y: Math.random() * 1000 },
+            { x: new Date(Date.now() + 3600e3), y: Math.random() * 1000 }
+          ],
+          color: '#2E8B57'
+        });
+      }
+
+      annotations.push({
+        x: new Date().getTime(),
+        borderColor: '#FF0000',
+        label: { text: 'Now', style: { color: '#FFF', background: '#FF0000' } }
+      });
+
+      chartInstance2.updateOptions({
+        series: seriesData,
+        annotations: { xaxis: annotations },
+        tooltip: { theme: isDarkMode ? 'dark' : 'light' },
+        xaxis: {
+          labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } },
+          title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } }
+        },
+        yaxis: {
+          title: {
+            text: 'Offshore Wind Power',
+            style: { color: isDarkMode ? '#e0e0e0' : '#000' }
+          },
+          labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } }
+        },
+        legend: {
+          labels: { colors: isDarkMode ? '#e0e0e0' : '#000' }
+        }
+      });
+    }
+
+
+    // ----------------------------------------
+    async function fetchData(variable, file) {
+        try {
+          const response = await fetch(`data/forecasts/${variable}/${file}`);
+          if (!response.ok) throw new Error(`Failed to load ${variable}`);
+          const data = await response.json();
+          return data.map(([timestamp, value]) => ({ x: new Date(timestamp), y: value }));
+        } catch (error) {
+          document.getElementById('error-message').textContent = error.message;
+          return null;
+        }
+    }
+    
+    function toggleDarkMode() {
+        const body = document.body;
+        body.classList.toggle('dark-mode');
+        isDarkMode = !isDarkMode;
+  
+        // If charts exist, refresh them
+        if (chartInstance1) updateChart1();
+        if (chartInstance2) updateChart2();
+    }
+    
+    function lightenColor(color, percent) {
+        const num = parseInt(color.slice(1), 16),
+          amt = Math.round(2.55 * percent),
+          R = (num >> 16) + amt,
+          G = (num >> 8 & 0x00FF) + amt,
+          B = (num & 0x0000FF) + amt;
+        return `#${(0x1000000 +
+          (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
+          (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
+          (B < 255 ? (B < 1 ? 0 : B) : 255)
+        ).toString(16).slice(1).toUpperCase()}`;
+      }
+    
+      toggleDarkMode();
+  
     </script>
 </body>
 </html>

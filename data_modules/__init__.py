@@ -6,3 +6,6 @@ from .data_loaders import (
     extract_from_database,
     clean_and_impute
 )
+from .utils import (
+    validate_dataframe
+)

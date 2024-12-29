@@ -269,49 +269,49 @@ def main():
                 #  },
                 # 'finetuning_pars':{'n_trials':120,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
 
-                {'model':'XGBoost',
-                 'dataset_pars':{
-                     'log_target':True,
-                     'forecast_horizon':None,
-                     'target_scaler':'StandardScaler',
-                     'feature_scaler':'StandardScaler',
-                     'copy_input':True,
-                     'locations':[loc['name'] for loc in offshore_windfarms if loc['TSO']=='TenneT'],
-                     'add_cyclical_time_features':True,
-                     'feature_engineer':'WeatherFeatureEngineer'
-                 },
-                 'finetuning_pars':{'n_trials':100,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
-
-                {'model':'ElasticNet',
-                 'dataset_pars':{
-                     'log_target':True,
-                     'forecast_horizon':None,
-                     'target_scaler':'StandardScaler',
-                     'feature_scaler':'StandardScaler',
-                     'copy_input':True,
-                     'locations':[loc['name'] for loc in offshore_windfarms if loc['TSO']=='TenneT'],
-                     'add_cyclical_time_features':True,
-                     'feature_engineer':'WeatherFeatureEngineer'
-                 },
-                 'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
-
-                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)',
-                 'dataset_pars': {
-                     'log_target':True,
-                     'forecast_horizon':None,
-                     'target_scaler':'StandardScaler',
-                     'feature_scaler':'StandardScaler',
-                     'add_cyclical_time_features':True,
-                     'locations':[loc for loc in offshore_windfarms if loc['TSO']=='TenneT'],
-                     'feature_engineer': None,#'WeatherFeatureEngineer',
-                     'lags_target': None,
-                     'copy_input':True
-                 },
-                 'finetuning_pars':{'n_trials':25,
-                                    'optim_metric':'rmse',
-                                    'cv_folds':cv_folds_ft,
-                                    'cv_folds_base':35, # at least cv_folds_eval + 1
-                                    'use_base_models_pred_intervals':False}}
+                # {'model':'XGBoost',
+                #  'dataset_pars':{
+                #      'log_target':True,
+                #      'forecast_horizon':None,
+                #      'target_scaler':'StandardScaler',
+                #      'feature_scaler':'StandardScaler',
+                #      'copy_input':True,
+                #      'locations':[loc['name'] for loc in offshore_windfarms if loc['TSO']=='TenneT'],
+                #      'add_cyclical_time_features':True,
+                #      'feature_engineer':'WeatherFeatureEngineer'
+                #  },
+                #  'finetuning_pars':{'n_trials':100,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+                #
+                # {'model':'ElasticNet',
+                #  'dataset_pars':{
+                #      'log_target':True,
+                #      'forecast_horizon':None,
+                #      'target_scaler':'StandardScaler',
+                #      'feature_scaler':'StandardScaler',
+                #      'copy_input':True,
+                #      'locations':[loc['name'] for loc in offshore_windfarms if loc['TSO']=='TenneT'],
+                #      'add_cyclical_time_features':True,
+                #      'feature_engineer':'WeatherFeatureEngineer'
+                #  },
+                #  'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+                #
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)',
+                #  'dataset_pars': {
+                #      'log_target':True,
+                #      'forecast_horizon':None,
+                #      'target_scaler':'StandardScaler',
+                #      'feature_scaler':'StandardScaler',
+                #      'add_cyclical_time_features':True,
+                #      'locations':[loc for loc in offshore_windfarms if loc['TSO']=='TenneT'],
+                #      'feature_engineer': None,#'WeatherFeatureEngineer',
+                #      'lags_target': None,
+                #      'copy_input':True
+                #  },
+                #  'finetuning_pars':{'n_trials':25,
+                #                     'optim_metric':'rmse',
+                #                     'cv_folds':cv_folds_ft,
+                #                     'cv_folds_base':35, # at least cv_folds_eval + 1
+                #                     'use_base_models_pred_intervals':False}}
             ],
             "task_training":[
                 # {'model':'Prophet', 'pars':{'cv_folds':cv_folds_eval}},
@@ -353,7 +353,7 @@ def main():
         }
     ]
 
-    # process_task_list(task_list=task_list, outdir='./output/', database='../database/', verbose=True)
+    process_task_list(task_list=task_list, outdir='./output/', database='../database/', verbose=True)
 
     for t in task_list:
         t['target'] = "wind_offshore_50hz"

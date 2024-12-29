@@ -13,6 +13,8 @@ from data_collection_modules import (
     update_entsoe_from_api
 )
 
+
+
 if __name__ == '__main__':
 
     # Load .env file
@@ -28,7 +30,9 @@ if __name__ == '__main__':
 
     verbose = True
     task = 'update'
-    tasks = ['update', 'create_smard', 'create_openmeteo', 'create_entsoe']
+    tasks = [
+        'update', 'create_smard', 'create_openmeteo', 'create_entsoe',
+    ]
 
     if task not in tasks:
         raise ValueError(f'Invalid task {task}')
@@ -50,3 +54,7 @@ if __name__ == '__main__':
         update_openmeteo_from_api(data_dir=db_path + 'openmeteo/', verbose=verbose)
         update_epexspot_from_files(today=today, data_dir=db_path + 'epexspot/', verbose=verbose)
         update_entsoe_from_api(today=today, data_dir=db_path + 'entsoe/', api_key=entsoe_api_key, verbose=verbose)
+
+        # update forecasts
+
+        # serve forecasts
