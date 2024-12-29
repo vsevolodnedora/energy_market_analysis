@@ -48,7 +48,7 @@ def update_epexspot_from_files(today:pd.Timestamp,data_dir:str,verbose:bool,raw_
 
         # combine
     df_hist = df_hist.combine_first(df_da_upd)
-    if not validate_dataframe(df_hist, text="Updated epexspot df_hist"):
+    if not validate_dataframe_simple(df_hist, text="Updated epexspot df_hist"):
         raise ValueError(f"Failed to validate the updated dataframe for {data_dir}")
 
     # save
