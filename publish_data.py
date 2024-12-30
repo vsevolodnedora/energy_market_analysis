@@ -20,11 +20,6 @@ def convert_csv_to_json(df, target, output_dir, prefix, cols):
     if not isinstance(df.index, pd.DatetimeIndex):
         raise ValueError("The index of the CSV file must be a pd.DatetimeIndex.")
 
-    # Prepare the output directory
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    output_dir = output_dir + target + '/'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -137,36 +132,6 @@ def pick_best_models_and_check_drift(
         'model_drift': model_drift
     }
 
-def get_error_metrics_for_smard_forecast(df_smard:pd.DataFrame, horizon:int, target:str) -> dict:
-    cutoffs = compute_timeseries_split_cutoffs(
-        df_hist.index,
-        horizon=horizon,
-        delta=horizon,
-        folds=5,
-    )
-    smard_res = []
-    results = {}
-    smard_metrics = {}
-    for i, cutoff in enumerate(cutoffs):
-        mask_ = (df_smard.index >= cutoff) & (df_smard.index < cutoff + pd.Timedelta(hours=horizon))
-        actual = df_smard[f"{target}"][mask_]
-        predicted = df_smard[f"{target}_forecasted"][mask_]
-
-        df = pd.DataFrame({
-            f'{target}_actual':actual.values,
-            f'{target}_fitted': predicted.values,
-            f'{target}_lower': np.zeros_like(actual.values),
-            f'{target}_upper': np.zeros_like(actual.values)
-        }, index=actual.index)
-        smard_res.append(copy.deepcopy(df))
-        smard_metrics[cutoff] = compute_error_metrics(target, df)
-
-    smard_metrics_ = [smard_metrics[key] for key in smard_metrics.keys()]
-    ave_metrics = {
-        key: np.mean( [smard_metrics_[i][key] for i in range(len((smard_metrics_)))] ) for key in list(smard_metrics_[0].keys())
-    }
-    smard_metrics_.append(ave_metrics)
-    return smard_metrics_
 
 def analyze_model_performance(data: pd.DataFrame, n_folds: int, metric: str)->tuple[pd.DataFrame, pd.DataFrame]:
     # Validate inputs
@@ -201,7 +166,26 @@ def analyze_model_performance(data: pd.DataFrame, n_folds: int, metric: str)->tu
 
     return best_models, drift_summary
 
-def publish_offshore_wind_generation():
+
+def publish_offshore_wind_generation(
+    target='wind_offshore',
+    regions=('DE_50HZ', 'DE_TENNET'),
+    n_folds = 3,
+    metric = 'rmse',
+    method_type = 'trained', # 'trained'
+    results_root_dir = 'forecasting_modules/output/',
+    database_dir = 'database/',
+    output_dir = 'deploy/data/forecasts/'
+):
+
+    mapping_reg = {
+        'DE_50HZ' : '50hz',
+        'DE_TENNET' : 'tenn',
+    }
+    mapping_key = {
+        'DE_50HZ' : '50Hz',
+        'DE_TENNET' : 'TenneT',
+    }
 
     def convert_ensemble_string(input_string):
         # Extract the ensemble name and the components
@@ -213,26 +197,34 @@ def publish_offshore_wind_generation():
         return output_string
 
     table = []
-    n_folds = 3
-    metric = 'rmse'
-    method_type = 'trained' # 'trained'
+
     df_results = pd.DataFrame()
-    for var, region, key in zip(['wind_offshore_tenn', 'wind_offshore_50hz'],
-                           ['TenneT', '50Hz'], ['_tenn','_50hz']):
-        df = pd.read_csv( f'forecasting_modules/output/{var}/summary_metrics.csv' )
+    # for var, region, key in zip(['wind_offshore_tenn', 'wind_offshore_50hz'],
+    #                        ['TenneT', '50Hz'], ['_tenn','_50hz']):
+    #
+    for region in regions:
+        key = mapping_key[region]
+        region = mapping_reg[region]
+        var = target + '_' + region
+
+        # load sumamry metrics for different models and horizons for a given target varaible
+        df = pd.read_csv( f'{results_root_dir}{var}/summary_metrics.csv' )
         res_models, res_drifts = analyze_model_performance(df, n_folds=n_folds, metric=metric)
         res_models = res_models[res_models['method'] == method_type]
         best_model:str = str(res_models['model_label'].values[0])
         if best_model.__contains__('ensemble'):
             best_model = convert_ensemble_string(best_model)
-        with open(f"forecasting_modules/output/{var}/{best_model}/{method_type}/datetime.json", "r") as file:
+
+        # load timestamp when the model was last trained
+        with open(f"{results_root_dir}{var}/{best_model}/{method_type}/datetime.json", "r") as file:
             train_time = pd.to_datetime(json.load(file)['datetime'])
 
-        with open(f"forecasting_modules/output/{var}/{best_model}/{method_type}/metadata.json", "r") as file:
+        # load training properties (features etc.)
+        with open(f"{results_root_dir}{var}/{best_model}/{method_type}/metadata.json", "r") as file:
             metadata:dict = json.load(file)
 
         table.append({
-            'TSO/Region':region,
+            'TSO/Region':key,
             'Train Date':train_time.strftime('%Y-%m-%d'),
             'N Features':len(metadata['features']),
             'Best Model':best_model,
@@ -241,15 +233,14 @@ def publish_offshore_wind_generation():
 
         # compute total (for SMARD comparison)
         df_res = pd.read_csv(
-            f"forecasting_modules/output/{var}/{best_model}/{method_type}/result.csv",
+            f"{results_root_dir}{var}/{best_model}/{method_type}/result.csv",
             index_col=0, parse_dates=True)
-        df_res.columns = [ col.replace(key, '') for col in df_res.columns ]
+        df_res.columns = [ col.replace(region + '_', '') for col in df_res.columns ]
         if df_results.empty: df_results = df_res.copy()
         else: df_results += df_res.copy()
 
-    target = 'wind_offshore'
 
-    def compute_error_metrics_cutoffs(df_, cutoffs:list, horizon:int, key_actual:str, key_fitted:str)->dict:
+    def compute_error_metrics_cutoffs(df_, cutoffs:list, horizon:int, target:str, key_actual:str, key_fitted:str)->dict:
         ''' compute errror metrics for batches separated by cutoffs'''
         smard_metrics = {}
         for i, cutoff in enumerate(cutoffs):
@@ -276,13 +267,14 @@ def publish_offshore_wind_generation():
 
     # -------- FOR TOTAL COMPUTE ERROR OVER THE LAST N HORIZONS --------------- #
 
-    df = pd.read_csv( f'forecasting_modules/output/{var}/summary_metrics.csv' )
+
+    df = pd.read_csv( f'{results_root_dir}{var}/summary_metrics.csv' )
     cutoffs = df[df['method'] == method_type]['horizon'].unique()
     cutoffs = [pd.to_datetime(cutoff) for cutoff in cutoffs]
     horizon = int(metadata['horizon'])
 
     total_metrics = compute_error_metrics_cutoffs(
-        df_=df_results, cutoffs=cutoffs, horizon=horizon,
+        df_=df_results, cutoffs=cutoffs, horizon=horizon, target=target,
         key_actual=f'{target}_actual', key_fitted=f'{target}_fitted'
     )
     total_metrics = retain_most_recent_entries(total_metrics, N=horizon)
@@ -293,10 +285,10 @@ def publish_offshore_wind_generation():
 
     # ----------- COMPUTE SMARD ERROR OVER THE LAST N HORIZONS ------------------ #
 
-    df_smard = pd.read_parquet('database/' + 'smard/' + 'history.parquet')
+    df_smard = pd.read_parquet(database_dir + 'smard/' + 'history.parquet')
 
     smard_metrics = compute_error_metrics_cutoffs(
-        df_=df_smard,  cutoffs=cutoffs, horizon=horizon,
+        df_=df_smard,  cutoffs=cutoffs, horizon=horizon, target=target,
         key_actual=target, key_fitted=f"{target}_forecasted"
     )
 
@@ -305,48 +297,66 @@ def publish_offshore_wind_generation():
 
     print(f'Average over {n_folds} SMARD RMSE for {target} is {ave_smard_metric}')
 
-
     table = pd.DataFrame(table)
 
-    for ftype in ['forecast.csv', 'result.csv']:
-        for var, region in zip(['wind_offshore_tenn', 'wind_offshore_50hz', 'wind_offshore'],
-                               ['TenneT', '50Hz', 'Total']):
+    # ----------- CONVERT FORECASTS CSV TO JSON FOR WEBPAGE ------------------ #
 
-            if region != 'Total':
-                model_label = str(table[table['TSO/Region']==region]['Best Model'].values[0])
-                df = pd.read_csv(
-                    f'forecasting_modules/output/{var}/{model_label}/forecast/{ftype}',
-                    index_col=0,
-                    parse_dates=True
-                )[:pd.Timestamp(datetime.today(),tz='UTC') + timedelta(days=7)]
-            else:
-                var, region = 'wind_offshore_50hz', '50Hz'
-                model_label = str(table[table['TSO/Region']==region]['Best Model'].values[0])
-                df1 = pd.read_csv(
-                    f'forecasting_modules/output/{var}/{model_label}/forecast/{ftype}',
-                    index_col=0,
-                    parse_dates=True
-                )[:pd.Timestamp(datetime.today(),tz='UTC') + timedelta(days=7)]
-                df1.columns = [ col.replace('_50hz', '') for col in df1.columns ]
+    possible_types = ['forecast.csv', 'result.csv']
 
-                var, region = 'wind_offshore_tenn', 'TenneT'
-                model_label = str(table[table['TSO/Region']==region]['Best Model'].values[0])
-                df2 = pd.read_csv(
-                    f'forecasting_modules/output/{var}/{model_label}/forecast/{ftype}',
-                    index_col=0,
-                    parse_dates=True
-                )[:pd.Timestamp(datetime.today(),tz='UTC') + timedelta(days=7)]
-                df2.columns = [ col.replace('_tenn', '') for col in df2.columns ]
-                df = df1 + df2
-                var = 'wind_offshore'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # For each TSO
+    for region in regions:
+        key = mapping_key[region]
+        region = mapping_reg[region]
+        var = target + '_' + region
+        output_dir_ = output_dir + var + '/'
+
+        for ftype in possible_types:
+            model_label = str(table[table['TSO/Region']==key]['Best Model'].values[0])
+            df = pd.read_csv(
+                f'{results_root_dir}/{var}/{model_label}/forecast/{ftype}',
+                index_col=0,
+                parse_dates=True
+            )[:pd.Timestamp(datetime.today(),tz='UTC') + timedelta(days=7)]
 
             convert_csv_to_json(
                 df = df,
                 target=var,
-                output_dir='deploy/data/forecasts/',
-                prefix = 'XGBoost_curr' if ftype == 'forecast.csv' else 'XGBoost_prev',
+                output_dir=output_dir_,
+                prefix = 'forecast_curr' if ftype == 'forecast.csv' else 'forecast_prev',
                 cols=[f"fitted", f"lower", f"upper"] if ftype == 'forecast.csv' else [f"actual", f"fitted"]#[f"actual", f"fitted", f"lower", f"upper"]
             )
+
+    # Compute total
+    output_dir_ = output_dir + target + '/'
+    for ftype in possible_types:
+        df = pd.DataFrame
+        for region in regions:
+            key = mapping_key[region]
+            region = mapping_reg[region]
+            var = target + '_' + region
+
+            model_label = str(table[table['TSO/Region']==key]['Best Model'].values[0])
+            df1 = pd.read_csv(
+                f'{results_root_dir}/{var}/{model_label}/forecast/{ftype}',
+                index_col=0,
+                parse_dates=True
+            )[:pd.Timestamp(datetime.today(),tz='UTC') + timedelta(days=7)]
+            df1.columns = [ col.replace(f'_{region}', '') for col in df1.columns ]
+
+            if df.empty:df = df1.copy()
+            else: df = df + df1.copy()
+
+        convert_csv_to_json(
+            df = df,
+            target=target,
+            output_dir=output_dir_,
+            prefix = 'forecast_curr' if ftype == 'forecast.csv' else 'forecast_prev',
+            cols=[f"fitted", f"lower", f"upper"] if ftype == 'forecast.csv' else [f"actual", f"fitted"]#[f"actual", f"fitted", f"lower", f"upper"]
+        )
+
 
     # print(table)
     # Rename values starting with 'meta_' to 'Ensemble'
@@ -354,28 +364,30 @@ def publish_offshore_wind_generation():
     # Round floating point values to integers
     table["Average RMSE"] = table["Average RMSE"].round().astype(int)
     # Save as markdown
-    summary_fpath = 'deploy/data/forecasts/wind_offshore_notes.md'
+    summary_fpath = f'{output_dir}/wind_offshore_notes.md'
     table.to_markdown(summary_fpath, index=False)
 
     intro_sentences = \
     f"""
-<h3>Summary</h3>
-Our _week-ahead_ Offshore Wind Generation forecast has RMSE of __{ave_total_metric:.0f}__.  
-SMARD _day-ahead_ forecast has average accuracy of __{ave_smard_metric:.0f}__. 
-    
-<ul>
-    <li>Key properties of the forecasting pipeline</li>
-    <ul>
-        <li>raw and/or engineered weather features</li>
-        <li>multiple windfarm locations</li>
-        <li>hyperparameter for models and features (tuned with Optuna)</li>
-        <li>multi-step single target forecasting (168 timesteps)</li>
-        <li>ensemble models trained on OOS forecasts</li>
-        <li>total wind power is obtained as a sum of contibutions from TSO regions</li>
-    </ul>
-</ul>
-    
-<h3> Forecast for each TSO </h3>
+### Total Offshore Wind Power Forecast Performance
+
+Our __week-ahead__ forecast has average RMSE of __{ave_total_metric:.0f}__ 
+(last week it was {total_metrics[list(total_metrics.keys())[-1]][metric]:.0f}). 
+ 
+SMARD __day-ahead__ forecast has average accuracy of __{ave_smard_metric:.0f}__ 
+(last week it was {smard_metrics[list(smard_metrics.keys())[-1]][metric]:.0f}). 
+
+
+### Key properties of the forecasting pipeline
+- raw and/or engineered weather features;
+- multiple windfarm locations for each TSO region;
+- hyperparameter for models and features (tuned with Optuna);
+- multi-step single target forecasting (168 timesteps);
+- ensemble models trained on OOS forecasts;
+- total wind power is a sum of contributions from TSO regions.
+
+
+### Forecast for each TSO
     """
 
     # Reading the markdown content
@@ -386,6 +398,10 @@ SMARD _day-ahead_ forecast has average accuracy of __{ave_smard_metric:.0f}__.
     # Saving the updated markdown content
     with open(summary_fpath, "w") as file:
         file.write(updated_markdown_content)
+
+
+class PublishDataForDeployment:
+    pass
 
 if __name__ == '__main__':
     publish_offshore_wind_generation()

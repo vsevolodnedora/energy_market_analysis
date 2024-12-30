@@ -27,6 +27,8 @@ shap = "*"
 prophet = "*"
 optuna = "*"
 mapie = "*"
+statsmodels = "*"
+tabulate = "*"
 
 [dev-packages]
 

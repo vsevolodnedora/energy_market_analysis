@@ -15,3 +15,6 @@ from .utils import (
 from .tasks import (
     ForecastingTaskSingleTarget
 )
+from .interface import (
+    update_forecasts
+)

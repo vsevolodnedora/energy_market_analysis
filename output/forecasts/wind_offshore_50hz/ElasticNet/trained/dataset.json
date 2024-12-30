@@ -1,0 +1,28 @@
+{
+    "log_target": true,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "copy_input": true,
+    "locations": [
+        "Wikinger Offshore Wind Farm",
+        "Arkona Wind Farm"
+    ],
+    "add_cyclical_time_features": true,
+    "feature_engineer": "WeatherFeatureEngineer",
+    "target": "wind_offshore_50hz",
+    "verbose": true,
+    "compute_air_density": true,
+    "compute_wind_power_density": true,
+    "encode_wind_direction": false,
+    "compute_wind_shear": false,
+    "compute_wind_ramp": true,
+    "compute_turbulence_intensity": true,
+    "turbulence_window": 2,
+    "lags_option": "none",
+    "drop_raw_features": true,
+    "spatial_method": "mean",
+    "lags_target": 6,
+    "l1_ratio": 0.8280532422375056,
+    "alpha": 0.00964906025761697
+}

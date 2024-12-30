@@ -1,0 +1,21 @@
+{
+    "compute_air_density": false,
+    "compute_wind_power_density": true,
+    "encode_wind_direction": true,
+    "compute_wind_shear": true,
+    "compute_wind_ramp": true,
+    "compute_turbulence_intensity": true,
+    "turbulence_window": 2,
+    "lags_option": "none",
+    "drop_raw_features": false,
+    "spatial_method": "idw-c",
+    "lags_target": null,
+    "n_estimators": 825,
+    "learning_rate": 0.03615797528811556,
+    "max_depth": 7,
+    "min_child_weight": 5,
+    "subsample": 0.9084523509841695,
+    "colsample_bytree": 0.8132150489180872,
+    "reg_alpha": 0.4979528130541586,
+    "reg_lambda": 0.0003014233598844069
+}

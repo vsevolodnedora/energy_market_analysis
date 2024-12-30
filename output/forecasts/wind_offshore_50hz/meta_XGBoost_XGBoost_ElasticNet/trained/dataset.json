@@ -1,0 +1,26 @@
+{
+    "log_target": true,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "add_cyclical_time_features": true,
+    "locations": [
+        "Wikinger Offshore Wind Farm",
+        "Arkona Wind Farm"
+    ],
+    "feature_engineer": null,
+    "lags_target": null,
+    "copy_input": true,
+    "target": "wind_offshore_50hz",
+    "verbose": true,
+    "n_estimators": 332,
+    "learning_rate": 0.030739712948453787,
+    "max_depth": 8,
+    "min_child_weight": 3,
+    "subsample": 0.6420295339091361,
+    "colsample_bytree": 0.6875275704705335,
+    "reg_alpha": 0.12516420888326527,
+    "reg_lambda": 0.15357459461093045,
+    "use_base_models_pred_intervals": false,
+    "cv_folds_base": 35
+}

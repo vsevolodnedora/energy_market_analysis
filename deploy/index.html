@@ -9,127 +9,230 @@
   <script src="https://cdn.jsdelivr.net/npm/showdown/dist/showdown.min.js"></script>
   
   <style>
+    
     body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+      color: #333;
+      line-height: 1.6;
       transition: background-color 0.3s, color 0.3s;
     }
-    .error {
-      color: red;
-      font-weight: bold;
-    }
-    .dark-mode {
+
+    body.dark-mode {
       background-color: #202020;
       color: #e0e0e0;
     }
-    .dark-mode .error {
-      color: #ff6666;
+
+    header {
+      background: linear-gradient(90deg, #bebebe, #bb92fd);
+      color: #fff;
+      padding: 20px 10%;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
+
+    header h1 {
+      margin: 0;
+      font-size: 2rem;
+    }
+
+    header p {
+      margin: 10px 0 0;
+      font-size: 1rem;
+    }
+
     details {
-      margin-bottom: 20px;
-      border: 1px solid #797979;
-      border-radius: 5px;
+      margin: 10px 10px;
       padding: 10px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+      transition: background-color 0.3s, color 0.3s;
+      
     }
+
     details summary {
+      font-size: 1.2rem;
+      font-weight: bold;
       cursor: pointer;
-      font-size: 1.1rem;
-      outline: none; /* to remove the default Chrome outline */
+      margin-bottom: 5px;
     }
+
     .chart-container {
       margin-top: 15px;
     }
-    .markdown-container {
-        margin-top: 15px;
-        padding: 10px;
-        background-color: #f9f9f9;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        font-size: 0.9rem;
-        line-height: 1.6;
-      }
-      .dark-mode .markdown-container {
-        background-color: #444444;
-        border-color: #444;
-        color: #e0e0e0;
-      }
-      .markdown-container h2 {
-        font-size: 1.2rem;
-        margin-top: 1em;
-      }
-      .markdown-container p {
-        margin: 0.5em 0;
-      }
-      .chart-description-separator {
-        border: none;
-        height: 2px;
-        background-color: #ccc;
-        margin: 20px 0;
-    }
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 20px 0;
-    }
-      
-    th, td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: left;
-    }
-      
-    th {
-        background-color: #f4f4f4;
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      justify-content: center;
+      align-items: center;
     }
 
-    /* Blockquote */
-    blockquote {
-        border-left: 4px solid #ccc;
-        margin: 1em 0;
-        padding-left: 1em;
-        font-style: italic;
-        color: #555;
+    .controls-label {
+      margin-right: 1rem;
+      
+    }
+
+    .controls-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .slider-container {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .wrapper {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
     }
     
-    /* Header 3 */
-    h3 {
-        font-size: 1.25em;
-        margin-top: 1em;
-        margin-bottom: 0.5em;
+    body.dark-mode details {
+      background: #333;
+      border-color: #555;
+      color: #e0e0e0;
     }
-    
-    /* Ensure other headers are styled properly */
-    h1, h2, h3, h4, h5, h6 {
-        margin-top: 1em;
-        margin-bottom: 0.5em;
+
+    #disclaimer {
+      font-size: 0.9rem;
+      text-align: center;
+      margin-top: 40px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-top: 1px solid #ddd;
+      transition: background-color 0.3s, color 0.3s;
     }
+
+    body.dark-mode #disclaimer {
+      background: #333;
+      color: #e0e0e0;
+      border-color: #555;
+    }
+
+    #disclaimer a {
+      color: #007BFF;
+      text-decoration: none;
+    }
+
+    body.dark-mode #disclaimer a {
+      color: #66b2ff;
+    }
+
+    #disclaimer a:hover {
+      text-decoration: underline;
+    }
+
+    #github-logo-container {
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    #github-logo {
+      width: 40px;
+      height: 40px;
+    }
+
+    #source-code-text {
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    #source-code-text a {
+      color: #007BFF;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    body.dark-mode #source-code-text a {
+      color: #66b2ff;
+    }
+
+    #source-code-text a:hover {
+      text-decoration: underline;
+    }
+
+    .settings-frame {
+      text-align: center;
+      margin: 10px 0;
+    }
+
+    .settings-frame input {
+      margin-left: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+
+    table th, table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    table th {
+      background-color: #f4f4f4;
+      color: #333;
+    }
+
+    body.dark-mode table th {
+      background-color: #444;
+      color: #e0e0e0;
+    }
+
+    body.dark-mode table td {
+      border-color: #555;
+    }
+
   </style>
 </head>
+
 <body class="dark-mode">
+
+  <header>
+    <h1>German Energy Market Predictive Analytics</h1>
+    <p>Explore detailed forecasts and insights into the energy market.</p>
+    <p>Forecasts are updated daily using the latest data. 
+      For the source code and method description see <div id="source-code-text">
+        <a href="https://github.com/vsevolodnedora/energy_market_analysis" target="_blank">
+          GitHub
+        </a>
+      </div>
+    </p>
+  </header>
+
   <div class="settings-frame">
-    <label
-      ><input
-        type="checkbox"
-        id="dark-mode-toggle"
-        unchecked
-        onchange="toggleDarkMode()"
-      />
-      Dark Mode</label
-    >
+    <label>
+      <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode()"> Dark Mode
+    </label>
   </div>
 
-  <h1>German Energy Market Predictive Analytics</h1>
-
-  <div id="error-message" class="error"></div>
-
-
+  <div id="error-message"></div>
 
   <!-- First chart collapsible -->
   <details open>
     <summary>Offshore Wind Power Forecast</summary>
     <div class="chart-container" id="chart1"></div>
-
-    <!-- You can replicate some of your controls here if needed -->
+  
+    
     <div class="controls">
       <span class="controls-label">TSO Area:</span>
       <div class="controls-buttons">
@@ -138,6 +241,7 @@
         <label><input type="checkbox" id="total-checkbox-1" checked onchange="updateChart1()"> Total</label>
       </div>
     </div>
+    
     <div class="slider-container">
       <label for="past-data-slider-1">Amount of past data to show:</label>
       <input
@@ -150,28 +254,20 @@
         onchange="updateChart1()"
       />
     </div>
-    
-    <!-- Divider to separate chart and description -->
-    <hr class="chart-description-separator">
-
-    <!-- Separate toggle for chart description -->
+  
     <details id="chart1-description-details">
-        <summary>Show/Hide Description</summary>
-        <div id="chart1-description-container">
-          <!-- The markdown file content will be loaded here dynamically -->
-        </div>
+      <summary>Show/Hide Description</summary>
+      <div id="chart1-description-container">
+        <!-- Markdown content will be dynamically loaded here -->
+      </div>
     </details>
-      
   </details>
-
-
 
   <!-- Second chart collapsible -->
   <details>
     <summary>Onshore Forecast (PLACEHOLDER)</summary>
     <div class="chart-container" id="chart2"></div>
 
-    <!-- Potentially different (or same) controls for the second chart -->
     <div class="controls">
       <span class="controls-label">TSO Area:</span>
       <div class="controls-buttons">
@@ -194,13 +290,33 @@
     </div>
   </details>
 
+  <div id="disclaimer">
+    Data sources: 
+    <a href="https://transparency.entsoe.eu" target="_blank">ENTSO-E</a>, 
+    <a href="https://www.smard.de/home" target="_blank">SMARD</a>, 
+    <a href="https://open-meteo.com/" target="_blank">openmeteo</a>, 
+    <a href="https://www.epexspot.com/en" target="_blank">EPEXSPOT</a>, 
+    <a href="https://www.eex.com/en/" target="_blank">EEX</a>
+  </div>
 
+  <div id="github-logo-container">
+    <a href="https://github.com/vsevolodnedora/energy_market_analysis" target="_blank">
+      <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub Repo" id="github-logo">
+    </a>
+  </div>
 
+  <!-- <div id="source-code-text">
+    <a href="https://github.com/vsevolodnedora/energy_market_analysis" target="_blank">
+      vsevolodnedora/energy_market_analysis
+    </a>
+  </div> -->
   <!-- =====================================| SCRIPT |=====================================  -->
 
 
   <script>
     
+    baseUrl = "https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/"
+
     let isDarkMode = true;
 
     // A helper to track whether each chart was created
@@ -276,7 +392,7 @@
 
     // Helper function to load Markdown from a given URL, parse it, and insert into container
     async function loadMarkdown(url, containerId) {
-        const fallbackUrl = "https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/" + url;
+        const fallbackUrl = baseUrl + url;
     
         try {
             // Attempt to fetch the file from the local path
@@ -342,7 +458,7 @@
     const colorMap = {
       'wind_offshore_50hz': '#1E90FF',
       'wind_offshore_tenn': '#FF6347',
-      'wind_offshore': '#2E8B57'
+      'wind_offshore': '#9370DB', // '#2E8B57'
     };
 
     const aliases = {
@@ -366,12 +482,12 @@
       const pastDataRatio = document.getElementById('past-data-slider-1').value / 100;
 
       // Reuse the same logic you had for adding series
-      async function addSeries(variable, pastFile, currentFile, lowerFile, upperFile) {
+      async function addSeries(variable, pastFile, pastActualFile, currentFile, lowerFile, upperFile) {
         const baseColor = colorMap[variable];
         const alias = aliases[variable];
 
         const pastFittedData = await fetchData(variable, pastFile);
-        const pastActualData = await fetchData(variable, 'XGBoost_prev_actual.json');
+        const pastActualData = await fetchData(variable, pastActualFile);
         const currentData = await fetchData(variable, currentFile);
         const lowerData = await fetchData(variable, lowerFile);
         const upperData = await fetchData(variable, upperFile);
@@ -452,28 +568,31 @@
       if (show50hz) {
         await addSeries(
           'wind_offshore_50hz',
-          'XGBoost_prev_fitted.json',
-          'XGBoost_curr_fitted.json',
-          'XGBoost_curr_lower.json',
-          'XGBoost_curr_upper.json'
+          'forecast_prev_fitted.json',
+          'forecast_prev_actual.json',
+          'forecast_curr_fitted.json',
+          'forecast_curr_lower.json',
+          'forecast_curr_upper.json'
         );
       }
       if (showTenn) {
         await addSeries(
           'wind_offshore_tenn',
-          'XGBoost_prev_fitted.json',
-          'XGBoost_curr_fitted.json',
-          'XGBoost_curr_lower.json',
-          'XGBoost_curr_upper.json'
+          'forecast_prev_fitted.json',
+          'forecast_prev_actual.json',
+          'forecast_curr_fitted.json',
+          'forecast_curr_lower.json',
+          'forecast_curr_upper.json'
         );
       }
       if (showTotal) {
         await addSeries(
           'wind_offshore',
-          'XGBoost_prev_fitted.json',
-          'XGBoost_curr_fitted.json',
-          'XGBoost_curr_lower.json',
-          'XGBoost_curr_upper.json'
+          'forecast_prev_fitted.json',
+          'forecast_prev_actual.json',
+          'forecast_curr_fitted.json',
+          'forecast_curr_lower.json',
+          'forecast_curr_upper.json'
         );
       }
 
@@ -496,7 +615,11 @@
         yaxis: {
           title: {
             text: 'Offshore Wind Power',
-            style: { color: isDarkMode ? '#e0e0e0' : '#000' }
+            style: { 
+              color: isDarkMode ? '#e0e0e0' : '#000',
+              fontSize: '14px', // Optional, if not using CSS
+              cssClass: 'custom-yaxis-title'
+           }
           },
           labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } }
         },
@@ -573,7 +696,10 @@
         yaxis: {
           title: {
             text: 'Offshore Wind Power',
-            style: { color: isDarkMode ? '#e0e0e0' : '#000' }
+            style: {
+              color: isDarkMode ? '#e0e0e0' : '#000',
+              fontSize: '16px' // Adjust font size as needed
+            }
           },
           labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } }
         },
@@ -622,6 +748,8 @@
     
       toggleDarkMode();
   
-    </script>
+  </script>
+
+    
 </body>
 </html>

@@ -13,7 +13,13 @@ from data_collection_modules import (
     update_entsoe_from_api
 )
 
+from forecasting_modules import (
+    update_forecasts
+)
 
+from publish_data import (
+    publish_offshore_wind_generation
+)
 
 if __name__ == '__main__':
 
@@ -56,5 +62,10 @@ if __name__ == '__main__':
         update_entsoe_from_api(today=today, data_dir=db_path + 'entsoe/', api_key=entsoe_api_key, verbose=verbose)
 
         # update forecasts
+        update_forecasts(database=db_path, outdir='./output/forecasts/', verbose=verbose)
 
         # serve forecasts
+        publish_offshore_wind_generation(results_root_dir = './output/forecasts/', database_dir = db_path,
+                                         output_dir = './deploy/data/forecasts/')
+
+        print(f"All tasks completed successfully!")

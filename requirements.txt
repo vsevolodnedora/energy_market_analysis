@@ -24,3 +24,4 @@ optuna
 mapie
 seaborn
 statsmodels
+tabulate

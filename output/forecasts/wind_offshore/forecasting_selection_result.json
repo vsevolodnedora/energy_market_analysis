@@ -1,0 +1,16 @@
+{
+    "Weighted Mean RMSE": "XGBoost",
+    "Weighted Mean SMAPE": "XGBoost",
+    "Weighted Median RMSE": "ElasticNet",
+    "Weighted Median SMAPE": "ensemble[XGBoost](XGBoost,ElasticNet)",
+    "Recent Worst-Case RMSE": "ensemble[XGBoost](XGBoost,ElasticNet)",
+    "Recent Worst-Case SMAPE": "ensemble[XGBoost](XGBoost,ElasticNet)",
+    "Weighted Std of RMSE": "XGBoost",
+    "Weighted CV of RMSE": "XGBoost",
+    "Weighted Std of SMAPE": "ensemble[ElasticNet](XGBoost,ElasticNet)",
+    "Weighted CV of SMAPE": "ensemble[ElasticNet](XGBoost,ElasticNet)",
+    "Weighted Pairwise Comparison RMSE": "ElasticNet",
+    "Weighted Pairwise Comparison SMAPE": "ElasticNet",
+    "Recent Friedman Test RMSE": "Not enough data",
+    "Recent Friedman Test SMAPE": "Not enough data"
+}

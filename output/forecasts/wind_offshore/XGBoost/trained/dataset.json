@@ -1,0 +1,14 @@
+{
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "limit_pca_to_features": null,
+    "feature_pca_pars": null,
+    "fourier_features": {},
+    "add_cyclical_time_features": true,
+    "lags_target": 24,
+    "log_target": true,
+    "copy_input": true,
+    "target": "wind_offshore",
+    "verbose": true
+}

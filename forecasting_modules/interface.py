@@ -245,6 +245,124 @@ def process_task_list(task_list:list, outdir:str, database:str, verbose:bool):
             processor.process_task_determine_the_best_model(task, outdir=outdir+target+'/')
 
 
+
+def update_forecasts(database:str, outdir:str, verbose:bool):
+    cv_folds_ft = 3
+    cv_folds_eval = 5
+    task_list = [
+        {
+            "target": "wind_offshore_tenn",
+            "region": "DE_TENNET",
+            "label": "Wind off-shore [MW]",
+            "task_fine_tuning":[
+                # {'model':'Prophet',
+                #  'dataset_pars':{
+                #      'forecast_horizon':None,
+                #      'target_scaler':'StandardScaler',
+                #      'feature_scaler':'StandardScaler',
+                #      'feature_pca_pars' : None,
+                #      'limit_pca_to_features':None,#'weather',
+                #      'fourier_features' : {'period':24, 'order':3},
+                #      'add_cyclical_time_features':True,
+                #      'lags_target':None,'log_target':True,
+                #      'copy_input':True
+                #  },
+                # 'finetuning_pars':{'n_trials':120,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+
+                # {'model':'XGBoost',
+                #  'dataset_pars':{
+                #      'log_target':True,
+                #      'forecast_horizon':None,
+                #      'target_scaler':'StandardScaler',
+                #      'feature_scaler':'StandardScaler',
+                #      'copy_input':True,
+                #      'locations':[loc['name'] for loc in offshore_windfarms if loc['TSO']=='TenneT'],
+                #      'add_cyclical_time_features':True,
+                #      'feature_engineer':'WeatherFeatureEngineer'
+                #  },
+                #  'finetuning_pars':{'n_trials':100,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+                #
+                # {'model':'ElasticNet',
+                #  'dataset_pars':{
+                #      'log_target':True,
+                #      'forecast_horizon':None,
+                #      'target_scaler':'StandardScaler',
+                #      'feature_scaler':'StandardScaler',
+                #      'copy_input':True,
+                #      'locations':[loc['name'] for loc in offshore_windfarms if loc['TSO']=='TenneT'],
+                #      'add_cyclical_time_features':True,
+                #      'feature_engineer':'WeatherFeatureEngineer'
+                #  },
+                #  'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+                #
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)',
+                #  'dataset_pars': {
+                #      'log_target':True,
+                #      'forecast_horizon':None,
+                #      'target_scaler':'StandardScaler',
+                #      'feature_scaler':'StandardScaler',
+                #      'add_cyclical_time_features':True,
+                #      'locations':[loc for loc in offshore_windfarms if loc['TSO']=='TenneT'],
+                #      'feature_engineer': None,#'WeatherFeatureEngineer',
+                #      'lags_target': None,
+                #      'copy_input':True
+                #  },
+                #  'finetuning_pars':{'n_trials':25,
+                #                     'optim_metric':'rmse',
+                #                     'cv_folds':cv_folds_ft,
+                #                     'cv_folds_base':35, # at least cv_folds_eval + 1
+                #                     'use_base_models_pred_intervals':False}}
+            ],
+            "task_training":[
+                # {'model':'Prophet', 'pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'XGBoost', 'pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'ElasticNet', 'pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','pars':{'cv_folds':cv_folds_eval}}
+            ],
+            "task_forecasting":[
+                # {'model':'Prophet'},
+                {'model':'XGBoost', 'past_folds':cv_folds_eval},
+                {'model':'ElasticNet', 'past_folds':cv_folds_eval},
+                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','past_folds':cv_folds_eval},
+                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','past_folds':cv_folds_eval}
+            ],
+            "task_plot":[
+                # {'model':'Prophet', 'n':2,
+                #  'name':"Prophet",'lw':0.7,'color':"red",'ci_alpha':0.0},
+                # {'model':'XGBoost','n':2,
+                #  'name':'XGBoost','lw':0.7,'color':"green",'ci_alpha':0.0,
+                #  'train_forecast':'train'},
+                # {'model':'ElasticNet','n':2,
+                #  'name':'ElasticNet','lw':0.7,'color':"blue",'ci_alpha':0.0,
+                #  'train_forecast':'train'},
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','n':2,
+                #  'name':'Ensemble','lw':1.0,'color':"purple",'ci_alpha':0.2,
+                #  'train_forecast':'train'},
+                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','n':2,
+                #  'name':'Ensemble','lw':1.0,'color':"magenta",'ci_alpha':0.2,
+                #  'train_forecast':'train'},
+            ],
+            "task_summarize":[
+                # {'model':'Prophet', 'pars':{'cv_folds':5}},
+                {'model':'XGBoost', 'summary_metric':'rmse'},
+                {'model':'ElasticNet', 'summary_metric':'rmse'},
+                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)', 'summary_metric':'rmse'},
+                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)', 'summary_metric':'rmse'},
+            ]
+        }
+    ]
+
+    process_task_list(task_list=task_list, outdir=outdir, database=database, verbose=verbose)
+
+    for t in task_list:
+        t['target'] = "wind_offshore_50hz"
+        t['region'] = "DE_50HZ"
+        for tt in t['task_fine_tuning']:
+            tt['dataset_pars']['locations'] = [loc['name'] for loc in offshore_windfarms if loc['TSO']=='50Hertz']
+
+    process_task_list(task_list=task_list, outdir=outdir, database=database, verbose=verbose)
+
 def main():
 
     cv_folds_ft = 3
@@ -361,7 +479,7 @@ def main():
         for tt in t['task_fine_tuning']:
             tt['dataset_pars']['locations'] = [loc['name'] for loc in offshore_windfarms if loc['TSO']=='50Hertz']
 
-    process_task_list(task_list=task_list, outdir='./output/', database='../database/', verbose=True)
+    process_task_list(task_list=task_list, outdir='../output/', database='../database/', verbose=True)
 
 if __name__ == '__main__':
     main()
