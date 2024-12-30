@@ -1,8 +1,7 @@
 import copy
 import joblib
 import pandas as pd, numpy as np, matplotlib.pyplot as plt
-from future.backports.datetime import timedelta
-
+from datetime import datetime, timedelta
 from sklearn.linear_model import ElasticNetCV, ElasticNet, Ridge
 from mapie.regression import MapieRegressor
 import xgboost as xgb
