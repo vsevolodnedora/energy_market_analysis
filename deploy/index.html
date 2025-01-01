@@ -9,334 +9,526 @@
   <script src="https://cdn.jsdelivr.net/npm/showdown/dist/showdown.min.js"></script>
   
   <style>
-    
-    body {
-      font-family: 'Arial', sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #f4f4f4;
-      color: #333;
-      line-height: 1.6;
-      transition: background-color 0.3s, color 0.3s;
-    }
 
-    body.dark-mode {
-      background-color: #202020;
-      color: #e0e0e0;
-    }
+<!--    HEARDER -->
+/* General body styles */
+body {
+  font-family: 'Arial', sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f4f4f4;
+  color: #333;
+  line-height: 1.6;
+  transition: background-color 0.3s, color 0.3s;
 
-    header {
-      background: linear-gradient(90deg, #bebebe, #bb92fd);
-      color: #fff;
-      padding: 20px 10%;
-      text-align: center;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
+}
 
-    header h1 {
-      margin: 0;
-      font-size: 2rem;
-    }
+body.dark-mode {
+  background-color: #202020;
+  color: #e0e0e0;
+}
 
-    header p {
-      margin: 10px 0 0;
-      font-size: 1rem;
-    }
+/* Header styles for default mode */
+header {
+  background: linear-gradient(0deg, #ffffff, #e6d1fa);
+  color: #333;
+  padding: 10px; /* Consistent padding */
+  text-align: center;
+  border-radius: 10px; /* Rounded edges for the header */
+  margin: 10px 10px; /* Same margin as details */
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.15); /* Enhanced soft shadow for separation */
+  border-bottom: none; /* No border line */
+  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+}
 
-    details {
-      margin: 10px 10px;
-      padding: 10px;
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-      transition: background-color 0.3s, color 0.3s;
-      
-    }
+header h1 {
+  margin: 0;
+  font-size: 2.5rem;
+  font-weight: bold;
+  line-height: 1.2;
+}
 
-    details summary {
-      font-size: 1.2rem;
-      font-weight: bold;
-      cursor: pointer;
-      margin-bottom: 5px;
-    }
+header p {
+  margin: 10px 0;
+  font-size: 1.2rem;
+}
 
-    .chart-container {
-      margin-top: 15px;
-    }
+/* CTA Link for default mode */
+header .cta-link {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 10px 20px;
+  background-color: #6a1b9a;
+  color: #fff;
+  text-decoration: none;
+  font-weight: bold;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s, transform 0.3s;
+}
 
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 1rem;
-      margin-bottom: 1rem;
-      justify-content: center;
-      align-items: center;
-    }
+header .cta-link:hover {
+  background-color: #5a1782;
+  transform: translateY(-2px);
+}
+
+/* Header styles for dark mode */
+body.dark-mode header {
+  background: linear-gradient(90deg, #000000, #44405c); /* Dark mode gradient */
+  color: #e0e0e0;
+  box-shadow: 0px 1px 3px rgba(255, 255, 255, 0.1); /* Soft light shadow */
+  border-bottom: none; /* Ensure no border */
+  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+}
+
+
+body.dark-mode header .cta-link {
+  background-color: #9e7bd4;
+  color: #202020;
+}
+
+body.dark-mode header .cta-link:hover {
+  background-color: #8465b6;
+}
+
+
+/* Forecast section container */
+.forecast-section {
+  margin-top: 10px;
+  padding: 15px;
+  background: #f9f9f9; /* Light background for separation */
+  border: 1px solid #ddd; /* Subtle border */
+  border-radius: 8px; /* Rounded edges for modern look */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Soft shadow */
+  transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+/* Hover effect for better visual feedback */
+.forecast-section:hover {
+  background-color: #fff; /* Slightly brighter on hover */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Enhanced shadow */
+}
+
+/* Control area for grouping */
+.control-area {
+  margin-top: 15px;
+  margin-left: 10px;
+   margin-right: 10px;
+  padding: 10px;
+  background: #f6f6f6; /* Slightly darker than forecast-section */
+  border-radius: 8px;
+  border: 1px solid #ccc;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); /* Enhanced shadow */
+
+}
+
+/* Nested details styling */
+#chart1-description-details {
+  margin-top: 15px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #f6f6f6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+/* Forecast section in dark mode */
+body.dark-mode .forecast-section {
+  background: #202020; /* Dark background for the section */
+  border: 1px solid #555; /* Subtle border */
+  box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1); /* Light shadow */
+  color: #e0e0e0; /* Light text for contrast */
+}
+
+body.dark-mode .forecast-section:hover {
+  background: #2a2a2a; /* Slightly lighter on hover */
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.15); /* Enhanced hover shadow */
+}
+
+/* Control area in dark mode */
+body.dark-mode .control-area {
+  background: #252525; /* Darker background for controls */
+  border: 1px solid #444; /* Subtle border */
+  color: #d0d0d0; /* Lighter text for readability */
+}
+
+/* Nested details in dark mode */
+body.dark-mode #chart1-description-details {
+  background: #252525; /* Matches control area */
+  border: 1px solid #444; /* Subtle border */
+  box-shadow: 0 1px 3px rgba(255, 255, 255, 0.1); /* Light shadow for separation */
+  color: #d0d0d0; /* Light text for contrast */
+}
+
+/* Adjust input labels and text in dark mode */
+body.dark-mode label,
+body.dark-mode .controls-label {
+  color: #e0e0e0; /* Adjust text labels for visibility */
+}
+
+/* Adjust input sliders in dark mode */
+body.dark-mode input[type="range"] {
+  background-color: #444; /* Darker slider track */
+  border: 1px solid #666; /* Subtle border for the slider */
+}
+
+
+        details {
+          margin: 10px 10px;
+          padding: 10px;
+          background: #fff;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+          transition: background-color 0.3s, color 0.3s;
+
+        }
+
+        details summary {
+          font-size: 1.2rem;
+          font-weight: bold;
+          cursor: pointer;
+          margin-bottom: 5px;
+        }
+
+        .chart-container {
+          margin-top: 15px;
+        }
+
+        .controls {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 1rem;
+          margin-bottom: 1rem;
+          justify-content: center;
+          align-items: center;
+        }
+
+        .controls-label {
+          font-weight: bold;
+          margin-right: 1rem;
+        }
+
+        .controls-buttons {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+
+        .apexcharts-area-series path {
+          stroke: transparent !important;
+        }
+        .chart-container path {
+          fill-opacity: 0.3 !important;
+          stroke-width: 4px; /* Border thickness */
+        }
+
+        .slider-container {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.5rem;
+          justify-content: center;
+          align-items: center;
+        }
+
+        .wrapper {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+        }
+
+        body.dark-mode details {
+          background: #333;
+          border-color: #555;
+          color: #e0e0e0;
+        }
+
+        #disclaimer {
+          font-size: 0.9rem;
+          text-align: center;
+          margin-top: 40px;
+          padding: 10px;
+          background: #f8f9fa;
+          border-top: 1px solid #ddd;
+          transition: background-color 0.3s, color 0.3s;
+        }
+
+        body.dark-mode #disclaimer {
+          background: #333;
+          color: #e0e0e0;
+          border-color: #555;
+        }
+
+        #disclaimer a {
+          color: #007BFF;
+          text-decoration: none;
+        }
+
+        body.dark-mode #disclaimer a {
+          color: #66b2ff;
+        }
+
+        #disclaimer a:hover {
+          text-decoration: underline;
+        }
+
+        #github-logo-container {
+          text-align: center;
+          margin-top: 10px;
+        }
+
+        #github-logo {
+          width: 40px;
+          height: 40px;
+        }
+
+        #source-code-text {
+          text-align: center;
+          margin-top: 10px;
+        }
+
+        #source-code-text a {
+          color: #007BFF;
+          text-decoration: none;
+          font-weight: bold;
+        }
+
+        body.dark-mode #source-code-text a {
+          color: #66b2ff;
+        }
+
+        #source-code-text a:hover {
+          text-decoration: underline;
+        }
+
+        .settings-frame {
+          text-align: center;
+          margin: 10px 0;
+        }
+
+        .settings-frame input {
+          margin-left: 10px;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 20px 0;
+        }
+
+        table th, table td {
+          border: 1px solid #ddd;
+          padding: 8px;
+          text-align: left;
+        }
+
+        table th {
+          background-color: #f4f4f4;
+          color: #333;
+        }
+
+        body.dark-mode table th {
+          background-color: #444;
+          color: #e0e0e0;
+        }
+
+        body.dark-mode table td {
+          border-color: #555;
+        }
+
+
+
+/* Button styles */
+.cta-link, .toggle-button {
+  display: inline-block;
+  margin: 10px 5px;
+  padding: 10px 20px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: bold;
+  border-radius: 5px;
+  text-decoration: none;
+  transition: background-color 0.3s, transform 0.3s;
+}
+
+/* GitHub button styling */
+.cta-link {
+  background-color: #6a1b9a;
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.cta-link:hover {
+  background-color: #5a1782;
+  transform: translateY(-2px);
+}
+
+/* Dark mode button styling */
+.toggle-button {
+  background-color: #44405c;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-button:hover {
+  background-color: #30284d;
+  transform: translateY(-2px);
+}
+
+/* Adjust buttons in dark mode */
+body.dark-mode .cta-link {
+  background-color: #9e7bd4;
+  color: #202020;
+}
+
+body.dark-mode .cta-link:hover {
+  background-color: #8465b6;
+}
+
+body.dark-mode .toggle-button {
+  background-color: #202020;
+  color: #9e7bd4;
+}
+
+body.dark-mode .toggle-button:hover {
+  background-color: #1c163d;
+}
+
+
+
+
 
     .controls-label {
       font-weight: bold;
-      margin-right: 1rem;
+      font-size: 1rem;
+      margin-right: 10px;
     }
 
     .controls-buttons {
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
+
     }
 
-    .apexcharts-area-series path {
-      stroke: transparent !important;
+    .controls-buttons label {
+      display: inline-block;
+      padding: 10px 20px;
+      margin: 0;
+      font-size: 0.9rem;
+      font-weight: bold;
+      text-align: center;
+      color: #333;
+      background: #f4f4f4;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s, color 0.3s, border-color 0.3s, transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
-    .chart-container path {
-      fill-opacity: 0.3 !important;
-      stroke-width: 4px; /* Border thickness */
+
+    .controls-buttons label:hover {
+      background: #e0e0e0;
+      color: #000;
+      border-color: #ccc;
+      transform: translateY(-2px);
     }
+
+    .controls-buttons input[type="checkbox"] {
+      display: none; /* Hide the checkbox */
+    }
+
+    /* Style for toggled buttons */
+    .controls-buttons input[type="checkbox"]:checked + label {
+      background: linear-gradient(90deg, #8a2be2, #6a1bb9); /* Purple gradient */
+      color: #fff; /* White text */
+      border-color: #6a1bb9; /* Match the gradient */
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add shadow for emphasis */
+      transform: translateY(-2px); /* Slight lift to indicate activation */
+    }
+
+    .controls-buttons label:active {
+      background: #6a1bb9; /* Solid darker purple during click */
+      color: #fff;
+      border-color: #5a1490;
+      transform: translateY(0);
+    }
+
+    <!--    SLIDER-->
 
     .slider-container {
+      font-weight: bold;
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       gap: 0.5rem;
       justify-content: center;
-      align-items: center;
-    }
-
-    .wrapper {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    
-    body.dark-mode details {
-      background: #333;
-      border-color: #555;
-      color: #e0e0e0;
-    }
-
-    #disclaimer {
-      font-size: 0.9rem;
-      text-align: center;
-      margin-top: 40px;
-      padding: 10px;
-      background: #f8f9fa;
-      border-top: 1px solid #ddd;
-      transition: background-color 0.3s, color 0.3s;
-    }
-
-    body.dark-mode #disclaimer {
-      background: #333;
-      color: #e0e0e0;
-      border-color: #555;
-    }
-
-    #disclaimer a {
-      color: #007BFF;
-      text-decoration: none;
-    }
-
-    body.dark-mode #disclaimer a {
-      color: #66b2ff;
-    }
-
-    #disclaimer a:hover {
-      text-decoration: underline;
-    }
-
-    #github-logo-container {
-      text-align: center;
-      margin-top: 10px;
-    }
-
-    #github-logo {
-      width: 40px;
-      height: 40px;
-    }
-
-    #source-code-text {
-      text-align: center;
-      margin-top: 10px;
-    }
-
-    #source-code-text a {
-      color: #007BFF;
-      text-decoration: none;
-      font-weight: bold;
-    }
-
-    body.dark-mode #source-code-text a {
-      color: #66b2ff;
-    }
-
-    #source-code-text a:hover {
-      text-decoration: underline;
-    }
-
-    .settings-frame {
-      text-align: center;
-      margin: 10px 0;
-    }
-
-    .settings-frame input {
-      margin-left: 10px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 20px 0;
-    }
-
-    table th, table td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
-    }
-
-    table th {
-      background-color: #f4f4f4;
+      font-size: 1rem;
       color: #333;
     }
 
-    body.dark-mode table th {
-      background-color: #444;
-      color: #e0e0e0;
+    .slider-container label {
+      font-weight: bold;
     }
 
-    body.dark-mode table td {
-      border-color: #555;
+    .slider-container input[type="range"] {
+      -webkit-appearance: none; /* Remove default styling */
+      width: 200px;
+      height: 8px;
+      background: linear-gradient(90deg, #d3bfff, #9370db, #6a3db9); /* More vibrant gradient */
+      border-radius: 5px;
+      outline: none;
+      transition: background 0.3s;
+      cursor: pointer;
     }
 
-<!--    BUTONS -->
-.controls-label {
-  font-weight: bold;
-  font-size: 1rem;
-  margin-right: 10px;
-}
+    .slider-container input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; /* Remove default styling */
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      background: #fff;
+      border: 2px solid #9370db; /* Matches the slider gradient */
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
 
-.controls-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+    .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.1); /* Slightly enlarge on hover */
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
 
-}
+    .slider-container input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      background: #fff;
+      border: 2px solid #9370db; /* Matches the slider gradient */
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
 
-.controls-buttons label {
-  display: inline-block;
-  padding: 10px 20px;
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: bold;
-  text-align: center;
-  color: #333;
-  background: #f4f4f4;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.3s, color 0.3s, border-color 0.3s, transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
+    .slider-container input[type="range"]:hover {
+      background: linear-gradient(90deg, #c2a7ff, #8459d6, #5a2fa9); /* Slightly deeper gradient on hover */
+    }
 
-.controls-buttons label:hover {
-  background: #e0e0e0;
-  color: #000;
-  border-color: #ccc;
-  transform: translateY(-2px);
-}
+    .slider-container input[type="range"]:focus::-webkit-slider-thumb {
+      transform: scale(1.2); /* Enlarge when focused */
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+    }
 
-.controls-buttons input[type="checkbox"] {
-  display: none; /* Hide the checkbox */
-}
-
-/* Style for toggled buttons */
-.controls-buttons input[type="checkbox"]:checked + label {
-  background: linear-gradient(90deg, #8a2be2, #6a1bb9); /* Purple gradient */
-  color: #fff; /* White text */
-  border-color: #6a1bb9; /* Match the gradient */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add shadow for emphasis */
-  transform: translateY(-2px); /* Slight lift to indicate activation */
-}
-
-.controls-buttons label:active {
-  background: #6a1bb9; /* Solid darker purple during click */
-  color: #fff;
-  border-color: #5a1490;
-  transform: translateY(0);
-}
-
-<!--    SLIDER-->
-
-.slider-container {
-  font-weight: bold;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  justify-content: center;
-  font-size: 1rem;
-  color: #333;
-}
-
-.slider-container label {
-  font-weight: bold;
-}
-
-.slider-container input[type="range"] {
-  -webkit-appearance: none; /* Remove default styling */
-  width: 200px;
-  height: 8px;
-  background: linear-gradient(90deg, #d3bfff, #9370db, #6a3db9); /* More vibrant gradient */
-  border-radius: 5px;
-  outline: none;
-  transition: background 0.3s;
-  cursor: pointer;
-}
-
-.slider-container input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none; /* Remove default styling */
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  background: #fff;
-  border: 2px solid #9370db; /* Matches the slider gradient */
-  border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.slider-container input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.1); /* Slightly enlarge on hover */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-
-.slider-container input[type="range"]::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  background: #fff;
-  border: 2px solid #9370db; /* Matches the slider gradient */
-  border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.slider-container input[type="range"]:hover {
-  background: linear-gradient(90deg, #c2a7ff, #8459d6, #5a2fa9); /* Slightly deeper gradient on hover */
-}
-
-.slider-container input[type="range"]:focus::-webkit-slider-thumb {
-  transform: scale(1.2); /* Enlarge when focused */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-}
-
-.slider-container input[type="range"]:focus::-moz-range-thumb {
-  transform: scale(1.2); /* Enlarge when focused */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-}
+    .slider-container input[type="range"]:focus::-moz-range-thumb {
+      transform: scale(1.2); /* Enlarge when focused */
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+    }
 
 
 
@@ -345,64 +537,70 @@
 
 <body class="dark-mode">
 
-  <header>
-    <h1>German Energy Market Predictive Analytics</h1>
-    <p>Explore detailed forecasts and insights into the energy market.</p>
-    <p>Forecasts are updated daily using the latest data. 
-      For the source code and method description see <div id="source-code-text">
-        <a href="https://github.com/vsevolodnedora/energy_market_analysis" target="_blank">
-          GitHub
-        </a>
-      </div>
-    </p>
-  </header>
-
-  <div class="settings-frame">
-    <label>
-      <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode()"> Dark Mode
-    </label>
-  </div>
+<header>
+  <h1>German Energy Market Predictive Analytics</h1>
+  <p>Accurate Week-Ahead Forecasts for Renewable Energy, Load, and Prices</p>
+  <p>Empowering utilities, traders, and policymakers with actionable insights for optimized operations and sustainability.</p>
+  <p>
+    <strong>Updated Daily:</strong> Forecasts are refined using the latest energy, weather, and market data.
+  </p>
+  <p>
+    <a href="https://github.com/vsevolodnedora/energy_market_analysis" target="_blank" class="cta-link">
+      Explore on GitHub
+    </a>
+    <button id="dark-mode-toggle" class="toggle-button" onclick="toggleDarkMode()">
+      🌙 Dark Mode
+    </button>
+  </p>
+</header>
 
   <div id="error-message"></div>
 
   <!-- First chart collapsible -->
-  <details open>
-    <summary>Offshore Wind Power Forecast</summary>
+<details open>
+  <summary>Offshore Wind Power Forecast</summary>
+  <div class="forecast-section">
     <div class="chart-container" id="chart1"></div>
-    <div class="controls">
-      <span class="controls-label">TSO Area:</span>
-      <div class="controls-buttons">
-        <input type="checkbox" name="tso-area" id="50hz-checkbox-1" onchange="updateChart1()">
-        <label for="50hz-checkbox-1">50Hertz</label>
 
-        <input type="checkbox" name="tso-area" id="tenn-checkbox-1" onchange="updateChart1()">
-        <label for="tenn-checkbox-1">TenneT</label>
+    <!-- Unified Control Area -->
+    <div class="control-area">
+      <div class="controls">
+        <span class="controls-label">TSO Area:</span>
+        <div class="controls-buttons">
+          <input type="checkbox" name="tso-area" id="50hz-checkbox-1" onchange="updateChart1()">
+          <label for="50hz-checkbox-1">50Hertz</label>
 
-        <input type="checkbox" name="tso-area" id="total-checkbox-1" checked onchange="updateChart1()">
-        <label for="total-checkbox-1">Total</label>
+          <input type="checkbox" name="tso-area" id="tenn-checkbox-1" onchange="updateChart1()">
+          <label for="tenn-checkbox-1">TenneT</label>
+
+          <input type="checkbox" name="tso-area" id="total-checkbox-1" checked onchange="updateChart1()">
+          <label for="total-checkbox-1">Total</label>
+        </div>
+      </div>
+
+      <div class="slider-container">
+        <label for="past-data-slider-1">Amount of past data to show:</label>
+        <input
+                type="range"
+                id="past-data-slider-1"
+                min="1"
+                max="100"
+                step="1"
+                value="20"
+                onchange="updateChart1()"
+        />
       </div>
     </div>
 
-    <div class="slider-container">
-      <label for="past-data-slider-1">Amount of past data to show:</label>
-      <input
-              type="range"
-              id="past-data-slider-1"
-              min="1"
-              max="100"
-              step="1"
-              value="20"
-              onchange="updateChart1()"
-      />
-    </div>
-  
     <details id="chart1-description-details">
       <summary>Show/Hide Description</summary>
       <div id="chart1-description-container">
         <!-- Markdown content will be dynamically loaded here -->
       </div>
     </details>
-  </details>
+  </div>
+</details>
+
 
   <!-- Second chart collapsible -->
   <details>
