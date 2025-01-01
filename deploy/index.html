@@ -76,14 +76,22 @@
     }
 
     .controls-label {
+      font-weight: bold;
       margin-right: 1rem;
-      
     }
 
     .controls-buttons {
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
+    }
+
+    .apexcharts-area-series path {
+      stroke: transparent !important;
+    }
+    .chart-container path {
+      fill-opacity: 0.3 !important;
+      stroke-width: 4px; /* Border thickness */
     }
 
     .slider-container {
@@ -202,6 +210,136 @@
       border-color: #555;
     }
 
+<!--    BUTONS -->
+.controls-label {
+  font-weight: bold;
+  font-size: 1rem;
+  margin-right: 10px;
+}
+
+.controls-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+}
+
+.controls-buttons label {
+  display: inline-block;
+  padding: 10px 20px;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-align: center;
+  color: #333;
+  background: #f4f4f4;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s, border-color 0.3s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.controls-buttons label:hover {
+  background: #e0e0e0;
+  color: #000;
+  border-color: #ccc;
+  transform: translateY(-2px);
+}
+
+.controls-buttons input[type="checkbox"] {
+  display: none; /* Hide the checkbox */
+}
+
+/* Style for toggled buttons */
+.controls-buttons input[type="checkbox"]:checked + label {
+  background: linear-gradient(90deg, #8a2be2, #6a1bb9); /* Purple gradient */
+  color: #fff; /* White text */
+  border-color: #6a1bb9; /* Match the gradient */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add shadow for emphasis */
+  transform: translateY(-2px); /* Slight lift to indicate activation */
+}
+
+.controls-buttons label:active {
+  background: #6a1bb9; /* Solid darker purple during click */
+  color: #fff;
+  border-color: #5a1490;
+  transform: translateY(0);
+}
+
+<!--    SLIDER-->
+
+.slider-container {
+  font-weight: bold;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  font-size: 1rem;
+  color: #333;
+}
+
+.slider-container label {
+  font-weight: bold;
+}
+
+.slider-container input[type="range"] {
+  -webkit-appearance: none; /* Remove default styling */
+  width: 200px;
+  height: 8px;
+  background: linear-gradient(90deg, #d3bfff, #9370db, #6a3db9); /* More vibrant gradient */
+  border-radius: 5px;
+  outline: none;
+  transition: background 0.3s;
+  cursor: pointer;
+}
+
+.slider-container input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; /* Remove default styling */
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border: 2px solid #9370db; /* Matches the slider gradient */
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.slider-container input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1); /* Slightly enlarge on hover */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.slider-container input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border: 2px solid #9370db; /* Matches the slider gradient */
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.slider-container input[type="range"]:hover {
+  background: linear-gradient(90deg, #c2a7ff, #8459d6, #5a2fa9); /* Slightly deeper gradient on hover */
+}
+
+.slider-container input[type="range"]:focus::-webkit-slider-thumb {
+  transform: scale(1.2); /* Enlarge when focused */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.slider-container input[type="range"]:focus::-moz-range-thumb {
+  transform: scale(1.2); /* Enlarge when focused */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+
+
   </style>
 </head>
 
@@ -231,27 +369,30 @@
   <details open>
     <summary>Offshore Wind Power Forecast</summary>
     <div class="chart-container" id="chart1"></div>
-  
-    
     <div class="controls">
       <span class="controls-label">TSO Area:</span>
       <div class="controls-buttons">
-        <label><input type="checkbox" id="50hz-checkbox-1" onchange="updateChart1()"> 50Hz</label>
-        <label><input type="checkbox" id="tenn-checkbox-1" onchange="updateChart1()"> TenneT</label>
-        <label><input type="checkbox" id="total-checkbox-1" checked onchange="updateChart1()"> Total</label>
+        <input type="checkbox" name="tso-area" id="50hz-checkbox-1" onchange="updateChart1()">
+        <label for="50hz-checkbox-1">50Hertz</label>
+
+        <input type="checkbox" name="tso-area" id="tenn-checkbox-1" onchange="updateChart1()">
+        <label for="tenn-checkbox-1">TenneT</label>
+
+        <input type="checkbox" name="tso-area" id="total-checkbox-1" checked onchange="updateChart1()">
+        <label for="total-checkbox-1">Total</label>
       </div>
     </div>
-    
+
     <div class="slider-container">
       <label for="past-data-slider-1">Amount of past data to show:</label>
       <input
-        type="range"
-        id="past-data-slider-1"
-        min="1"
-        max="100"
-        step="1"
-        value="20"
-        onchange="updateChart1()"
+              type="range"
+              id="past-data-slider-1"
+              min="1"
+              max="100"
+              step="1"
+              value="20"
+              onchange="updateChart1()"
       />
     </div>
   
@@ -351,7 +492,7 @@
           labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } }
         },
         annotations: { xaxis: [] },
-        stroke: { width: 2 },
+<!--        stroke: { width: 1, opacity:1 },-->
 
         tooltip: {
           shared: true,
@@ -546,19 +687,22 @@
               type: 'area',
               data: forecastPolygon,
               color: baseColor,
-              fillOpacity: 0.3,
+              fillOpacity: 0.7,
               showInLegend: true,
               fill: {
                 type: 'gradient',
                 gradient: {
                   shade: 'light',
                   type: 'vertical',
-                  shadeIntensity: 0.4,
-                  gradientToColors: [lightenColor(baseColor, 40), baseColor],
+                  shadeIntensity: 0.7,
+                  gradientToColors: [baseColor],
                   inverseColors: false,
-                  opacityFrom: 0.4,
-                  opacityTo: 0.4
+                  opacityFrom: 0.2,
+                  opacityTo: 0.5
                 }
+              },
+              stroke: {
+                width: 1 // Removes the border around the area
               }
             });
           }
@@ -614,7 +758,7 @@
         },
         yaxis: {
           title: {
-            text: 'Offshore Wind Power',
+            text: 'Offshore Wind Power [MW]',
             style: { 
               color: isDarkMode ? '#e0e0e0' : '#000',
               fontSize: '14px', // Optional, if not using CSS
@@ -650,7 +794,7 @@
       if (show50hz) {
         // Example: push a dummy dataset
         seriesData.push({
-          name: '50Hz (Dummy)',
+          name: '50Hertz (Dummy)',
           data: [
             { x: new Date(), y: Math.random() * 1000 },
             { x: new Date(Date.now() + 3600e3), y: Math.random() * 1000 }
