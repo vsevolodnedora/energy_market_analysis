@@ -367,27 +367,28 @@ def publish_offshore_wind_generation(
     summary_fpath = f'{output_dir}/wind_offshore_notes.md'
     table.to_markdown(summary_fpath, index=False)
 
+
+    '''
+    
+    
+    ### Key properties of the forecasting pipeline
+    - raw and/or engineered weather features;
+    - multiple windfarm locations for each TSO region;
+    - hyperparameter for models and features (tuned with Optuna);
+    - multi-step single target forecasting (168 timesteps);
+    - ensemble models trained on OOS forecasts;
+    - total wind power is a sum of contributions from TSO regions.
+    
+     (last wekk RMSE={total_metrics[list(total_metrics.keys())[-1]][metric]:.0f})
+     (last week RMSE={smard_metrics[list(smard_metrics.keys())[-1]][metric]:.0f})
+    '''
+
     intro_sentences = \
     f"""
 ### Total Offshore Wind Power Forecast Performance
 
-Our __week-ahead__ forecast has average RMSE of __{ave_total_metric:.0f}__ 
-(last week it was {total_metrics[list(total_metrics.keys())[-1]][metric]:.0f}). 
- 
-SMARD __day-ahead__ forecast has average accuracy of __{ave_smard_metric:.0f}__ 
-(last week it was {smard_metrics[list(smard_metrics.keys())[-1]][metric]:.0f}). 
-
-
-### Key properties of the forecasting pipeline
-- raw and/or engineered weather features;
-- multiple windfarm locations for each TSO region;
-- hyperparameter for models and features (tuned with Optuna);
-- multi-step single target forecasting (168 timesteps);
-- ensemble models trained on OOS forecasts;
-- total wind power is a sum of contributions from TSO regions.
-
-
-### Forecast for each TSO
+Our __week-ahead__ forecast has average RMSE of __{ave_total_metric:.0f}__.  
+SMARD __day-ahead__ forecast has average accuracy of __{ave_smard_metric:.0f}__. 
     """
 
     # Reading the markdown content
@@ -404,4 +405,5 @@ class PublishDataForDeployment:
     pass
 
 if __name__ == '__main__':
-    publish_offshore_wind_generation()
+    publish_offshore_wind_generation(results_root_dir = './output/forecasts/', database_dir = './database/',
+                                     output_dir = './deploy/data/forecasts/')
