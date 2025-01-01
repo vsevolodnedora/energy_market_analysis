@@ -1,0 +1,26 @@
+name: Deploy to GitHub Pages
+
+on:
+  workflow_run:
+    workflows: ["Update"]  # Name of the workflow to wait for
+    types:
+      - completed  # Trigger only when the workflow is completed successfully
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the repository
+      - name: Check out repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # 2. Deploy to gh-pages
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./deploy  # Path to the deploy folder
+          publish_branch: gh-pages
