@@ -4,6 +4,8 @@ import os
 import numpy as np
 from datetime import datetime, timedelta
 
+from pyarrow import dictionary
+
 from forecasting_modules import compute_timeseries_split_cutoffs, compute_error_metrics
 
 
@@ -364,24 +366,9 @@ def publish_offshore_wind_generation(
     # Round floating point values to integers
     table["Average RMSE"] = table["Average RMSE"].round().astype(int)
     # Save as markdown
-    summary_fpath = f'{output_dir}/wind_offshore_notes.md'
+    summary_fpath = f'{output_dir}/wind_offshore_notes_en.md'
     table.to_markdown(summary_fpath, index=False)
 
-
-    '''
-    
-    
-    ### Key properties of the forecasting pipeline
-    - raw and/or engineered weather features;
-    - multiple windfarm locations for each TSO region;
-    - hyperparameter for models and features (tuned with Optuna);
-    - multi-step single target forecasting (168 timesteps);
-    - ensemble models trained on OOS forecasts;
-    - total wind power is a sum of contributions from TSO regions.
-    
-     (last wekk RMSE={total_metrics[list(total_metrics.keys())[-1]][metric]:.0f})
-     (last week RMSE={smard_metrics[list(smard_metrics.keys())[-1]][metric]:.0f})
-    '''
 
     intro_sentences = \
     f"""
@@ -400,6 +387,36 @@ SMARD __day-ahead__ forecast has average accuracy of __{ave_smard_metric:.0f}__.
     with open(summary_fpath, "w") as file:
         file.write(updated_markdown_content)
 
+
+    # -------------- GERMAN TEXT -------------------
+
+    dictionary_en_de = {
+        "Best Model": "Bestes Modell",
+        "Average RMSE": "Durchschnittlicher RMSE",
+        "TSO/Region": "ÜNB/Region",
+        "Train Date": "Trainingsdatum",
+        "N Features": "Anzahl der Merkmale"
+    }
+    table.rename(columns = dictionary_en_de, inplace = True)
+
+    summary_fpath = f'{output_dir}/wind_offshore_notes_de.md'
+    table.to_markdown(summary_fpath, index=False)
+
+    intro_sentences = f"""
+### Gesamtleistung der Offshore-Windkraftprognose
+    
+Unsere __Wochenprognose__ hat einen durchschnittlichen RMSE von __{ave_total_metric:.0f}__.  
+Die SMARD __Tagesprognose__ weist eine durchschnittliche Genauigkeit von __{ave_smard_metric:.0f}__ auf.
+    """
+
+    # Reading the markdown content
+    with open(summary_fpath, "r") as file:
+        markdown_content = file.read()
+    # Prepending the sentences to the markdown content
+    updated_markdown_content = intro_sentences + "\n" + markdown_content
+    # Saving the updated markdown content
+    with open(summary_fpath, "w") as file:
+        file.write(updated_markdown_content)
 
 class PublishDataForDeployment:
     pass
