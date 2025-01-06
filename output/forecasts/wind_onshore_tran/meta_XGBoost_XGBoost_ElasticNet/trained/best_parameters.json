@@ -1,0 +1,12 @@
+{
+    "n_estimators": 786,
+    "learning_rate": 0.02917215649194323,
+    "max_depth": 3,
+    "min_child_weight": 3,
+    "subsample": 0.8068065742969808,
+    "colsample_bytree": 0.5978179296827261,
+    "reg_alpha": 0.040657945768994855,
+    "reg_lambda": 7.887315848447844e-06,
+    "use_base_models_pred_intervals": false,
+    "cv_folds_base": 35
+}

@@ -1,0 +1,15 @@
+{
+    "log_target": true,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "copy_input": true,
+    "locations": [
+        "Windpark Hollich",
+        "Windpark Coesfeld Letter Bruch",
+        "Windpark A31 Gescher-Reken"
+    ],
+    "add_cyclical_time_features": true,
+    "feature_engineer": "WeatherFeatureEngineer",
+    "target": "wind_onshore_ampr"
+}

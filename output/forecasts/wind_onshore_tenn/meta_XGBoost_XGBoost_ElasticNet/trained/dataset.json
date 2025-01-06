@@ -1,0 +1,27 @@
+{
+    "log_target": true,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "add_cyclical_time_features": true,
+    "locations": [
+        "Reu\u00dfenk\u00f6ge Wind Farm",
+        "Jade Wind Park",
+        "B\u00fcrgerwindpark Veer D\u00f6rper"
+    ],
+    "feature_engineer": null,
+    "lags_target": null,
+    "copy_input": true,
+    "target": "wind_onshore_tenn",
+    "verbose": true,
+    "n_estimators": 314,
+    "learning_rate": 0.01895433451876848,
+    "max_depth": 6,
+    "min_child_weight": 5,
+    "subsample": 0.8485659900058886,
+    "colsample_bytree": 0.9074452696803555,
+    "reg_alpha": 7.210714453504679e-06,
+    "reg_lambda": 1.1155932017993219e-08,
+    "use_base_models_pred_intervals": false,
+    "cv_folds_base": 35
+}
