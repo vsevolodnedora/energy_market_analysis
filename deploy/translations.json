@@ -1,0 +1,50 @@
+{
+  "en": {
+    "translation": {
+      "title": "German Energy Market Predictive Analytics",
+      "subtitle": "Accurate Week-Ahead Forecasts for Renewable Energy, Load, and Prices",
+      "description": "Empowering utilities, traders, and policymakers with actionable insights for optimized operations and sustainability.",
+      "updated-daily-label": "Updated Daily:",
+      "updated-daily-description": "Forecasts are refined using the latest energy, weather, and market data.",
+      "offshore-forecast": "Offshore Wind Power Forecast",
+      "onshore-forecast": "Onshore Wind Power Forecast",
+      "tso-area": "TSO Area:",
+      "show-hide-description": "Show/Hide Description",
+      "past-data-slider-label": "Amount of past data to show:",
+      "offshore-power-label": "Offshore Wind Power",
+      "offshore-power-label-mw": "Offshore Wind Power [MW]",
+      "onshore-power-label-mw": "Onshore Wind Power [MW]",
+      "now-label": "Now",
+      "last-forecast-label": "Last Forecast",
+      "past-fitted-label": "Previous Fitted",
+      "past-actual-label": "Previous Actual",
+      "current-label": "Current",
+      "prev-forecast-interval-label": "Previous Forecast Interval",
+      "forecast-interval-label": "Forecast Interval"
+    }
+  },
+  "de": {
+    "translation": {
+      "title": "Prognosen für den deutschen Energiemarkt",
+      "subtitle": "Präzise Wochenprognosen für erneuerbare Energien, Last und Preise",
+      "description": "Wir bieten Versorgungsunternehmen, Händlern und politischen Entscheidungsträgern verwertbare Erkenntnisse für optimierte Abläufe und Nachhaltigkeit.",
+      "updated-daily-label": "Täglich aktualisiert:",
+      "updated-daily-description": "Die Prognosen werden mit den neuesten Energie-, Wetter- und Marktdaten verfeinert.",
+      "offshore-forecast": "Offshore-Windprognose",
+      "onshore-forecast": "Onshore-Windprognose",
+      "tso-area": "ÜNB-Bereich:",
+      "show-hide-description": "Beschreibung anzeigen/ausblenden",
+      "past-data-slider-label": "Menge der anzuzeigenden vergangenen Daten:",
+      "offshore-power-label": "Offshore-Windenergie",
+      "offshore-power-label-mw": "Offshore-Windenergie [MW]",
+      "onshore-power-label-mw": "Onshore-Windenergie [MW]",
+      "now-label": "Jetzt",
+      "last-forecast-label": "Letzte Prognose",
+      "past-fitted-label": "Vergangenheit Angepasst",
+      "past-actual-label": "Vergangenheit Tatsächlich",
+      "current-label": "Aktuell",
+      "prev-forecast-interval-label": "Vorheriges Prognoseintervall",
+      "forecast-interval-label": "Prognoseintervall"
+    }
+  }
+}
