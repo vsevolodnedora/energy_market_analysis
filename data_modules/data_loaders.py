@@ -30,11 +30,13 @@ def load_prepared_data(target:str,datapath:str, verbose:bool)  ->tuple[pd.DataFr
 
 def extract_from_database(target:str, datapath:str, verbose:bool, region:str, n_horizons:int, horizon:int) \
         -> tuple[pd.DataFrame, pd.DataFrame]:
+
     df_smard = pd.read_parquet(datapath + 'smard/' + 'history.parquet')
     df_om = pd.read_parquet(datapath + 'openmeteo/' + 'history.parquet')
     df_om_f = pd.read_parquet(datapath + 'openmeteo/' + 'forecast.parquet')
     df_es = pd.read_parquet(datapath + 'epexspot/' + 'history.parquet')
     df_entsoe = pd.read_parquet(datapath + 'entsoe/' + 'history.parquet')
+
     # -------------------
     if verbose:
         print(f"SMARD data shapes hist={df_smard.shape} (days={len(df_smard)/24}) start={df_smard.index[0]} end={df_smard.index[-1]}")
@@ -50,23 +52,61 @@ def extract_from_database(target:str, datapath:str, verbose:bool, region:str, n_
                 df_om_f.index[-1].minute == 0 and
                 df_om_f.index[-1].second == 0)
     # -----------------
-    if target in ['wind_offshore_tenn','wind_offshore_50hz']:
-        if target == 'wind_offshore_tenn' and region != 'DE_TENNET':
+    # if target in ['wind_offshore_tenn','wind_offshore_50hz']:
+    #
+    #     if target == 'wind_offshore_tenn' and region != 'DE_TENNET':
+    #         raise IOError(f"The region must be 'DE_TENNE' for target={target}")
+    #
+    #     if target == 'wind_offshore_50hz' and region != 'DE_50HZ':
+    #         raise IOError(f"The region must be 'DE_50HZ' for target={target}")
+    #
+    #     if verbose: print(f"Target={target} Nans={df_entsoe[target].isna().sum().sum()}")
+    #
+    #     # get openmeteo data for locations within this region (for windmills associated with this TSO)
+    #     region_:dict = [reg for reg in de_regions if reg['name']==region][0]
+    #     reg_suffix = region_['suffix']
+    #     entsoe_column = 'wind_offshore' + reg_suffix
+    #     target = df_entsoe[entsoe_column]
+    #     om_suffixes = [wind_farm['suffix'] for wind_farm in offshore_windfarms if wind_farm['TSO'] == region_['TSO']]
+    #     columns_to_select = df_om.columns[df_om.columns.str.endswith(tuple(om_suffixes))]
+    #
+    #
+    #     # combine weather data and target column (convention)
+    #     df_hist = pd.merge(left=df_om[columns_to_select],right=target, left_index=True, right_index=True, how='left')
+    #     df_forecast = df_om_f[columns_to_select]
+    #     df_hist = df_hist.tail(len(df_forecast)*n_horizons) # crop the dataset if needed
+    #
+    #     if not len(df_hist.columns) == len(df_forecast.columns)+1:
+    #         raise ValueError(f'The DataFrames have different columns. '
+    #                          f'hist={df_hist.shape} forecast={df_forecast.shape}')
+    #
+    #     if len(df_hist) <= 1 or len(df_forecast) <= 1:
+    #         raise ValueError(f'The DataFrames must have >1 rows '
+    #                          f'hist={df_hist.shape} forecast={df_forecast.shape}')
+
+    if 'wind_offshore' or 'wind_onshore' in target:
+        # quick sanity checks that regions is set correctly
+        if (target.__contains__('_tenn') and region != 'DE_TENNET'):
             raise IOError(f"The region must be 'DE_TENNE' for target={target}")
-        if target == 'wind_offshore_50hz' and region != 'DE_50HZ':
+        if (target.__contains__('_50Hz') and region != 'DE_50HZ'):
             raise IOError(f"The region must be 'DE_50HZ' for target={target}")
+        if (target.__contains__('_amp') and region != 'DE_AMPRION'):
+            raise IOError(f"The region must be 'DE_AMPRION' for target={target}")
+        if (target.__contains__('_tran') and region != 'DE_TRANSNET'):
+            raise IOError(f"The region must be 'DE_TRANSNET' for target={target}")
 
         if verbose: print(f"Target={target} Nans={df_entsoe[target].isna().sum().sum()}")
 
         # get openmeteo data for locations within this region (for windmills associated with this TSO)
         region_:dict = [reg for reg in de_regions if reg['name']==region][0]
         reg_suffix = region_['suffix']
-        target = df_entsoe['wind_offshore' + reg_suffix]
-        om_suffixes = [wind_farm['suffix'] for wind_farm in offshore_windfarms if wind_farm['TSO'] == region_['TSO']]
+        entsoe_column = str('wind_offshore' if 'wind_offshore' in target else 'wind_onshore') + reg_suffix
+        wind_farms = offshore_windfarms if 'wind_offshore' in target else onshore_windfarms
+        om_suffixes = [wind_farm['suffix'] for wind_farm in wind_farms if wind_farm['TSO'] == region_['TSO']]
         columns_to_select = df_om.columns[df_om.columns.str.endswith(tuple(om_suffixes))]
 
         # combine weather data and target column (convention)
-        df_hist = pd.merge(left=df_om[columns_to_select],right=target, left_index=True, right_index=True, how='left')
+        df_hist = pd.merge(left=df_om[columns_to_select],right=df_entsoe[entsoe_column], left_index=True, right_index=True, how='left')
         df_forecast = df_om_f[columns_to_select]
         df_hist = df_hist.tail(len(df_forecast)*n_horizons) # crop the dataset if needed
 

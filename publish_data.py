@@ -169,7 +169,7 @@ def analyze_model_performance(data: pd.DataFrame, n_folds: int, metric: str)->tu
     return best_models, drift_summary
 
 
-def publish_offshore_wind_generation(
+def publish_wind_generation(
     target='wind_offshore',
     regions=('DE_50HZ', 'DE_TENNET'),
     n_folds = 3,
@@ -180,15 +180,30 @@ def publish_offshore_wind_generation(
     output_dir = 'deploy/data/forecasts/'
 ):
 
+    '''
+    de_regions = [
+        {'name':'DE_AMPRION','suffix':'_ampr', 'TSO':'Amprion'},
+        {'name':'DE_50HZ','suffix':'_50hz', 'TSO':'50Hertz'},
+        {'name':'DE_TENNET','suffix':'_tenn', 'TSO':'TenneT'},
+        {'name':'DE_TRANSNET','suffix':'_tran', 'TSO':'TransnetBW'},
+    ]
+    '''
+
     mapping_reg = {
         'DE_50HZ' : '50hz',
         'DE_TENNET' : 'tenn',
+        'DE_AMPRION': 'ampr',
+        'DE_TRANSNET' : 'tran',
     }
     mapping_key = {
         'DE_50HZ' : '50Hz',
         'DE_TENNET' : 'TenneT',
+        'DE_AMPRION' : 'Amprion',
+        'DE_TRANSNET' : 'TransnetBW',
     }
 
+
+    # Ensemble model will be abbreviated for simplicity
     def convert_ensemble_string(input_string):
         # Extract the ensemble name and the components
         ensemble_name = input_string.split('[')[1].split(']')[0]
@@ -198,12 +213,10 @@ def publish_offshore_wind_generation(
         output_string = f"meta_{ensemble_name}_" + "_".join(components)
         return output_string
 
-    table = []
+    table = [] # to be shown in 'description'
 
     df_results = pd.DataFrame()
-    # for var, region, key in zip(['wind_offshore_tenn', 'wind_offshore_50hz'],
-    #                        ['TenneT', '50Hz'], ['_tenn','_50hz']):
-    #
+
     for region in regions:
         key = mapping_key[region]
         region = mapping_reg[region]
@@ -242,7 +255,8 @@ def publish_offshore_wind_generation(
         else: df_results += df_res.copy()
 
 
-    def compute_error_metrics_cutoffs(df_, cutoffs:list, horizon:int, target:str, key_actual:str, key_fitted:str)->dict:
+    def compute_error_metrics_cutoffs(
+            df_, cutoffs:list, horizon:int, target:str, key_actual:str, key_fitted:str)->dict:
         ''' compute errror metrics for batches separated by cutoffs'''
         smard_metrics = {}
         for i, cutoff in enumerate(cutoffs):
@@ -308,7 +322,7 @@ def publish_offshore_wind_generation(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # For each TSO
+    # Convert .csv past and current forecasts into json files for each TSO
     for region in regions:
         key = mapping_key[region]
         region = mapping_reg[region]
@@ -328,10 +342,10 @@ def publish_offshore_wind_generation(
                 target=var,
                 output_dir=output_dir_,
                 prefix = 'forecast_curr' if ftype == 'forecast.csv' else 'forecast_prev',
-                cols=[f"fitted", f"lower", f"upper"] if ftype == 'forecast.csv' else [f"actual", f"fitted"]#[f"actual", f"fitted", f"lower", f"upper"]
+                cols=[f"fitted", f"lower", f"upper"] if ftype == 'forecast.csv' else [f"actual", f"fitted", f"lower", f"upper"]#[f"actual", f"fitted", f"lower", f"upper"]
             )
 
-    # Compute total
+    # Compute total from .csv past and current forecasts into json files for each TSO
     output_dir_ = output_dir + target + '/'
     for ftype in possible_types:
         df = pd.DataFrame
@@ -356,7 +370,7 @@ def publish_offshore_wind_generation(
             target=target,
             output_dir=output_dir_,
             prefix = 'forecast_curr' if ftype == 'forecast.csv' else 'forecast_prev',
-            cols=[f"fitted", f"lower", f"upper"] if ftype == 'forecast.csv' else [f"actual", f"fitted"]#[f"actual", f"fitted", f"lower", f"upper"]
+            cols=[f"fitted", f"lower", f"upper"] if ftype == 'forecast.csv' else [f"actual", f"fitted", f"lower", f"upper"]#[f"actual", f"fitted", f"lower", f"upper"]
         )
 
 
@@ -366,14 +380,12 @@ def publish_offshore_wind_generation(
     # Round floating point values to integers
     table["Average RMSE"] = table["Average RMSE"].round().astype(int)
     # Save as markdown
-    summary_fpath = f'{output_dir}/wind_offshore_notes_en.md'
+    summary_fpath = f'{output_dir}/{target}_notes_en.md'
     table.to_markdown(summary_fpath, index=False)
 
 
     intro_sentences = \
     f"""
-### Total Offshore Wind Power Forecast Performance
-
 Our __week-ahead__ forecast has average RMSE of __{ave_total_metric:.0f}__.  
 SMARD __day-ahead__ forecast has average accuracy of __{ave_smard_metric:.0f}__. 
     """
@@ -399,12 +411,10 @@ SMARD __day-ahead__ forecast has average accuracy of __{ave_smard_metric:.0f}__.
     }
     table.rename(columns = dictionary_en_de, inplace = True)
 
-    summary_fpath = f'{output_dir}/wind_offshore_notes_de.md'
+    summary_fpath = f'{output_dir}/{target}_notes_de.md'
     table.to_markdown(summary_fpath, index=False)
 
     intro_sentences = f"""
-### Gesamtleistung der Offshore-Windkraftprognose
-    
 Unsere __Wochenprognose__ hat einen durchschnittlichen RMSE von __{ave_total_metric:.0f}__.  
 Die SMARD __Tagesprognose__ weist eine durchschnittliche Genauigkeit von __{ave_smard_metric:.0f}__ auf.
     """
@@ -422,5 +432,24 @@ class PublishDataForDeployment:
     pass
 
 if __name__ == '__main__':
-    publish_offshore_wind_generation(results_root_dir = './output/forecasts/', database_dir = './database/',
-                                     output_dir = './deploy/data/forecasts/')
+    publish_wind_generation(
+        target='wind_offshore',
+        regions=('DE_50HZ', 'DE_TENNET'),
+        n_folds = 3,
+        metric = 'rmse',
+        method_type = 'trained', # 'trained'
+        results_root_dir = 'forecasting_modules/output/',
+        database_dir = 'database/',
+        output_dir = 'deploy/data/forecasts/'
+    )
+
+    publish_wind_generation(
+            target='wind_offshore',
+            regions=('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'),
+            n_folds = 3,
+            metric = 'rmse',
+            method_type = 'trained', # 'trained'
+            results_root_dir = 'forecasting_modules/output/',
+            database_dir = 'database/',
+            output_dir = 'deploy/data/forecasts/'
+    )

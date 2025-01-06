@@ -17,24 +17,14 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler, MaxAbsScaler, Ro
 from data_collection_modules.utils import compare_columns, validate_dataframe_simple
 from data_collection_modules.locations import locations
 from data_modules.utils import validate_dataframe
+from data_modules.feature_eng import (
+    create_holiday_weekend_series,
+    create_time_features,
+    WeatherFeatureEngineer,
+    WeatherFeatureEngineer_2
+)
 
 
-def create_holiday_weekend_series(df_index):
-    # Create a Germany holiday calendar
-    de_holidays = holidays.Germany()
-
-    # Generate a Series with the index from the DataFrame
-    date_series = pd.Series(index=df_index, dtype=int)
-
-    # Loop over each date in the index
-    for date in date_series.index:
-        # Check if the date is a holiday or a weekend (Saturday=5, Sunday=6)
-        if date in de_holidays or date.weekday() >= 5:
-            date_series[date] = 1
-        else:
-            date_series[date] = 0
-
-    return date_series
 
 def _seasonal_imputation_with_historical_values(column:pd.Series, period:str='weekly')->pd.Series:
     """
@@ -105,297 +95,20 @@ def _adjust_dataframe_to_divisible_by_N(df, N, verbose:bool):
 
     return df
 
-def _create_time_features(index)->pd.DataFrame:
-    df_time_featues = pd.DataFrame(index=index)
-    df_time_featues['hour'] = df_time_featues.index.hour
-    df_time_featues['dayofweek'] = df_time_featues.index.dayofweek
-    # df_time_featues['month'] = df_time_featues.index.month
-    # df_time_featues['dayofyear'] = df_time_featues.index.dayofyear
-    # df_time_featues['weekofyear'] = df_time_featues.index.isocalendar().week.astype(int)
-    # df_time_featues['quarter'] = df_time_featues.index.quarter
-
-    # add, encode holidays: Remove timezone from the index; Convert holiday_set to datetime and normalize
-    # holiday_set = set(holidays.CountryHoliday('DE', years=range(
-    #     df_time_featues.index.year.min(), df_time_featues.index.year.max()+1)))
-    # holiday_dates = pd.to_datetime(list(holiday_set)).normalize()
-    df_time_featues['is_holiday'] = create_holiday_weekend_series(index)#df_time_featues.index.tz_localize(None).normalize().isin(holiday_dates).astype(int)
-
-    # Create cyclical features for hour and day of week
-    df_time_featues['hour_sin'] = np.sin(2 * np.pi * df_time_featues['hour'] / 24)
-    df_time_featues['hour_cos'] = np.cos(2 * np.pi * df_time_featues['hour'] / 24)
-    df_time_featues['day_sin'] = np.sin(2 * np.pi * df_time_featues['dayofweek'] / 7)
-    df_time_featues['day_cos'] = np.cos(2 * np.pi * df_time_featues['dayofweek'] / 7)
-
-    return df_time_featues
-
-class WeatherFeatureEngineer:
-    def __init__(self, config: dict, verbose:bool):
-        """
-        Initialize with a configuration dictionary.
-        """
-        self.config = config
-        self.verbose = verbose
-        self.loc_names = self.config.get("locations", [])
-        if len(self.loc_names) == 0:
-            raise ValueError("No locations configured.")
-        self.locations:list[dict] = [loc for loc in locations if loc['name'] in self.loc_names]
-        if len(self.loc_names) == 0:
-            raise ValueError("No locations configured.")
-        self.sp_agg_config = self.config.get("spatial_aggregation", {})
-
-    def __call__(self, df: pd.DataFrame) -> pd.DataFrame:
-        # Process each location separately
-        processed_dfs = []
-        for loc in self.locations:
-            loc_df = self._preprocess_location(df.copy(), loc['suffix'])
-            processed_dfs.append(loc_df)
-
-        # Combine horizontally: each location df with engineered features
-        combined_df = pd.concat(processed_dfs, axis=1)
-
-        # Apply spatial aggregation if configured
-        if self.sp_agg_config.get("method"):
-            combined_df = self._apply_spatial_aggregation(combined_df)
-
-        if self.verbose:
-            print(f"Preprocessing result Shapes {df.shape} -> {combined_df.shape}"
-                  f" Start {df.index[0]} -> {combined_df.index[0]}"
-                  f" End {df.index[-3]} -> {combined_df.index[-1]}")
-
-        expected_range = pd.date_range(start=combined_df.index.min(), end=combined_df.index.max(), freq='h')
-        if not combined_df.index.equals(expected_range):
-            raise ValueError("combined_df must be continuous with hourly frequency.")
-
-        return combined_df
-
-    def _preprocess_location(self, df: pd.DataFrame, location_suffix: str) -> pd.DataFrame:
-        # 1. Select columns for this location
-        cols = [c for c in df.columns if c.endswith(location_suffix)]
-        loc_df = df[cols].copy()
-
-        # Store original feature names for potential dropping later
-        original_cols = loc_df.columns.tolist()
-
-        # Extract key column names
-        wind_speed_10m_col = f"wind_speed_10m{location_suffix}"
-        wind_speed_100m_col = f"wind_speed_100m{location_suffix}"
-        wind_dir_100m_col = f"wind_direction_100m{location_suffix}"
-        temp_col = f"temperature_2m{location_suffix}"
-        press_col = f"surface_pressure{location_suffix}"
-
-        # Compute Air Density
-        if self.config.get("compute_air_density", False) and temp_col in loc_df.columns and press_col in loc_df.columns:
-            temp_K = loc_df[temp_col] + 273.15
-            R_specific = 287.05  # J/(kg*K)
-            loc_df["air_density" + location_suffix] = (loc_df[press_col]*100.0) / (R_specific * temp_K)
-
-        # Compute Wind Power Density
-        if self.config.get("compute_wind_power_density", False) and wind_speed_100m_col in loc_df.columns and ("air_density" + location_suffix) in loc_df.columns:
-            loc_df["wind_power_density" + location_suffix] = 0.5 * loc_df["air_density" + location_suffix] * (loc_df[wind_speed_100m_col]**3)
-
-        # Encode Wind Direction (Cyclic)
-        if self.config.get("encode_wind_direction", False) and wind_dir_100m_col in loc_df.columns:
-            loc_df["wind_dir_sin" + location_suffix] = np.sin(np.deg2rad(loc_df[wind_dir_100m_col]))
-            loc_df["wind_dir_cos" + location_suffix] = np.cos(np.deg2rad(loc_df[wind_dir_100m_col]))
-            loc_df.drop(columns=[wind_dir_100m_col], inplace=True)
-
-        # Wind Shear
-        if self.config.get("compute_wind_shear", False) and wind_speed_10m_col in loc_df.columns and wind_speed_100m_col in loc_df.columns:
-            with np.errstate(divide='ignore', invalid='ignore'):
-                loc_df["wind_shear" + location_suffix] = (np.log(loc_df[wind_speed_100m_col]/loc_df[wind_speed_10m_col])) / np.log(100/10)
-            loc_df["wind_shear" + location_suffix] = loc_df["wind_shear" + location_suffix].replace([np.inf, -np.inf], np.nan)
-
-        # Turbulence Intensity
-        if isinstance(self.config.get("compute_turbulence_intensity", False), dict) and wind_speed_100m_col in loc_df.columns:
-            window = self.config["compute_turbulence_intensity"].get("window", 3)
-            rolling_std = loc_df[wind_speed_100m_col].rolling(window=window, min_periods=1).std()
-            rolling_mean = loc_df[wind_speed_100m_col].rolling(window=window, min_periods=1).mean()
-            loc_df["turbulence_intensity" + location_suffix] = rolling_std / rolling_mean
-
-        # Wind Ramp
-        if self.config.get("compute_wind_ramp", False) and wind_speed_100m_col in loc_df.columns:
-            loc_df["wind_ramp" + location_suffix] = loc_df[wind_speed_100m_col].diff(1)
-
-        # Lags
-        if "lags" in self.config and wind_speed_100m_col in loc_df.columns:
-            for lag in self.config["lags"]:
-                loc_df[f"wind_speed_lag_{lag}{location_suffix}"] = loc_df[wind_speed_100m_col].shift(lag)
-
-        # Drop raw features if requested
-        if self.config.get("drop_raw_features", False):
-            features_to_drop = self.config.get("features_to_drop", [])
-            drop_cols = [f"{feat}{location_suffix}" for feat in features_to_drop if f"{feat}{location_suffix}" in loc_df.columns]
-            loc_df.drop(columns=drop_cols, inplace=True, errors="ignore")
-
-        return loc_df
-
-    def _apply_spatial_aggregation(self, df: pd.DataFrame) -> pd.DataFrame:
-        # Spatial aggregation based on config
-        method = self.sp_agg_config.get("method", "mean")
-        loc_suffixes = [loc['suffix'] for loc in self.locations]
-
-
-        # Identify engineered features (non-location-specific suffix stripped)
-        # For simplicity, just find unique suffix patterns and group by them
-        # We'll assume all columns contain a suffix and that suffix matches one of the locations
-        all_features = df.columns.tolist()
-
-        # Group columns by feature name ignoring suffix
-        # e.g., "wind_shear_hsee" => feature base "wind_shear"
-        feature_groups = {}
-        for feat in all_features:
-            for loc in loc_suffixes:
-                if feat.endswith(loc):
-                    base_name = feat.replace(loc, '')
-                    if base_name not in feature_groups:
-                        feature_groups[base_name] = []
-                    feature_groups[base_name].append(feat)
-                    break
-
-        if method == "mean":
-            # Compute mean across farms for each base feature
-            agg_df = pd.DataFrame(index=df.index)
-            for base_name, cols in feature_groups.items():
-                agg_df[base_name + "mean"] = df[cols].mean(axis=1)
-            return agg_df
-
-        elif method == "max":
-            agg_df = pd.DataFrame(index=df.index)
-            for base_name, cols in feature_groups.items():
-                agg_df[base_name + "max"] = df[cols].max(axis=1)
-            return agg_df
-
-        elif method in ["idw-c", "idw-wc-c", "idw-wc-n"]:
-            # compute reference point location
-            reference_point = self._compute_reference_point_for_spatial_averaging(method)
-            # Inverse Distance Weighting
-            agg_df = pd.DataFrame(index=df.index)
-            # Compute distances of each farm to the reference point
-            distances = []
-            for loc in self.locations:
-                lat, lon = loc['lat'], loc['lon']
-                d = self._haversine_distance(reference_point, (lat, lon))
-                distances.append(d if d != 0 else 1e-6)  # avoid zero-division
-
-            weights = 1.0 / np.array(distances)
-            weights = weights / weights.sum()
-
-            for base_name, cols in feature_groups.items():
-                # IDW combination of features
-                mat = df[cols].values
-                agg_col = np.sum(mat * weights, axis=1)
-                agg_df[base_name + "idw"] = agg_col
-            return agg_df
-
-        elif method == "cluster":
-            # Placeholder for clustering-based approach
-            # For demonstration, just return mean until cluster logic is implemented
-            agg_df = pd.DataFrame(index=df.index)
-            for base_name, cols in feature_groups.items():
-                agg_df[base_name + "clustered"] = df[cols].mean(axis=1)
-            return agg_df
-
-        else:
-            # Default fallback, return original df if method unknown
-            return df
-
-    def _compute_reference_point_for_spatial_averaging(self, method:str)->tuple:
-        # compute refernce point
-        reference_point = (0, 0)
-        if method == "idw-c":
-            # Calculate centroid
-            centroid_lat = np.mean([loc['lat'] for loc in self.locations])
-            centroid_lon = np.mean([loc['lon'] for loc in self.locations])
-            reference_point = (centroid_lat, centroid_lon)
-        elif method == "idw-wc-c":
-            # Include weights, for example, based on capacity
-            weights = [loc['capacity'] for loc in self.locations]
-            weighted_lat = np.average([loc['lat'] for loc in self.locations], weights=weights)
-            weighted_lon = np.average([loc['lon'] for loc in self.locations], weights=weights)
-            reference_point = (weighted_lat, weighted_lon)
-        elif method == "idw-wc-n":
-            # Include weights, for example, based on number of turbines
-            weights = [loc['n_turbines'] for loc in self.locations]
-            weighted_lat = np.average([loc['lat'] for loc in self.locations], weights=weights)
-            weighted_lon = np.average([loc['lon'] for loc in self.locations], weights=weights)
-            reference_point = (weighted_lat, weighted_lon)
-        return reference_point
-
-    @staticmethod
-    def _haversine_distance(p1, p2):
-        # p1, p2 = (lat, lon) in degrees
-        R = 6371.0  # Earth radius in km
-        lat1, lon1 = map(radians, p1)
-        lat2, lon2 = map(radians, p2)
-        dlat = lat2 - lat1
-        dlon = lon2 - lon1
-        a = sin(dlat/2)**2 + cos(lat1)*cos(lat2)*sin(dlon/2)**2
-        c = 2*np.arcsin(np.sqrt(a))
-        return R * c
-
-    @staticmethod
-    def selector_for_optuna(trial:optuna.Trial) -> dict:
-        # Boolean features
-        compute_air_density = trial.suggest_categorical("compute_air_density", [True, False])
-        compute_wind_power_density = trial.suggest_categorical("compute_wind_power_density", [True, False])
-        encode_wind_direction = trial.suggest_categorical("encode_wind_direction", [True, False])
-        compute_wind_shear = trial.suggest_categorical("compute_wind_shear", [True, False])
-        compute_wind_ramp = trial.suggest_categorical("compute_wind_ramp", [True, False])
-
-        # Turbulence intensity window size if enabled
-        use_turbulence = trial.suggest_categorical("compute_turbulence_intensity", [False, True])
-        turbulence_config = {"window": trial.suggest_int("turbulence_window", 2, 6)} if use_turbulence else False
-
-        # Lags can be a list, decide length and values
-        lag_choice = trial.suggest_categorical("lags_option", ["none", "small", "large"])
-        if lag_choice == "none":
-            lags = []
-        elif lag_choice == "small":
-            lags = [1, 6]
-        else:
-            lags = [1, 6, 12, 24]
-
-
-        # Raw feature dropping
-        drop_raw_features = trial.suggest_categorical("drop_raw_features", [True, False])
-        features_to_drop = [
-            "precipitation", "cloud_cover", "shortwave_radiation", "relative_humidity_2m", "wind_direction_10m", "wind_gusts_10m"
-        ]
-
-        # Spatial aggregation method
-        spatial_method = trial.suggest_categorical("spatial_method", [
-            "mean", "max", "idw-c",'idw-wc-c','idw-wc-n', "cluster"])
-        sp_agg_config = {
-            "method": spatial_method
-        }
-
-
-        # Build the config dictionary
-        config = {
-            "compute_air_density": compute_air_density,
-            "compute_wind_power_density": compute_wind_power_density,
-            "encode_wind_direction": encode_wind_direction,
-            "compute_wind_shear": compute_wind_shear,
-            "compute_turbulence_intensity": turbulence_config,
-            "compute_wind_ramp": compute_wind_ramp,
-            "lags": lags,
-            "drop_raw_features": drop_raw_features,
-            "features_to_drop": features_to_drop,
-            "spatial_aggregation": sp_agg_config,
-        }
-        return config
-
 def suggest_values_for_ds_pars_optuna(feature_engineering_pipeline, trial, fixed:dict):
     config = {}
+
     if feature_engineering_pipeline == 'WeatherFeatureEngineer':
-        config.update( WeatherFeatureEngineer.selector_for_optuna(trial)  )
+        config.update( WeatherFeatureEngineer_2.selector_for_optuna(trial, fixed)  )
 
     if'log_target' in fixed:
         config['log_target'] = fixed['log_target']
     else:
         config['log_target'] = trial.suggest_categorical("log_target", [True, False])
 
-    config['lags_target'] = trial.suggest_categorical("lags_target", [None, 1, 6, 12]) if not 'lags_target' in fixed else fixed['lags_target']
+    config['lags_target'] = trial.suggest_categorical(
+        "lags_target", [None, 1, 6, 12]
+    ) if not 'lags_target' in fixed else fixed['lags_target']
 
     return config
 
@@ -538,7 +251,7 @@ class HistForecastDataset:
 
         if config['feature_engineer'] == 'WeatherFeatureEngineer':
             if self.verbose:print(f"Performing feature engineering with {config['feature_engineer']}")
-            o_feat = WeatherFeatureEngineer(config, verbose=self.verbose)
+            o_feat = WeatherFeatureEngineer_2( config, verbose=self.verbose )
             n_h, n_f = len(df_hist_), len(df_forecast_)
             df_tmp = pd.concat([df_hist_,df_forecast_],axis=0)
             assert len(df_tmp) == n_h + n_f
@@ -584,7 +297,7 @@ class HistForecastDataset:
             self.feature_scaler = None
 
         if config['add_cyclical_time_features']:
-            df_time_features = _create_time_features(index=df_target_.index)
+            df_time_features = create_time_features(index=df_target_.index)
             exog = exog.merge(df_time_features, left_index=True, right_index=True, how='left')
 
         if 'fourier_features' in config.keys() and not config['fourier_features'] is None:
@@ -630,7 +343,7 @@ class HistForecastDataset:
             exog_forecast = exog_forecast.merge(df_forecast_scaled, left_index=True, right_index=True, how='left')
 
         if config['add_cyclical_time_features']:
-            df_time_features = _create_time_features(index=exog_forecast.index)
+            df_time_features = create_time_features(index=exog_forecast.index)
             exog_forecast = exog_forecast.merge(df_time_features, left_index=True, right_index=True, how='left')
 
         if 'fourier_features' in config.keys() and not config['fourier_features'] is None:
@@ -667,8 +380,8 @@ class HistForecastDataset:
     @property
     def hist_idx(self)->pd.DatetimeIndex:
         '''
-:return: pd.DatetimeIndex -- index column for the dataframe with historical data
-'''
+        :return: pd.DatetimeIndex -- index column for the dataframe with historical data
+        '''
         return self.df_target_hist.index
     @property
     def target_hist(self)->pd.Series:

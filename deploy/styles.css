@@ -203,22 +203,22 @@ body.dark-mode input[type="range"] {
           gap: 0.5rem;
         }
 
-        .apexcharts-area-series path {
-          stroke: transparent !important;
-        }
-        .chart-container path {
-          fill-opacity: 0.3 !important;
-          stroke-width: 4px; /* Border thickness */
-        }
+/* Ensure area series paths are invisible (if intended) */
+.apexcharts-area-series path {
+  stroke: transparent !important;
+}
 
-        .slider-container {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 0.5rem;
-          justify-content: center;
-          align-items: center;
-        }
+/* Set general chart container styles */
+.chart-container path {
+  fill-opacity: 0.2 !important;
+  stroke-width: 3px; /* Line thickness for all paths */
+}
+
+/* Style dashed lines specifically */
+.apexcharts-line-series .apexcharts-dashline {
+  stroke-dasharray: 5, 5 !important; /* Dashed line with 5px dashes and 5px gaps */
+  /* stroke: currentColor !important;  /* Ensure the dash color matches the series color */
+}
 
         .wrapper {
           display: flex;

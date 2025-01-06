@@ -4,6 +4,10 @@ information profided here may be inaccurate as open source data for all the inst
 I had to collect the data from various sources to get a complete list.
 Useit at your own risk.
 Any verifications or corrections are highly appreciated.
+
+Sources:
+Roughness length: https://www.wind101.net/wind-height/index.htm?utm_source=chatgpt.com
+Roughness factor: https://eurocodes-tools.com/en/roughness-factor-crz/?utm_source=chatgpt.com
 """
 
 cities = [
@@ -32,10 +36,14 @@ onshore_windfarms = [
         "n_turbines": 46,
         "lat": 52.5347,
         "lon": 11.7321,
+        "elevation": 50, # meters; approximate elevation above the sea level)
+        "z0": 0.1, # meter (roughness length)
+        "terrain_category": "II", # as defined in the Eurocode standards,
         "location": "Lower Saxony",
         "TSO": "50Hertz",
         "suffix":"_won_hueselitz",
         "type": "onshore wind farm",
+        "link": "https://www.gem.wiki/H%C3%BCselitz_wind_farm"
     },
     {
         "name": "Werder/Kessin Wind Farm",
@@ -43,9 +51,13 @@ onshore_windfarms = [
         "n_turbines": 32,
         "lat": 53.7270,
         "lon": 13.3362,
+        "elevation": 20, # meters; approximate elevation above the sea level)
+        "z0": 0.03, # meter (roughness length)
+        "terrain_category": "II", # as defined in the Eurocode standards,
         "TSO": "50Hertz",
         "suffix":"_won_werder",
         "type": "onshore wind farm",
+        "link":"https://www.google.com/maps/search/Werder%2FKessin+Wind+Farm"
     },
     {
         "name": "Uckermark Enertrag Wind Farm",
@@ -54,6 +66,9 @@ onshore_windfarms = [
         "location": "Uckermark district of Brandenburg",
         "lat": 53.3784,
         "lon": 13.9491,
+        "elevation": 40, # meters; approximate elevation above the sea level)
+        "z0": 0.1, # meter (roughness length)
+        "terrain_category": "II", # as defined in the Eurocode standards,
         "TSO": "50Hertz",
         "suffix":"_won_uckermark",
         "type": "onshore wind farm",
@@ -65,6 +80,9 @@ onshore_windfarms = [
         "n_turbines": 47,
         "lat": 52.1165,
         "lon": 12.5795,
+        "elevation": 60, # meters; approximate elevation above the sea level)
+        "z0": 0.1, # meter (roughness length)
+        "terrain_category": "II", # as defined in the Eurocode standards,
         "TSO": "50Hertz",
         "suffix":"_won_feldheim",
         "type": "onshore wind farm",
@@ -77,10 +95,27 @@ onshore_windfarms = [
         "n_turbines": 90,
         "lat": 54.645,
         "lon": 8.877,
+        "elevation": 2, # meters; approximate elevation above the sea level)
+        "z0": 0.1, # meter (roughness length)
+        "terrain_category": "II", # as defined in the Eurocode standards,
         "location": "Schleswig-Holstein",
         "TSO": "TenneT",
         "suffix":"_won_reussenkoege",
         "type": "onshore wind farm",
+    },
+    {
+        "name": "Jade Wind Park",
+        "capacity": 40.7, # MW
+        "n_turbines": 16,
+        "lat": 53.5923, # approximate latitude
+        "lon": 8.1079, # approximate longitude
+        "elevation": 2, # meters; approximate elevation above sea level
+        "z0": 0.03, # meters; typical roughness length for open flat terrain with grass
+        "terrain_category": "II", # as defined in the Eurocode standards
+        "location": "Sengwarden, Wilhelmshaven, Lower Saxony, Germany",
+        "TSO": "TenneT",
+        "suffix": "_won_jade",
+        "type": "onshore wind farm"
     },
     {
         "name": "Bürgerwindpark Veer Dörper",
@@ -89,9 +124,13 @@ onshore_windfarms = [
         "n_turbines": 44,
         "lat": 54.6819,
         "lon": 9.1684,
+        "elevation": 2, # meters; approximate elevation above the sea level)
+        "z0": 0.01, # meter (roughness length)
+        "terrain_category": "II", # as defined in the Eurocode standards,
         "TSO": "TenneT",
         "suffix":"_won_doerper",
         "type": "onshore wind farm",
+        "link":"https://veer-doerper.de/"
     },
 
     # TransnetBW
@@ -102,11 +141,47 @@ onshore_windfarms = [
         "n_turbines": 4,
         "lat": 48.3248,
         "lon": 8.1882,
+        "elevation": 650, # meters; approximate elevation above the sea level)
+        "z0": 0.3, # meters; typical roughness length for forests
+        "terrain_category": "III", # as defined in the Eurocode standards,
         "TSO": "TransnetBW",
         "suffix":"_won_hohenlochen",
         "type": "onshore wind farm",
+        'link': 'https://www.stadtanzeiger-ortenau.de/oberwolfach/c-lokales/feierliche-einweihung-und-taufe_a67585?'
     },
-
+    # TODO add Bürgerwindpark Südliche Ortenau, Windpark Großer Wald,
+    {
+        "name": "Windpark Harthäuser Wald",
+        "location": "Harthäuser Wald",
+        "capacity": 54.9,
+        "n_turbines": 18,
+        "turbine_type": "Enercon E-115",
+        "lat": 49.30139,
+        "lon": 9.40658,
+        "elevation": 350, # meters; approximate elevation above the sea level)
+        "z0": 1.2, # meters; typical roughness length for forests
+        "terrain_category": "III", # as defined in the Eurocode standards,
+        "TSO": "TransnetBW",
+        "suffix":"_won_harthaeuser",
+        "type": "onshore wind farm",
+        'link': 'https://www.zeag-energie.de/energie-zukunft/windkraft/harthaeuser-wald.html'
+    },
+    {
+        "name": "Windpark Straubenhardt",
+        "location": "Gemeinde Straubenhardt im Enzkreis, Baden-Württemberg",
+        "capacity": 11,
+        "n_turbines": 18,
+        "turbine_type": "Siemens SWT-3.0-113",
+        "lat": 48.8176,
+        "lon": 8.5222,
+        "elevation": 400, # meters; approximate elevation above the sea level)
+        "z0": 1.2, # meters; typical roughness length for forests
+        "terrain_category": "III", # as defined in the Eurocode standards,
+        "TSO": "TransnetBW",
+        "suffix":"_won_straubenhardt",
+        "type": "onshore wind farm",
+        'link': 'https://www.gegenwind-kraichgau.de/besuch-des-windparks-straubenhardt'
+    },
 
     # Amprion
     {
@@ -115,10 +190,14 @@ onshore_windfarms = [
         "n_turbines": 15,
         "lat": 52.1788,
         "lon": 7.3812,
+        "elevation": 60, # meters; approximate elevation above the sea level)
+        "z0": 0.3, # meter (roughness length)
+        "terrain_category": "III", # as defined in the Eurocode standards,
         "location": "Steinfurt, North Rhine-Westphalia",
         "TSO": "Amprion",
         "suffix":"_won_hollich",
         "type": "onshore wind farm",
+        'link':'https://www.windpark-hollich.de/'
     },
     {
         "name": "Windpark Coesfeld Letter Bruch",
@@ -126,6 +205,9 @@ onshore_windfarms = [
         "n_turbines": 13,
         "lat": 51.8716,
         "lon": 7.1500,
+        "elevation": 80, # meters; approximate elevation above the sea level)
+        "z0": 0.03, # meter (roughness length)
+        "terrain_category": "II", #  meters; typical roughness length for open farmland
         "location": "Coesfeld, North Rhine-Westphalia",
         "TSO": "Amprion",
         "suffix":"_won_coesfeld",
@@ -137,6 +219,9 @@ onshore_windfarms = [
         "n_turbines": 15,
         "lat": 51.8500,
         "lon": 7.0000,
+        "elevation": 50, # meters; approximate elevation above the sea level)
+        "z0": 0.05, # meter (roughness length)
+        "terrain_category": "II", # as defined in the Eurocode standards,
         "location": "Borken, North Rhine-Westphalia",
         "TSO": "Amprion",
         "suffix":"_won_a31",

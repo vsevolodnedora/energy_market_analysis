@@ -36,7 +36,7 @@ from forecasting_modules.utils import (
 from data_modules.data_classes import (
     validate_dataframe,
     HistForecastDataset,
-    _create_time_features,
+    create_time_features,
     suggest_values_for_ds_pars_optuna
 )
 from data_modules.data_vis import plot_time_series_with_residuals
@@ -1351,12 +1351,10 @@ class ForecastingTaskSingleTarget:
             target=self.target, model_label=model_label, working_dir=self.outdir_,verbose=self.verbose
         )
         wrapper.set_dataset_from_df(self.df_history, self.df_forecast, dataset_pars)
-        # wrapper.set_ts_cutoffs(folds=finetuning_pars['cv_folds'])
 
         if self.verbose:
             print(f"Performing optimization study for {self.target} with base model {model_label}")
         study = optuna.create_study(direction='minimize')
-        # study.optimize(wrapper.finetune, n_trials=finetuning_pars['n_trials']) # todo move this into finetuning_pars
         study.optimize(
             lambda trial: wrapper.finetune(trial, cv_metrics_folds=finetuning_pars['cv_folds']),
             n_trials=finetuning_pars['n_trials']

@@ -16,5 +16,5 @@ from .tasks import (
     ForecastingTaskSingleTarget
 )
 from .interface import (
-    update_forecasts
+    update_forecast_production
 )

@@ -13,6 +13,8 @@
 
 <body class="dark-mode">
 
+<!-- ===================== -->
+
 <header>
   <h1 data-i18n="title"></h1>
   <p data-i18n="subtitle"></p>
@@ -38,81 +40,117 @@
   </p>
 </header>
 
-  <div id="error-message"></div>
+<div id="error-message"></div>
 
-  <!-- First chart collapsible -->
-<details open>
-  <!-- Change the <summary> to use i18n -->
-  <summary data-i18n="offshore-forecast">Offshore Wind Power Forecast</summary>
-  <div class="forecast-section">
-    <div class="chart-container" id="chart1"></div>
+  <!-- ======================= | WIND OFFSHORE | =========================== -->
 
-    <!-- Unified Control Area -->
-    <div class="control-area">
-      <div class="controls">
-        <!-- Change the <span> to use i18n -->
-        <span class="controls-label" data-i18n="tso-area">TSO Area:</span>
-        <div class="controls-buttons">
-          <input type="checkbox" name="tso-area" id="50hz-checkbox-1" onchange="updateChart1()">
-          <label for="50hz-checkbox-1">50Hertz</label>
+  <details open>
+    <summary data-i18n="offshore-forecast">Offshore Wind Power Forecast</summary>
+    <div class="forecast-section">
+      <!-- The chart container -->
+      <div class="chart-container" id="chart1"></div>
+  
+      <!-- Show any error messages -->
+      <div id="error-message" class="error-message"></div>
+  
+      <!-- Unified Control Area -->
+      <div class="control-area">
+        <div class="controls">
+          <span class="controls-label" data-i18n="tso-area">TSO Area:</span>
+          <div class="controls-buttons">
+            <input type="checkbox" name="tso-area" id="50hz-checkbox-1" onchange="updateChart1()">
+            <label for="50hz-checkbox-1">50Hertz</label>
+  
+            <input type="checkbox" name="tso-area" id="tenn-checkbox-1" onchange="updateChart1()">
+            <label for="tenn-checkbox-1">TenneT</label>
+  
+            <input type="checkbox" name="tso-area" id="total-checkbox-1" checked onchange="updateChart1()">
+            <label for="total-checkbox-1">Total</label>
+  
+            <input type="checkbox" name="tso-area" id="showci_checkbox-1" checked onchange="updateChart1()">
+            <label for="showci_checkbox-1">CI</label>
+          </div>
+        </div>
+  
+        <div class="slider-container">
+          <label for="past-data-slider-1" data-i18n="past-data-slider-label">Amount of past data to show:</label>
+          <input
+            type="range"
+            id="past-data-slider-1"
+            min="1"
+            max="100"
+            step="1"
+            value="20"
+            onchange="updateChart1()"
+          />
+        </div>
+      </div>
+  
+      <details id="chart1-description-details">
+        <summary data-i18n="show-hide-description">Show/Hide Description</summary>
+        <div id="chart1-description-container">
+          <!-- Markdown content will be dynamically loaded here -->
+        </div>
+      </details>
+    </div>
+  </details>
 
-          <input type="checkbox" name="tso-area" id="tenn-checkbox-1" onchange="updateChart1()">
-          <label for="tenn-checkbox-1">TenneT</label>
+<!-- ======================= | WIND ONSHORE | =========================== -->
 
-          <input type="checkbox" name="tso-area" id="total-checkbox-1" checked onchange="updateChart1()">
-          <label for="total-checkbox-1">Total</label>
+  <details open>
+    <summary data-i18n="onshore-forecast">Onshore Wind Power Forecast</summary>
+    <div class="forecast-section">
+      <!-- The chart container -->
+      <div class="chart-container" id="chart2"></div>
+
+      <!-- Show any error messages -->
+      <div id="error-message" class="error-message"></div>
+
+      <!-- Unified Control Area -->
+      <div class="control-area">
+        <div class="controls">
+          <span class="controls-label" data-i18n="tso-area">TSO Area:</span>
+          <div class="controls-buttons">
+            <input type="checkbox" name="tso-area" id="50hz-checkbox-2" onchange="updateChart2()">
+            <label for="50hz-checkbox-2">50Hertz</label>
+
+            <input type="checkbox" name="tso-area" id="tenn-checkbox-2" onchange="updateChart2()">
+            <label for="tenn-checkbox-2">TenneT</label>
+
+            <input type="checkbox" name="tso-area" id="tran-checkbox-2" onchange="updateChart2()">
+            <label for="tran-checkbox-2">TransnetBW</label>
+
+            <input type="checkbox" name="tso-area" id="ampr-checkbox-2" onchange="updateChart2()">
+            <label for="ampr-checkbox-2">Amprion</label>
+
+            <input type="checkbox" name="tso-area" id="total-checkbox-2" checked onchange="updateChart2()">
+            <label for="total-checkbox-2">Total</label>
+
+            <input type="checkbox" name="tso-area" id="showci_checkbox-2" checked onchange="updateChart2()">
+            <label for="showci_checkbox-2">CI</label>
+          </div>
+        </div>
+
+        <div class="slider-container">
+          <label for="past-data-slider-2" data-i18n="past-data-slider-label">Amount of past data to show:</label>
+          <input
+                  type="range"
+                  id="past-data-slider-2"
+                  min="1"
+                  max="100"
+                  step="1"
+                  value="20"
+                  onchange="updateChart2()"
+          />
         </div>
       </div>
 
-      <div class="slider-container">
-        <label for="past-data-slider-1" data-i18n="past-data-slider-label">Amount of past data to show:</label>
-        <input
-                type="range"
-                id="past-data-slider-1"
-                min="1"
-                max="100"
-                step="1"
-                value="20"
-                onchange="updateChart1()"
-        />
-      </div>
-    </div>
-
-    <details id="chart1-description-details">
-      <!-- Change the <summary> to use i18n -->
-      <summary data-i18n="show-hide-description">Show/Hide Description</summary>
-      <div id="chart1-description-container">
-        <!-- Markdown content will be dynamically loaded here -->
-      </div>
-    </details>
-  </div>
-</details>
-
-
-  <!-- Second chart collapsible -->
-  <details>
-    <summary>Onshore Forecast (PLACEHOLDER)</summary>
-    <div class="chart-container" id="chart2"></div>
-
-    <div class="controls">
-      <span class="controls-label">TSO Area:</span>
-      <div class="controls-buttons">
-        <label><input type="checkbox" id="50hz-checkbox-2" onchange="updateChart2()"> 50Hz</label>
-        <label><input type="checkbox" id="tenn-checkbox-2" onchange="updateChart2()"> TenneT</label>
-        <label><input type="checkbox" id="total-checkbox-2" checked onchange="updateChart2()"> Total</label>
-      </div>
-    </div>
-    <div class="slider-container">
-      <label for="past-data-slider-2">Amount of past data to show:</label>
-      <input
-        type="range"
-        id="past-data-slider-2"
-        min="1"
-        max="100"
-        step="1"
-        value="20"
-        onchange="updateChart2()"
-      />
+      <details id="chart2-description-details">
+        <summary data-i18n="show-hide-description">Show/Hide Description</summary>
+        <div id="chart2-description-container">
+          <!-- Markdown content will be dynamically loaded here -->
+        </div>
+      </details>
     </div>
   </details>
 
@@ -125,572 +163,9 @@
     <a href="https://www.eex.com/en/" target="_blank">EEX</a>
   </div>
 
-<!--  <div id="github-logo-container">-->
-<!--    <a href="https://github.com/vsevolodnedora/energy_market_analysis" target="_blank">-->
-<!--      <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub Repo" id="github-logo">-->
-<!--    </a>-->
-<!--  </div>-->
 
-  <!-- <div id="source-code-text">
-    <a href="https://github.com/vsevolodnedora/energy_market_analysis" target="_blank">
-      vsevolodnedora/energy_market_analysis
-    </a>
-  </div> -->
-  <!-- =====================================| SCRIPT |=====================================  -->
-
-
-  <script>
-    // ----------------- LANGUAGE --------------------------
-    // Extended i18n resources in both English (en) and German (de)
-    const resources = {
-      en: {
-        translation: {
-          "title": "German Energy Market Predictive Analytics",
-          "subtitle": "Accurate Week-Ahead Forecasts for Renewable Energy, Load, and Prices",
-          "description": "Empowering utilities, traders, and policymakers with actionable insights for optimized operations and sustainability.",
-          "updated-daily-label": "Updated Daily:",
-          "updated-daily-description": "Forecasts are refined using the latest energy, weather, and market data.",
-  
-          "offshore-forecast": "Offshore Wind Power Forecast",
-          "tso-area": "TSO Area:",
-          "show-hide-description": "Show/Hide Description",
-          "past-data-slider-label": "Amount of past data to show:",
-  
-          /* Added or renamed keys for chart labels and annotations */
-          "offshore-power-label": "Offshore Wind Power",
-          "offshore-power-label-mw": "Offshore Wind Power [MW]",
-          "now-label": "Now",
-          "last-forecast-label": "Last Forecast",
-
-          "past-fitted-label": "Past Fitted",
-          "past-actual-label": "Past Actual",
-          "current-label": "Current",
-        }
-      },
-      de: {
-        translation: {
-          "title": "Prognosen für den deutschen Energiemarkt",
-          "subtitle": "Präzise Wochenprognosen für erneuerbare Energien, Last und Preise",
-          "description": "Wir bieten Versorgungsunternehmen, Händlern und politischen Entscheidungsträgern verwertbare Erkenntnisse für optimierte Abläufe und Nachhaltigkeit.",
-          "updated-daily-label": "Täglich aktualisiert:",
-          "updated-daily-description": "Die Prognosen werden mit den neuesten Energie-, Wetter- und Marktdaten verfeinert.",
-  
-          "offshore-forecast": "Offshore-Windprognose",
-          "tso-area": "ÜNB-Bereich:",
-          "show-hide-description": "Beschreibung anzeigen/ausblenden",
-          "past-data-slider-label": "Menge der anzuzeigenden vergangenen Daten:",
-  
-          /* Added or renamed keys for chart labels and annotations */
-          "offshore-power-label": "Offshore-Windenergie",
-          "offshore-power-label-mw": "Offshore-Windenergie [MW]",
-          "now-label": "Jetzt",
-          "last-forecast-label": "Letzte Prognose",
-
-          "past-fitted-label": "Vergangenheit Angepasst",
-          "past-actual-label": "Vergangenheit Tatsächlich",
-          "current-label": "Aktuell",
-        }
-      }
-    };
-  
-    // Initialize i18next
-    i18next.init({
-      lng: 'en', // default language
-      debug: false,
-      resources: resources
-    }).then(() => {
-      updateContent();
-    });
-  
-    // Update all elements with [data-i18n] using i18next
-    function updateContent() {
-      document.querySelectorAll('[data-i18n]').forEach(element => {
-        const key = element.getAttribute('data-i18n');
-        element.innerHTML = i18next.t(key);
-      });
-    }
-  
-    // Toggle between English and German
-    function toggleLanguage() {
-      const newLang = (i18next.language === 'en') ? 'de' : 'en';
-      i18next.changeLanguage(newLang, async () => {
-        updateContent(); // Updates text translations
-        
-        if (chartInstance1) {
-          updateChart1(); // Force chart update to reformat labels/axes
-        }
-        if (chartInstance2) {
-          updateChart2();
-        }
-        
-        // Reload the description in the new language if already loaded
-        if (chart1DescLoaded) {
-          const language = i18next.language; // Get the new current language
-          const fileName = `wind_offshore_notes_${language}.md`;
-          await loadMarkdown(`data/forecasts/${fileName}`, 'chart1-description-container');
-        }
-        
-        // Update the text of the language toggle button
-        const languageToggleButton = document.getElementById('language-toggle');
-        languageToggleButton.textContent = (newLang === 'en') ? 'DE' : 'EN'; // Show the other language
-      });
-    }
-
-  
-    // ----------------- OTHER --------------------------
-  
-    let baseUrl = "https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/";
-    let isDarkMode = true;
-  
-    // A helper to track whether each chart was created
-    let chart1Created = false;
-    let chart2Created = false;
-    let chartInstance1 = null;
-    let chartInstance2 = null;
-  
-    let chart1DescLoaded = false;
-    let chart2DescLoaded = false;
-  
-    // Common chart options that can be reused
-    function getBaseChartOptions() {
-      return {
-        chart: {
-          type: 'line',
-          height: 350,
-          toolbar: { show: true }
-        },
-        series: [],
-        xaxis: {
-          type: 'datetime',
-          labels: {
-            style: { colors: isDarkMode ? '#e0e0e0' : '#000' },
-            formatter: function (val, timestamp) {
-              // `val` is the default formatted string by ApexCharts. 
-              // `timestamp` is the raw timestamp (in ms).
-        
-              // Get the current language from i18next:
-              const currentLang = i18next.language;
-        
-              // Use built-in DateTimeFormat:
-              // Customize the format for day/month
-              const dateFormatter = new Intl.DateTimeFormat(currentLang, {
-                month: 'short',
-                day: 'numeric',
-              });
-        
-              return dateFormatter.format(new Date(timestamp)); // Format timestamp
-            }
-          },
-          title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } }
-        },
-        yaxis: {
-          title: {
-            // Note: We’ll overwrite this text in each chart’s update function
-            text: i18next.t('offshore-power-label'), 
-            style: { color: isDarkMode ? '#e0e0e0' : '#000' }
-          },
-          labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } }
-        },
-        annotations: { xaxis: [] },
-        tooltip: {
-          shared: true,
-          theme: isDarkMode ? 'dark' : 'light',
-          x: { format: 'dd MMM yyyy HH:mm' }
-        },
-        legend: {
-          labels: { 
-            colors: isDarkMode ? '#e0e0e0' : '#000', 
-            useSeriesColors: false 
-          }
-        }
-      };
-    }
-  
-    // Listen for the toggle event on each <details> to create Chart #1 or #2
-    document.querySelector('details:nth-of-type(1)').addEventListener('toggle', async function(e) {
-      if (e.target.open && !chart1Created) {
-        chart1Created = true;
-        chartInstance1 = await createChart('#chart1');
-        updateChart1(); // first update
-      }
-    });
-  
-    document.querySelector('details:nth-of-type(2)').addEventListener('toggle', async function(e) {
-      if (e.target.open && !chart2Created) {
-        chart2Created = true;
-        chartInstance2 = await createChart('#chart2');
-        updateChart2(); // first update
-      }
-    });
-  
-    // Listen for toggle on the chart #1 description details
-    document
-    .getElementById('chart1-description-details')
-    .addEventListener('toggle', async function (e) {
-      // If the user is opening the details and it's not loaded yet...
-      if (e.target.open && !chart1DescLoaded) {
-        chart1DescLoaded = true;
-  
-        // Determine the language-specific file
-        const language = i18next.language; // Get the current language ('en' or 'de')
-        const fileName = `wind_offshore_notes_${language}.md`;
-  
-        // Load the appropriate Markdown file
-        await loadMarkdown(`data/forecasts/${fileName}`, 'chart1-description-container');
-      }
-    });
-  
-    // Helper function to load Markdown from a given URL
-    async function loadMarkdown(url, containerId) {
-      const fallbackUrl = baseUrl + url;
-      try {
-        // Attempt to fetch the file from the local path
-        let response = await fetch(url);
-  
-        // If the response is not OK, throw an error to trigger the fallback
-        if (!response.ok) {
-          console.warn(`Failed to load markdown from local path: ${url}. Trying fallback URL.`);
-          response = await fetch(fallbackUrl);
-        }
-  
-        // If the fallback response is also not OK, throw an error
-        if (!response.ok) {
-          throw new Error(`Failed to load markdown from both local and fallback URLs.`);
-        }
-  
-        const markdownText = await response.text();
-  
-        // Use showdown to convert the markdown to HTML
-        const converter = new showdown.Converter({
-          tables: true,
-          ghCompatibleHeaderId: true,
-          simplifiedAutoLink: true,
-          strikethrough: true,
-          tasklists: true,
-          emoji: true,
-          parseImgDimensions: true,
-          openLinksInNewWindow: true,
-          simpleLineBreaks: true
-        });
-        const html = converter.makeHtml(markdownText);
-  
-        // Insert HTML into the container
-        document.getElementById(containerId).innerHTML = html;
-      } catch (error) {
-        console.error(error);
-        document.getElementById(containerId).innerHTML = `
-          <p style="color:red;">
-            <strong>Error:</strong> Could not load description.
-          </p>`;
-      }
-    }
-  
-    // Create a new chart in a given container
-    async function createChart(containerSelector) {
-      const options = getBaseChartOptions();
-      const newChart = new ApexCharts(document.querySelector(containerSelector), options);
-      await newChart.render();
-      return newChart;
-    }
-  
-    // Helper color maps, etc.
-    const colorMap = {
-      'wind_offshore_50hz': '#1E90FF',
-      'wind_offshore_tenn': '#FF6347',
-      'wind_offshore': '#9370DB'
-    };
-  
-    const aliases = {
-      'wind_offshore_50hz': '50Hz',
-      'wind_offshore_tenn': 'TenneT',
-      'wind_offshore': 'Total'
-    };
-  
-    // Example update function for Chart #1
-    async function updateChart1() {
-      if (!chartInstance1) return; // if chart not yet created
-  
-      document.getElementById('error-message').textContent = '';
-      const seriesData = [];
-      const annotations = [];
-  
-      // Grab controls
-      const show50hz = document.getElementById('50hz-checkbox-1').checked;
-      const showTenn = document.getElementById('tenn-checkbox-1').checked;
-      const showTotal = document.getElementById('total-checkbox-1').checked;
-      const pastDataRatio = document.getElementById('past-data-slider-1').value / 100;
-  
-      async function addSeries(variable, pastFile, pastActualFile, currentFile, lowerFile, upperFile) {
-        const baseColor = colorMap[variable];
-        const alias = aliases[variable];
-  
-        const pastFittedData = await fetchData(variable, pastFile);
-        const pastActualData = await fetchData(variable, pastActualFile);
-        const currentData = await fetchData(variable, currentFile);
-        const lowerData = await fetchData(variable, lowerFile);
-        const upperData = await fetchData(variable, upperFile);
-  
-        if (pastFittedData) {
-          const pastToShow = Math.floor(pastFittedData.length * pastDataRatio);
-          seriesData.push({
-            name: `${alias} (${i18next.t('past-fitted-label')})`, // Localized
-            data: pastFittedData.slice(-pastToShow),
-            color: baseColor,
-            type: 'line'
-          });
-        }
-  
-        if (pastActualData) {
-          const pastToShow = Math.floor(pastActualData.length * pastDataRatio);
-          seriesData.push({
-            name: `${alias} (${i18next.t('past-actual-label')})`, // Localized
-            data: pastActualData.slice(-pastToShow),
-            color: lightenColor(baseColor, 40),
-            type: 'line',
-            dashStyle: 'Dash'
-          });
-        }
-  
-        if (currentData) {
-          seriesData.push({
-            name: `${alias} (${i18next.t('current-label')})`, // Localized
-            data: currentData,
-            color: baseColor,
-            type: 'line'
-          });
-          if (currentData.length > 0) {
-            annotations.push({
-              x: currentData[0].x.getTime(),
-              borderColor: '#808080',
-              label: {
-                text: i18next.t('last-forecast-label'),  // <--- translated
-                style: { color: '#FFFFFF', background: '#808080' }
-              }
-            });
-          }
-        }
-  
-        if (lowerData && upperData && lowerData.length === upperData.length) {
-          const forecastPolygon = [
-            ...lowerData.map((point) => ({ x: point.x, y: point.y })),
-            ...upperData.slice().reverse().map((point) => ({ x: point.x, y: point.y }))
-          ];
-          if (forecastPolygon.length > 0) {
-            seriesData.push({
-              name: `${alias} (Forecast Interval)`,
-              type: 'area',
-              data: forecastPolygon,
-              color: baseColor,
-              fillOpacity: 0.7,
-              showInLegend: true,
-              fill: {
-                type: 'gradient',
-                gradient: {
-                  shade: 'light',
-                  type: 'vertical',
-                  shadeIntensity: 0.7,
-                  gradientToColors: [baseColor],
-                  inverseColors: false,
-                  opacityFrom: 0.2,
-                  opacityTo: 0.5
-                }
-              },
-              stroke: {
-                width: 1
-              }
-            });
-          }
-        }
-      }
-  
-      // Conditionally add series
-      if (show50hz) {
-        await addSeries(
-          'wind_offshore_50hz',
-          'forecast_prev_fitted.json',
-          'forecast_prev_actual.json',
-          'forecast_curr_fitted.json',
-          'forecast_curr_lower.json',
-          'forecast_curr_upper.json'
-        );
-      }
-      if (showTenn) {
-        await addSeries(
-          'wind_offshore_tenn',
-          'forecast_prev_fitted.json',
-          'forecast_prev_actual.json',
-          'forecast_curr_fitted.json',
-          'forecast_curr_lower.json',
-          'forecast_curr_upper.json'
-        );
-      }
-      if (showTotal) {
-        await addSeries(
-          'wind_offshore',
-          'forecast_prev_fitted.json',
-          'forecast_prev_actual.json',
-          'forecast_curr_fitted.json',
-          'forecast_curr_lower.json',
-          'forecast_curr_upper.json'
-        );
-      }
-  
-      // Example: add "Now" line
-      const now = new Date();
-      annotations.push({
-        x: now.getTime(),
-        borderColor: '#FF0000',
-        label: { 
-          text: i18next.t('now-label'),  // <--- translated
-          style: { color: '#FFF', background: '#FF0000' } 
-        }
-      });
-  
-      // Update the chart
-      chartInstance1.updateOptions({
-        series: seriesData,
-        annotations: { xaxis: annotations },
-        tooltip: { theme: isDarkMode ? 'dark' : 'light' },
-        xaxis: {
-          labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } },
-          title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } },
-        },
-        yaxis: {
-          title: {
-            text: i18next.t('offshore-power-label-mw'), // <--- translated
-            style: {
-              color: isDarkMode ? '#e0e0e0' : '#000',
-              fontSize: '14px'
-            }
-          },
-          labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } }
-        },
-        legend: {
-          labels: { colors: isDarkMode ? '#e0e0e0' : '#000' }
-        }
-      });
-    }
-  
-    // Dummy example update for Chart #2
-    async function updateChart2() {
-      if (!chartInstance2) return;
-      document.getElementById('error-message').textContent = '';
-      const seriesData = [];
-      const annotations = [];
-  
-      const show50hz = document.getElementById('50hz-checkbox-2').checked;
-      const showTenn = document.getElementById('tenn-checkbox-2').checked;
-      const showTotal = document.getElementById('total-checkbox-2').checked;
-      const pastDataRatio = document.getElementById('past-data-slider-2').value / 100;
-  
-      // For simplicity here, we just show random “dummy” data
-      if (show50hz) {
-        seriesData.push({
-          name: '50Hertz (Dummy)',
-          data: [
-            { x: new Date(), y: Math.random() * 1000 },
-            { x: new Date(Date.now() + 3600e3), y: Math.random() * 1000 }
-          ],
-          color: '#1E90FF'
-        });
-      }
-      if (showTenn) {
-        seriesData.push({
-          name: 'TenneT (Dummy)',
-          data: [
-            { x: new Date(), y: Math.random() * 1000 },
-            { x: new Date(Date.now() + 3600e3), y: Math.random() * 1000 }
-          ],
-          color: '#FF6347'
-        });
-      }
-      if (showTotal) {
-        seriesData.push({
-          name: 'Total (Dummy)',
-          data: [
-            { x: new Date(), y: Math.random() * 1000 },
-            { x: new Date(Date.now() + 3600e3), y: Math.random() * 1000 }
-          ],
-          color: '#2E8B57'
-        });
-      }
-  
-      annotations.push({
-        x: new Date().getTime(),
-        borderColor: '#FF0000',
-        label: { 
-          text: i18next.t('now-label'),  // <--- translated
-          style: { color: '#FFF', background: '#FF0000' } 
-        }
-      });
-  
-      chartInstance2.updateOptions({
-        series: seriesData,
-        annotations: { xaxis: annotations },
-        tooltip: { theme: isDarkMode ? 'dark' : 'light' },
-        xaxis: {
-          labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } },
-          title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } }
-        },
-        yaxis: {
-          title: {
-            text: i18next.t('offshore-power-label'), // <--- translated
-            style: {
-              color: isDarkMode ? '#e0e0e0' : '#000',
-              fontSize: '16px'
-            }
-          },
-          labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } }
-        },
-        legend: {
-          labels: { colors: isDarkMode ? '#e0e0e0' : '#000' }
-        }
-      });
-    }
-  
-    // ----------------------------------------
-    async function fetchData(variable, file) {
-      try {
-        const response = await fetch(`data/forecasts/${variable}/${file}`);
-        if (!response.ok) throw new Error(`Failed to load ${variable}`);
-        const data = await response.json();
-        return data.map(([timestamp, value]) => ({ x: new Date(timestamp), y: value }));
-      } catch (error) {
-        document.getElementById('error-message').textContent = error.message;
-        return null;
-      }
-    }
-  
-    function toggleDarkMode() {
-      const body = document.body;
-      body.classList.toggle('dark-mode');
-      isDarkMode = !isDarkMode;
-  
-      // If charts exist, refresh them
-      if (chartInstance1) updateChart1();
-      if (chartInstance2) updateChart2();
-    }
-  
-    function lightenColor(color, percent) {
-      const num = parseInt(color.slice(1), 16),
-        amt = Math.round(2.55 * percent),
-        R = (num >> 16) + amt,
-        G = (num >> 8 & 0x00FF) + amt,
-        B = (num & 0x0000FF) + amt;
-      return `#${(
-        0x1000000 +
-        (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
-        (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
-        (B < 255 ? (B < 1 ? 0 : B) : 255)
-      )
-        .toString(16)
-        .slice(1)
-        .toUpperCase()}`;
-    }
-  
-    // Optional: start in dark mode
-    toggleDarkMode();
-  </script>
+  <!-- ----------- JAVA SCRIPT CODE -----------------  -->
+  <script src="script.js"></script>
 
     
 </body>

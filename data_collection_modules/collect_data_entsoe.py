@@ -70,8 +70,23 @@ def fetch_entsoe_data_from_api(start_date:pd.Timestamp or None, today:pd.Timesta
     df = pd.DataFrame()
     for i, region in enumerate(de_regions):
         if verbose: print(f"Requesting generation data for region {region['name']} from {start_date} till {today}")
-        df_gen = client.query_generation(country_code=region['name'], start=start_date, end=today, psr_type=None)
-        df_gen = preprocess_generation(df_gen, drop_consumption=True, downsample=True, verbose=verbose)
+
+        df_gen = None
+        for i in range(5):
+            try:
+                df_gen = client.query_generation(country_code=region['name'], start=start_date, end=today, psr_type=None)
+                df_gen = preprocess_generation(df_gen, drop_consumption=True, downsample=True, verbose=verbose)
+            except Exception as e:
+                print(f"Failed to fetch generation from ENTSOE API ({i}/{5}) for region "
+                      f"{region['name']} from {start_date} till {today}: \n\t{e}")
+                continue
+            break
+        if df_gen is None:
+            raise ConnectionResetError(
+                f"Failed to fetch generation data from ENTSOE API for region "
+                f"{region['name']} from {start_date} till {today}"
+            )
+
         df_gen.columns = [col + region['suffix'] for col in df_gen.columns]
         if (i==0): df = df_gen
         else: df = pd.merge(df, df_gen, left_index=True, right_index=True, how="left")
