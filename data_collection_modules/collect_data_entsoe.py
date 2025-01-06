@@ -7,6 +7,7 @@ import pandas as pd
 from datetime import timedelta, datetime
 
 from data_collection_modules.locations import de_regions
+from data_collection_modules.utils import compare_columns
 
 def preprocess_generation(df_gen:pd.DataFrame, downsample:bool, drop_consumption:bool, verbose:bool)->pd.DataFrame:
 
@@ -88,8 +89,10 @@ def fetch_entsoe_data_from_api(start_date:pd.Timestamp or None, today:pd.Timesta
             )
 
         df_gen.columns = [col + region['suffix'] for col in df_gen.columns]
-        if (i==0): df = df_gen
+
+        if df.empty:  df = df_gen
         else: df = pd.merge(df, df_gen, left_index=True, right_index=True, how="left")
+
     return df
 
 def create_entsoe_from_api(start_date:pd.Timestamp or None, today:pd.Timestamp,data_dir:str,api_key:str,verbose:bool):
@@ -102,13 +105,17 @@ def update_entsoe_from_api(today:pd.Timestamp,data_dir:str,api_key:str,verbose:b
 
     fname = data_dir + 'history.parquet'
     df_hist = pd.read_parquet(fname)
+    df_hist.index = pd.to_datetime(df_hist.index, utc=True)
     start_date = pd.Timestamp(df_hist.index[-1]) - timedelta(days=3) # to override previously incorrect last values
     if verbose: print(f"Updating ENTSOE data from {start_date} till {today}. Current shape={df_hist.shape}")
     df = fetch_entsoe_data_from_api(start_date, today, api_key, verbose)
-    df_hist = df.combine_first(df_hist)
-    df_hist.sort_index(inplace=True)
+    compare_columns(df, df_hist)
+    if len(df.columns) != len(df_hist.columns):
+        raise ValueError(f"Historic dataframe has {len(df_hist.columns)} columns, updated one has {len(df.columns)}")
+    combined = df.combine_first(df_hist)
+    combined.sort_index(inplace=True)
     if verbose: print(f"ENTSOE data is successfully updated. Shape={df.shape}. Saving into {fname}")
-    df_hist.to_parquet(fname)
+    combined.to_parquet(fname)
 
 if __name__ == '__main__':
     pass
