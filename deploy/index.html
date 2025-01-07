@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title data-i18n="title"></title>
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/apexcharts/dist/apexcharts.css">
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/showdown/dist/showdown.min.js"></script>
   <script src="https://unpkg.com/i18next/i18next.min.js"></script>
@@ -40,6 +41,7 @@
   </p>
 </header>
 
+
 <div id="error-message"></div>
 
   <!-- ======================= | WIND OFFSHORE | =========================== -->
@@ -54,26 +56,9 @@
       <div id="error-message" class="error-message"></div>
   
       <!-- Unified Control Area -->
-      <div class="control-area">
-        <div class="controls">
-          <span class="controls-label" data-i18n="tso-area">TSO Area:</span>
-          <div class="controls-buttons">
-            <input type="checkbox" name="tso-area" id="50hz-checkbox-1" onchange="updateChart1()">
-            <label for="50hz-checkbox-1">50Hertz</label>
-  
-            <input type="checkbox" name="tso-area" id="tenn-checkbox-1" onchange="updateChart1()">
-            <label for="tenn-checkbox-1">TenneT</label>
-  
-            <input type="checkbox" name="tso-area" id="total-checkbox-1" checked onchange="updateChart1()">
-            <label for="total-checkbox-1">Total</label>
-  
-            <input type="checkbox" name="tso-area" id="showci_checkbox-1" checked onchange="updateChart1()">
-            <label for="showci_checkbox-1">CI</label>
-          </div>
-        </div>
-  
+      <div class="controls">
         <div class="slider-container">
-          <label for="past-data-slider-1" data-i18n="past-data-slider-label">Amount of past data to show:</label>
+          <label for="past-data-slider-1" data-i18n="historic-data">Historic Data:</label>
           <input
             type="range"
             id="past-data-slider-1"
@@ -84,16 +69,35 @@
             onchange="updateChart1()"
           />
         </div>
-      </div>
-  
-      <details id="chart1-description-details">
-        <summary data-i18n="show-hide-description">Show/Hide Description</summary>
-        <div id="chart1-description-container">
-          <!-- Markdown content will be dynamically loaded here -->
+        <!-- <span class="controls-label" 
+        data-i18n="tso-area">TSO Area:  
+        </span> -->
+        <div class="controls-buttons">
+          <input type="checkbox" name="tso-area" id="50hz-checkbox-1" onchange="updateChart1()">
+          <label for="50hz-checkbox-1" class="btn-blue">50Hertz</label>
+        
+          <input type="checkbox" name="tso-area" id="tenn-checkbox-1" onchange="updateChart1()">
+          <label for="tenn-checkbox-1" class="btn-green">TenneT</label>
+        
+          <input type="checkbox" name="tso-area" id="total-checkbox-1" checked onchange="updateChart1()">
+          <label for="total-checkbox-1" class="btn-purple">Total</label>
+        
+          <input type="checkbox" name="tso-area" id="showci_checkbox-1" unchecked onchange="updateChart1()">
+          <label for="showci_checkbox-1" class="btn-purple">CI</label>
+        
+          <input type="checkbox" id="description1-toggle-checkbox" class="description1-toggle-checkbox" onchange="toggleDescription()">
+          <label for="description1-toggle-checkbox" class="description-button">Description</label>
         </div>
-      </details>
+
+    <!--    Chart description    -->
     </div>
-  </details>
+      <div id="chart1-description-container" class="dropdown-content">
+        <!-- Markdown content will be dynamically loaded here -->
+      </div>
+  </div>
+</details>
+
+
 
 <!-- ======================= | WIND ONSHORE | =========================== -->
 
@@ -109,48 +113,48 @@
       <!-- Unified Control Area -->
       <div class="control-area">
         <div class="controls">
-          <span class="controls-label" data-i18n="tso-area">TSO Area:</span>
+          <div class="slider-container">
+            <label for="past-data-slider-2" data-i18n="historic-data">Historic Data:</label>
+            <input
+                    type="range"
+                    id="past-data-slider-2"
+                    min="1"
+                    max="100"
+                    step="1"
+                    value="20"
+                    onchange="updateChart2()"
+            />
+          </div>
+<!--          <span class="controls-label" data-i18n="tso-area">TSO Area:</span>-->
           <div class="controls-buttons">
             <input type="checkbox" name="tso-area" id="50hz-checkbox-2" onchange="updateChart2()">
-            <label for="50hz-checkbox-2">50Hertz</label>
+            <label for="50hz-checkbox-2" class="btn-blue">50Hertz</label>
 
             <input type="checkbox" name="tso-area" id="tenn-checkbox-2" onchange="updateChart2()">
-            <label for="tenn-checkbox-2">TenneT</label>
+            <label for="tenn-checkbox-2" class="btn-green">TenneT</label>
 
             <input type="checkbox" name="tso-area" id="tran-checkbox-2" onchange="updateChart2()">
-            <label for="tran-checkbox-2">TransnetBW</label>
+            <label for="tran-checkbox-2" class="btn-red">TransnetBW</label>
 
             <input type="checkbox" name="tso-area" id="ampr-checkbox-2" onchange="updateChart2()">
-            <label for="ampr-checkbox-2">Amprion</label>
+            <label for="ampr-checkbox-2" class="btn-yellow">Amprion</label>
 
             <input type="checkbox" name="tso-area" id="total-checkbox-2" checked onchange="updateChart2()">
-            <label for="total-checkbox-2">Total</label>
+            <label for="total-checkbox-2" class="btn-purple">Total</label>
 
-            <input type="checkbox" name="tso-area" id="showci_checkbox-2" checked onchange="updateChart2()">
-            <label for="showci_checkbox-2">CI</label>
+            <input type="checkbox" name="tso-area" id="showci_checkbox-2" onchange="updateChart2()">
+            <label for="showci_checkbox-2" class="btn-purple">CI</label>
+
+            <input type="checkbox" id="description2-toggle-checkbox" class="description-toggle-checkbox" onchange="toggleDescription()">
+            <label for="description2-toggle-checkbox" class="description-button">Description</label>
           </div>
         </div>
-
-        <div class="slider-container">
-          <label for="past-data-slider-2" data-i18n="past-data-slider-label">Amount of past data to show:</label>
-          <input
-                  type="range"
-                  id="past-data-slider-2"
-                  min="1"
-                  max="100"
-                  step="1"
-                  value="20"
-                  onchange="updateChart2()"
-          />
-        </div>
       </div>
-
-      <details id="chart2-description-details">
-        <summary data-i18n="show-hide-description">Show/Hide Description</summary>
-        <div id="chart2-description-container">
-          <!-- Markdown content will be dynamically loaded here -->
-        </div>
-      </details>
+      <!--    Chart description    -->
+      </div>
+      <div id="chart2-description-container" class="dropdown-content">
+        <!-- Markdown content will be dynamically loaded here -->
+      </div>
     </div>
   </details>
 

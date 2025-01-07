@@ -1,5 +1,8 @@
-/* ------------- General body styles -------------- */
+/* ============================================= */
+/* ================ BODY STYLES ================ */
+/* ============================================= */
 
+/* Base body styles (shared by all modes) */
 body {
   font-family: 'Arial', sans-serif;
   margin: 0;
@@ -8,44 +11,84 @@ body {
   color: #333;
   line-height: 1.6;
   transition: background-color 0.3s, color 0.3s;
-
 }
 
+/* Dark mode overrides for body */
 body.dark-mode {
   background-color: #202020;
   color: #e0e0e0;
 }
 
-/* Header styles for default mode */
+/* ============================================= */
+/* ================ HEADER STYLES ============== */
+/* ============================================= */
+
+/* Base header styles */
 header {
-  background: linear-gradient(0deg, #ffffff, #e6d1fa);
   color: #333;
-  padding: 10px; /* Consistent padding */
+  padding: 5px 10px;          /* Reduced padding for a more compact look */
   text-align: center;
-  border-radius: 10px; /* Rounded edges for the header */
-  margin: 10px 10px; /* Same margin as details */
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.15); /* Enhanced soft shadow for separation */
-  border-bottom: none; /* No border line */
-  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1); /* Subtle separating line */
+  position: relative;
+  transition: color 0.3s;
 }
 
+/* Compact fancy line at the bottom */
+header::after {
+  content: "";
+  display: block;
+  width: 40%;                 /* Slightly shorter line */
+  height: 2px;                /* Thinner line */
+  background: linear-gradient(to right, #6a11cb, #2575fc);
+  margin: 5px auto 0;         /* Reduced spacing below */
+  border-radius: 1px;         /* Subtle rounded edges */
+}
+
+/* Dark mode header styles */
+body.dark-mode header {
+  color: #e0e0e0;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode header::after {
+  background: linear-gradient(to right, #ff7e5f, #feb47b);
+}
+
+/* Header text styles */
 header h1 {
-  margin: 0;
-  font-size: 2.5rem;
+  margin: 5px 0;              /* Minimized vertical margin */
+  font-size: 2rem;            /* Slightly smaller font */
   font-weight: bold;
-  line-height: 1.2;
+  line-height: 1.1;           /* Tighter line spacing */
 }
 
 header p {
-  margin: 10px 0;
-  font-size: 1.2rem;
+  margin: 5px 0;              /* Reduced spacing between paragraphs */
+  font-size: 1rem;            /* Slightly smaller font size */
 }
 
-/* CTA Link for default mode */
+/* Button and link adjustments */
+header a.cta-link {
+  font-size: 0.9rem;          /* Reduced font size for the link */
+}
+
+header button.toggle-button {
+  font-size: 0.9rem;          /* Reduced font size for buttons */
+  padding: 5px 8px;           /* Reduced padding inside buttons */
+  margin: 0 5px;              /* Compact spacing between buttons */
+}
+
+
+
+/* ============================================= */
+/* ================ CTA LINK =================== */
+/* ============================================= */
+
+/* Header-specific CTA link in default mode */
 header .cta-link {
   display: inline-block;
-  margin-top: 10px;
-  padding: 7px 10px;
+  margin-top: 5px;
+  padding: 5px 5px;
   background-color: #6a1b9a;
   color: #fff;
   text-decoration: none;
@@ -60,16 +103,7 @@ header .cta-link:hover {
   transform: translateY(-2px);
 }
 
-/* Header styles for dark mode */
-body.dark-mode header {
-  background: linear-gradient(0deg, #000000, #44405c); /* Dark mode gradient */
-  color: #e0e0e0;
-  box-shadow: 0px 1px 3px rgba(255, 255, 255, 0.1); /* Soft light shadow */
-  border-bottom: none; /* Ensure no border */
-  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
-}
-
-
+/* Dark mode override for header CTA link */
 body.dark-mode header .cta-link {
   background-color: #9e7bd4;
   color: #202020;
@@ -79,267 +113,564 @@ body.dark-mode header .cta-link:hover {
   background-color: #8465b6;
 }
 
+/* ============================================= */
+/* ========== FORECAST SECTION STYLES ========== */
+/* ============================================= */
 
-/* Forecast section container */
+/* Base forecast section styles */
 .forecast-section {
-  margin-top: 10px;
-  padding: 15px;
-  background: #f9f9f9; /* Light background for separation */
-  border: 1px solid #ddd; /* Subtle border */
-  border-radius: 8px; /* Rounded edges for modern look */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Soft shadow */
+  margin-top: 5px;
+  padding: 5px;
+  background: #f9f9f9;
+  border: 0px solid #ddd;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: background-color 0.3s, box-shadow 0.3s;
 }
 
-/* Hover effect for better visual feedback */
+/* Hover effect */
 .forecast-section:hover {
-  background-color: #fff; /* Slightly brighter on hover */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Enhanced shadow */
+  background-color: #fff;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* Control area for grouping */
-.control-area {
-  margin-top: 15px;
-  margin-left: 10px;
-   margin-right: 10px;
-  padding: 10px;
-  background: #f6f6f6; /* Slightly darker than forecast-section */
-  border-radius: 8px;
-  border: 1px solid #ccc;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); /* Enhanced shadow */
-
-}
-
-/* Nested details styling */
-#chart1-description-details {
-  margin-top: 15px;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background: #f6f6f6;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-/* Forecast section in dark mode */
+/* Dark mode overrides for forecast section */
 body.dark-mode .forecast-section {
-  background: #202020; /* Dark background for the section */
-  border: 1px solid #555; /* Subtle border */
-  box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1); /* Light shadow */
-  color: #e0e0e0; /* Light text for contrast */
+  background: #202020;
+  border: 0px solid #555;
+  box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+  /* transition removed (identical to base) */
 }
 
 body.dark-mode .forecast-section:hover {
-  background: #2a2a2a; /* Slightly lighter on hover */
-  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.15); /* Enhanced hover shadow */
+  background: #2a2a2a;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.15);
 }
 
-/* Control area in dark mode */
+/* ============================================= */
+/* ============ CONTROL AREA STYLES ============ */
+/* ============================================= */
+
+/* Base control area styles */
+.control-area {
+  margin-top: 5px;
+  margin-left: 5px;
+  margin-right: 5px;
+  padding: 5px;
+  background: #f6f6f6;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  /* border-radius: 8px;  <-- commented out originally */
+  /* border: 1px solid #ccc; <-- commented out originally */
+}
+
+/* Dark mode override for control area */
 body.dark-mode .control-area {
-  background: #252525; /* Darker background for controls */
-  border: 1px solid #444; /* Subtle border */
-  color: #d0d0d0; /* Lighter text for readability */
+  background: #252525;
+  border: 1px solid #444;
+  color: #d0d0d0;
 }
 
-/* Nested details in dark mode */
-body.dark-mode #chart1-description-details {
-  background: #252525; /* Matches control area */
-  border: 1px solid #444; /* Subtle border */
-  box-shadow: 0 1px 3px rgba(255, 255, 255, 0.1); /* Light shadow for separation */
-  color: #d0d0d0; /* Light text for contrast */
+/* ============================================= */
+/* ====== CHART DESCRIPTION (NESTED DETAILS) ==== */
+/* ============================================= */
+
+/* Base details styling */
+#chart1-description-details, 
+#chart2-description-details {
+  margin-top: 10px;           /* Reduced vertical spacing */
+  padding: 5px;              /* Reduced padding */
+  border: 1px solid #ccc;    /* Softer border color */
+  border-radius: 4px;        /* Reduced border radius */
+  background: #f9f9f9;       /* Slightly lighter background */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* Lighter and minimal shadow */
+  font-size: 0.95rem;        /* Slightly smaller font size */
 }
 
-/* Adjust input labels and text in dark mode */
+/* Summary element styling */
+#chart1-description-details summary,
+#chart2-description-details summary {
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 1rem;           /* Clear and readable font size */
+  margin-bottom: 5px;        /* Tight spacing below */
+  color: #333;
+}
+
+/* Description container */
+#chart1-description-container, 
+#chart2-description-container {
+  font-size: 0.9rem;         /* Smaller text for details */
+  color: #555;
+  margin-top: 5px;           /* Minimal space for readability */
+}
+
+/* Dark mode overrides */
+body.dark-mode #chart1-description-details,
+body.dark-mode #chart2-description-details {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  box-shadow: none;          /* Removed shadow for a cleaner look */
+  color: #d0d0d0;
+}
+
+body.dark-mode #chart1-description-details summary,
+body.dark-mode #chart2-description-details summary {
+  color: #f0f0f0;
+}
+
+body.dark-mode #chart1-description-container,
+body.dark-mode #chart2-description-container {
+  color: #bbbbbb;
+}
+
+
+/* ============================================= */
+/* ============ DARK MODE LABELS =============== */
+/* ============================================= */
+
+/* Adjust input labels in dark mode for readability */
 body.dark-mode label,
 body.dark-mode .controls-label {
-  color: #e0e0e0; /* Adjust text labels for visibility */
+  color: #e0e0e0;
 }
 
-/* Adjust input sliders in dark mode */
+/* Dark mode input[type="range"] styling */
 body.dark-mode input[type="range"] {
-  background-color: #444; /* Darker slider track */
-  border: 1px solid #666; /* Subtle border for the slider */
+  background-color: #444;
+  border: 1px solid #666;
 }
 
-/* ------------- Old Details -------------- */
-        details {
-          margin: 10px 10px;
-          padding: 10px;
-          background: #fff;
-          border: 1px solid #ddd;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-          transition: background-color 0.3s, color 0.3s;
+/* ============================================= */
+/* ================ OLD DETAILS ================ */
+/* ============================================= */
 
-        }
+details {
+  margin: 5px 5px;
+  padding: 5px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  transition: background-color 0.3s, color 0.3s;
+}
 
-        details summary {
-          font-size: 1.2rem;
-          font-weight: bold;
-          cursor: pointer;
-          margin-bottom: 5px;
-        }
+details summary {
+  font-size: 1.0rem;
+  font-weight: bold;
+  cursor: pointer;
+  margin-bottom: 2px;
+}
 
-        .chart-container {
-          margin-top: 15px;
-        }
+body.dark-mode details {
+  background: #333;
+  border-color: #555;
+  color: #e0e0e0;
+}
 
-        .controls {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 1rem;
-          margin-bottom: 1rem;
-          justify-content: center;
-          align-items: center;
-        }
+/* ============================================= */
+/* ========= CHART CONTAINER & CONTROLS ======== */
+/* ============================================= */
 
-        .controls-label {
-          font-weight: bold;
-          margin-right: 1rem;
-        }
+.chart-container {
+  margin-top: 10px;
+}
 
-        .controls-buttons {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-        }
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  justify-content: center;
+}
 
-/* Ensure area series paths are invisible (if intended) */
-.apexcharts-area-series path {
+.controls-label {
+  font-weight: bold;
+  font-size: 1rem;
+  margin-right: 10px; /* Merged repeated margin styles */
+}
+
+.controls-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.controls-buttons label {
+  display: inline-block;
+  padding: 5px 10px;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-align: center;
+  color: #333;
+  background: #f4f4f4;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s, border-color 0.3s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.controls-buttons label:hover {
+  background: #e0e0e0;
+  color: #000;
+  border-color: #ccc;
+  transform: translateY(-2px);
+}
+
+.controls-buttons input[type="checkbox"] {
+  display: none; /* Hide the checkbox */
+}
+
+/* Style for toggled buttons (checked) */
+.controls-buttons input[type="checkbox"]:checked + label {
+  background: linear-gradient(90deg, #8a2be2, #6a1bb9);
+  color: #fff;
+  border-color: #6a1bb9;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.controls-buttons label:active {
+  background: #6a1bb9;
+  color: #fff;
+  border-color: #5a1490;
+  transform: translateY(0);
+}
+
+/* Dark mode for controls buttons */
+body.dark-mode .controls-buttons label {
+  background: #333;
+  color: #e0e0e0;
+  border: 1px solid #555;
+  box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .controls-buttons label:hover {
+  background: #444;
+  color: #fff;
+  border-color: #666;
+}
+
+/* Specific styles for activated buttons */
+.controls-buttons input[type="checkbox"]:checked + label.btn-blue {
+  background: linear-gradient(90deg, #007bff, #0056b3); /* Blue */
+  color: #fff;
+  border-color: #0056b3;
+}
+
+.controls-buttons input[type="checkbox"]:checked + label.btn-green {
+  background: linear-gradient(90deg, #28a745, #1e7e34); /* Green */
+  color: #fff;
+  border-color: #1e7e34;
+}
+
+.controls-buttons input[type="checkbox"]:checked + label.btn-red {
+  background: linear-gradient(90deg, #dc3545, #a71d2a); /* Red */
+  color: #fff;
+  border-color: #a71d2a;
+}
+
+.controls-buttons input[type="checkbox"]:checked + label.btn-yellow {
+  background: linear-gradient(90deg, #ffc107, #d39e00); /* Yellow */
+  color: #fff;
+  border-color: #d39e00;
+}
+
+/* Specific styles for activated purple button */
+.controls-buttons input[type="checkbox"]:checked + label.btn-purple {
+  background: linear-gradient(90deg, #6f42c1, #5936a6); /* Purple */
+  color: #fff;
+  border-color: #5936a6;
+}
+
+/* Keep hover behavior shared */
+.controls-buttons label:hover {
+  background: #e0e0e0;
+  color: #000;
+  border-color: #ccc;
+  transform: translateY(-2px);
+}
+
+/* Shared activation and pressed state behavior */
+.controls-buttons label:active {
+  background: #6a1bb9;
+  color: #fff;
+  border-color: #5a1490;
+  transform: translateY(0);
+}
+
+
+/* Toggled buttons in dark mode */
+body.dark-mode .controls-buttons input[type="checkbox"]:checked + label {
+  background: linear-gradient(90deg, #8a2be2, #6a1bb9);
+  color: #fff;
+  border-color: #6a1bb9;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+body.dark-mode .controls-buttons label:active {
+  background: #6a1bb9;
+  color: #fff;
+  border-color: #5a1490;
+  transform: translateY(0);
+}
+
+/* Toggled blue button in dark mode */
+body.dark-mode .controls-buttons input[type="checkbox"]:checked + label.btn-blue {
+  background: linear-gradient(90deg, #0056b3, #003d80); /* Dark blue */
+  color: #fff;
+  border-color: #003d80;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+}
+
+/* Toggled green button in dark mode */
+body.dark-mode .controls-buttons input[type="checkbox"]:checked + label.btn-green {
+  background: linear-gradient(90deg, #1e7e34, #145622); /* Dark green */
+  color: #fff;
+  border-color: #145622;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+}
+
+/* Toggled red button in dark mode */
+body.dark-mode .controls-buttons input[type="checkbox"]:checked + label.btn-red {
+  background: linear-gradient(90deg, #a71d2a, #7d1520); /* Dark red */
+  color: #fff;
+  border-color: #7d1520;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+}
+
+/* Toggled yellow button in dark mode */
+body.dark-mode .controls-buttons input[type="checkbox"]:checked + label.btn-yellow {
+  background: linear-gradient(90deg, #d39e00, #a37700); /* Dark yellow */
+  color: #fff;
+  border-color: #a37700;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+}
+
+/* Toggled purple button in dark mode */
+body.dark-mode .controls-buttons input[type="checkbox"]:checked + label.btn-purple {
+  background: linear-gradient(90deg, #5936a6, #432681); /* Dark purple */
+  color: #fff;
+  border-color: #432681;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+}
+
+/* Shared dark mode active state */
+body.dark-mode .controls-buttons label:active {
+  background: #6a1bb9;
+  color: #fff;
+  border-color: #5a1490;
+  transform: translateY(0);
+}
+
+
+
+/* Hide CI areas by default */
+.apexcharts-area-series path.ci-hidden {
+  fill-opacity: 0 !important;
   stroke: transparent !important;
 }
 
-/* Set general chart container styles */
+/* Visible CI areas */
+.apexcharts-area-series path {
+  stroke: transparent !important; /* Maintain the appearance */
+}
+
 .chart-container path {
-  fill-opacity: 0.2 !important;
-  stroke-width: 3px; /* Line thickness for all paths */
+  fill-opacity: 0.3 !important; /* Default opacity for visible areas */
+  stroke-width: 2px; /* Border thickness */
 }
 
-/* Style dashed lines specifically */
-.apexcharts-line-series .apexcharts-dashline {
-  stroke-dasharray: 5, 5 !important; /* Dashed line with 5px dashes and 5px gaps */
-  /* stroke: currentColor !important;  /* Ensure the dash color matches the series color */
+
+/* ============================================= */
+/* ================= SLIDER ==================== */
+/* ============================================= */
+
+.slider-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #333;
 }
 
-        .wrapper {
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-        }
+.slider-container label {
+  font-weight: bold;
+}
 
-        body.dark-mode details {
-          background: #333;
-          border-color: #555;
-          color: #e0e0e0;
-        }
+.slider-container input[type="range"] {
+  -webkit-appearance: none; /* Remove default styling */
+  width: 150px;
+  height: 5px;
+  background: linear-gradient(90deg, #d3bfff, #b091ee, #6a3db9);
+  border-radius: 5px;
+  outline: none;
+  transition: background 0.3s;
+  cursor: pointer;
+}
 
-        #disclaimer {
-          font-size: 0.9rem;
-          text-align: center;
-          margin-top: 40px;
-          padding: 10px;
-          background: #f8f9fa;
-          border-top: 1px solid #ddd;
-          transition: background-color 0.3s, color 0.3s;
-        }
+.slider-container input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  background: #fff;
+  border: 2px solid #9370db;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
 
-        body.dark-mode #disclaimer {
-          background: #333;
-          color: #e0e0e0;
-          border-color: #555;
-        }
+.slider-container input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
 
-        #disclaimer a {
-          color: #007BFF;
-          text-decoration: none;
-        }
+.slider-container input[type="range"]::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  background: #fff;
+  border: 2px solid #9370db;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
 
-        body.dark-mode #disclaimer a {
-          color: #66b2ff;
-        }
+.slider-container input[type="range"]:hover {
+  background: linear-gradient(90deg, #c2a7ff, #8459d6, #5a2fa9);
+}
 
-        #disclaimer a:hover {
-          text-decoration: underline;
-        }
+.slider-container input[type="range"]:focus::-webkit-slider-thumb {
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
 
+.slider-container input[type="range"]:focus::-moz-range-thumb {
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
 
-        #source-code-text {
-          text-align: center;
-          margin-top: 10px;
-        }
+/* ============================================= */
+/* ============ DISCLAIMER & SOURCE ============ */
+/* ============================================= */
 
-        #source-code-text a {
-          color: #007BFF;
-          text-decoration: none;
-          font-weight: bold;
-        }
+#disclaimer {
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: 40px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-top: 1px solid #ddd;
+  transition: background-color 0.3s, color 0.3s;
+}
 
-        body.dark-mode #source-code-text a {
-          color: #66b2ff;
-        }
+body.dark-mode #disclaimer {
+  background: #333;
+  color: #e0e0e0;
+  border-color: #555;
+}
 
-        #source-code-text a:hover {
-          text-decoration: underline;
-        }
+#disclaimer a {
+  color: #007BFF;
+  text-decoration: none;
+}
 
-        .settings-frame {
-          text-align: center;
-          margin: 10px 0;
-        }
+body.dark-mode #disclaimer a {
+  color: #66b2ff;
+}
 
-        .settings-frame input {
-          margin-left: 10px;
-        }
+#disclaimer a:hover {
+  text-decoration: underline;
+}
 
-/* ------------- General table styles -------------- */
+#source-code-text {
+  text-align: center;
+  margin-top: 5px;
+}
+
+#source-code-text a {
+  color: #007BFF;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+body.dark-mode #source-code-text a {
+  color: #66b2ff;
+}
+
+#source-code-text a:hover {
+  text-decoration: underline;
+}
+
+.settings-frame {
+  text-align: center;
+  margin: 10px 0;
+}
+
+.settings-frame input {
+  margin-left: 10px;
+}
+
+/* ============================================= */
+/* ================= TABLES ==================== */
+/* ============================================= */
 
 table {
   width: 100%;
   border-collapse: collapse;
   margin: 20px 0;
-  border-radius: 8px; /* Rounded corners consistent with other segments */
-  overflow: hidden; /* Ensures rounded corners are visible */
-  background-color: #fff; /* Add a solid background to prevent transparency */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for a polished look */
+  border-radius: 8px; 
+  overflow: hidden;
+  background-color: #fff; 
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Table header styling */
 table th {
-  background-color: #f4f4f4; /* Light gray background for headers */
-  color: #333; /* Dark text for contrast */
-  font-weight: bold; /* Emphasize headers */
-  text-transform: uppercase; /* Uppercase headers for a professional look */
-  padding: 12px; /* Increase padding for better spacing */
+  background-color: #f4f4f4;
+  color: #333;
+  font-weight: bold;
+  text-transform: uppercase;
+  padding: 12px;
   text-align: left;
 }
 
-/* Table body styling */
 table td {
-  padding: 10px; /* Adjust padding for readability */
+  padding: 10px;
   text-align: left;
 }
 
-/* Zebra striping for rows */
+/* Zebra striping */
 table tr:nth-child(odd) {
-  background-color: #f9f9f9; /* Light gray for odd rows */
+  background-color: #f9f9f9;
 }
 
 table tr:nth-child(even) {
-  background-color: #ffffff; /* White for even rows */
+  background-color: #ffffff;
 }
 
-/* Hover effect for rows */
+/* Hover effect */
 table tr:hover {
-  background-color: #f1f1f1; /* Slightly darker background on hover */
+  background-color: #f1f1f1;
 }
 
 /* Remove column lines */
-table tr td, table tr th {
-  border: none; /* Removes column lines */
+table tr td,
+table tr th {
+  border: none;
 }
 
-/* Remove outer border lines for readability */
+/* Remove outer border lines */
 table tr:first-child th {
   border-top: none;
 }
@@ -348,71 +679,73 @@ table tr:last-child td {
   border-bottom: none;
 }
 
-/* Dark mode table styles */
+/* Dark mode tables */
 body.dark-mode table {
-  background-color: #252525; /* Solid dark background */
-  box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1); /* Subtle shadow for dark mode */
+  background-color: #252525;
+  box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
 }
 
 body.dark-mode table th {
-  background-color: #444; /* Darker background for headers */
-  color: #e0e0e0; /* Light text for contrast */
+  background-color: #444;
+  color: #e0e0e0;
 }
 
 body.dark-mode table td {
-  color: #ddd; /* Light text for readability */
+  color: #ddd;
 }
 
 /* Zebra striping in dark mode */
 body.dark-mode table tr:nth-child(odd) {
-  background-color: #303030; /* Slightly lighter dark gray for odd rows */
+  background-color: #303030;
 }
 
 body.dark-mode table tr:nth-child(even) {
-  background-color: #252525; /* Match the table background for even rows */
+  background-color: #252525;
 }
 
-/* Hover effect for rows in dark mode */
+/* Hover effect in dark mode */
 body.dark-mode table tr:hover {
-  background-color: #2a2a2a; /* Slightly lighter background on hover */
+  background-color: #2a2a2a;
 }
 
-/* Responsive table styles for smaller screens */
+/* Responsive table for smaller screens */
 @media (max-width: 768px) {
   table {
     display: block;
-    overflow-x: auto; /* Horizontal scroll for smaller screens */
-    white-space: nowrap; /* Prevents wrapping of table content */
+    overflow-x: auto;
+    white-space: nowrap;
   }
 
-  /* Style the scrollbar */
   table::-webkit-scrollbar {
-    height: 8px; /* Slimmer scrollbar */
+    height: 8px;
   }
 
   table::-webkit-scrollbar-thumb {
-    background-color: #ddd; /* Light scrollbar thumb */
-    border-radius: 4px; /* Rounded scrollbar */
+    background-color: #ddd;
+    border-radius: 4px;
   }
 
   table::-webkit-scrollbar-thumb:hover {
-    background-color: #ccc; /* Slightly darker on hover */
+    background-color: #ccc;
   }
 
   /* Dark mode scrollbar */
   body.dark-mode table::-webkit-scrollbar-thumb {
-    background-color: #555; /* Dark scrollbar thumb */
+    background-color: #555;
   }
 
   body.dark-mode table::-webkit-scrollbar-thumb:hover {
-    background-color: #666; /* Slightly lighter on hover in dark mode */
+    background-color: #666;
   }
 }
 
+/* ============================================= */
+/* =============== BUTTON STYLES =============== */
+/* ============================================= */
 
-/* ------------- General buttons styles -------------- */
-
-.cta-link, .toggle-button {
+/* Shared button base (cta-link & toggle-button) */
+.cta-link,
+.toggle-button {
   display: inline-block;
   margin: 10px 5px;
   padding: 10px 20px;
@@ -424,7 +757,7 @@ body.dark-mode table tr:hover {
   transition: background-color 0.3s, transform 0.3s;
 }
 
-/* GitHub button styling */
+/* CTA (GitHub) button in default mode */
 .cta-link {
   background-color: #6a1b9a;
   color: #fff;
@@ -436,7 +769,7 @@ body.dark-mode table tr:hover {
   transform: translateY(-2px);
 }
 
-/* Dark mode button styling */
+/* Toggle button in default mode */
 .toggle-button {
   background-color: #44405c;
   color: #fff;
@@ -450,7 +783,7 @@ body.dark-mode table tr:hover {
   transform: translateY(-2px);
 }
 
-/* Adjust buttons in dark mode */
+/* Dark mode overrides for CTA link */
 body.dark-mode .cta-link {
   background-color: #9e7bd4;
   color: #202020;
@@ -460,6 +793,7 @@ body.dark-mode .cta-link:hover {
   background-color: #8465b6;
 }
 
+/* Dark mode overrides for toggle button */
 body.dark-mode .toggle-button {
   background-color: #202020;
   color: #9e7bd4;
@@ -469,166 +803,3 @@ body.dark-mode .toggle-button:hover {
   background-color: #1c163d;
 }
 
-
-
-
-
-    .controls-label {
-      font-weight: bold;
-      font-size: 1rem;
-      margin-right: 10px;
-    }
-
-    .controls-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-
-    }
-
-    .controls-buttons label {
-      display: inline-block;
-      padding: 10px 20px;
-      margin: 0;
-      font-size: 0.9rem;
-      font-weight: bold;
-      text-align: center;
-      color: #333;
-      background: #f4f4f4;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background-color 0.3s, color 0.3s, border-color 0.3s, transform 0.2s, box-shadow 0.2s;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .controls-buttons label:hover {
-      background: #e0e0e0;
-      color: #000;
-      border-color: #ccc;
-      transform: translateY(-2px);
-    }
-
-    .controls-buttons input[type="checkbox"] {
-      display: none; /* Hide the checkbox */
-    }
-
-    /* Style for toggled buttons */
-    .controls-buttons input[type="checkbox"]:checked + label {
-      background: linear-gradient(90deg, #8a2be2, #6a1bb9); /* Purple gradient */
-      color: #fff; /* White text */
-      border-color: #6a1bb9; /* Match the gradient */
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add shadow for emphasis */
-      transform: translateY(-2px); /* Slight lift to indicate activation */
-    }
-
-    .controls-buttons label:active {
-      background: #6a1bb9; /* Solid darker purple during click */
-      color: #fff;
-      border-color: #5a1490;
-      transform: translateY(0);
-    }
-
-/* Dark mode for button container */
-body.dark-mode .controls-buttons label {
-  background: #333; /* Dark background */
-  color: #e0e0e0; /* Light text for contrast */
-  border: 1px solid #555; /* Subtle dark border */
-  box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1); /* Light shadow for depth */
-  transition: background-color 0.3s, color 0.3s, border-color 0.3s, transform 0.2s, box-shadow 0.2s;
-}
-
-body.dark-mode .controls-buttons label:hover {
-  background: #444; /* Slightly lighter background on hover */
-  color: #fff; /* Highlighted text */
-  border-color: #666; /* Slightly lighter border */
-  transform: translateY(-2px); /* Lift effect */
-}
-
-/* Style for toggled buttons in dark mode */
-body.dark-mode .controls-buttons input[type="checkbox"]:checked + label {
-  background: linear-gradient(90deg, #8a2be2, #6a1bb9); /* Purple gradient */
-  color: #fff; /* White text for contrast */
-  border-color: #6a1bb9; /* Match the gradient */
-  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2); /* Enhanced shadow */
-  transform: translateY(-2px); /* Slight lift to indicate activation */
-}
-
-body.dark-mode .controls-buttons label:active {
-  background: #6a1bb9; /* Solid darker purple during click */
-  color: #fff; /* Consistent text color */
-  border-color: #5a1490; /* Darker border for active state */
-  transform: translateY(0); /* Reset lift effect */
-}
-
-
-/* ------------- General slider styles -------------- */
-
-    .slider-container {
-      font-weight: bold;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.5rem;
-      justify-content: center;
-      font-size: 1rem;
-      color: #333;
-    }
-
-    .slider-container label {
-      font-weight: bold;
-    }
-
-    .slider-container input[type="range"] {
-      -webkit-appearance: none; /* Remove default styling */
-      width: 200px;
-      height: 8px;
-      background: linear-gradient(90deg, #d3bfff, #9370db, #6a3db9); /* More vibrant gradient */
-      border-radius: 5px;
-      outline: none;
-      transition: background 0.3s;
-      cursor: pointer;
-    }
-
-    .slider-container input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none; /* Remove default styling */
-      appearance: none;
-      width: 20px;
-      height: 20px;
-      background: #fff;
-      border: 2px solid #9370db; /* Matches the slider gradient */
-      border-radius: 50%;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-      cursor: pointer;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .slider-container input[type="range"]::-webkit-slider-thumb:hover {
-      transform: scale(1.1); /* Slightly enlarge on hover */
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    }
-
-    .slider-container input[type="range"]::-moz-range-thumb {
-      width: 20px;
-      height: 20px;
-      background: #fff;
-      border: 2px solid #9370db; /* Matches the slider gradient */
-      border-radius: 50%;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-      cursor: pointer;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .slider-container input[type="range"]:hover {
-      background: linear-gradient(90deg, #c2a7ff, #8459d6, #5a2fa9); /* Slightly deeper gradient on hover */
-    }
-
-    .slider-container input[type="range"]:focus::-webkit-slider-thumb {
-      transform: scale(1.2); /* Enlarge when focused */
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-    }
-
-    .slider-container input[type="range"]:focus::-moz-range-thumb {
-      transform: scale(1.2); /* Enlarge when focused */
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-    }

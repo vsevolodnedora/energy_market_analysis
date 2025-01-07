@@ -20,7 +20,8 @@
       "past-actual-label": "Previous Actual",
       "current-label": "Current",
       "prev-forecast-interval-label": "Previous Forecast Interval",
-      "forecast-interval-label": "Forecast Interval"
+      "forecast-interval-label": "Forecast Interval",
+      "historic-data": "Historic Data"
     }
   },
   "de": {
@@ -44,7 +45,8 @@
       "past-actual-label": "Vergangenheit Tatsächlich",
       "current-label": "Aktuell",
       "prev-forecast-interval-label": "Vorheriges Prognoseintervall",
-      "forecast-interval-label": "Prognoseintervall"
+      "forecast-interval-label": "Prognoseintervall",
+      "historic-data": "Historische Daten"
     }
   }
 }

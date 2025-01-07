@@ -55,7 +55,7 @@ async function toggleLanguage() {
     // Reload the description in the new language if already loaded
     if (chart1DescLoaded) {
         const language = i18next.language; // Get the new current language
-        const fileName = `wind_offshore_notes_${language}.md` ;
+        const fileName = `wind_offshore_notes_${language}.md`  ;
         await loadMarkdown(`data/forecasts/${fileName}`, 'chart1-description-container');
     }
   
@@ -167,6 +167,64 @@ toggleDarkMode();
 
 
 
+function rebuildChartSeries() {
+  seriesData.length = 0; // Clear seriesData
+  Object.values(chartState).forEach((series) => {
+    if (series) seriesData.push(series);
+  });
+}
+
+/************************************************************
+ * 0) Create a CACHE
+ ************************************************************/
+// Global cache to store data once fetched
+const forecastDataCache = {};
+
+/**
+ * Fetches a data file and returns it as an array of { x: Date, y: number }.
+ * Tries default location first, then a fallback. Results are cached.
+ */
+async function getCachedData(variable, file) {
+  const locDir = 'data/forecasts';  // local directory
+  const cacheKey = `${variable}-${file}`;
+
+  // If data is already in cache, return immediately
+  if (forecastDataCache[cacheKey]) {
+    return forecastDataCache[cacheKey];
+  }
+
+  // Otherwise, fetch from default location
+  try {
+    const response = await fetch(`${locDir}/${variable}/${file}`);
+    if (!response.ok) {
+      throw new Error(`Failed to load ${variable} from default location`);
+    }
+    const data = await response.json();
+    forecastDataCache[cacheKey] = data.map(([t, v]) => ({ x: new Date(t), y: v }));
+    return forecastDataCache[cacheKey];
+  } catch (error) {
+    console.warn(error.message);
+  }
+
+  // Attempt fallback only if default fetch fails
+  try {
+    const fallbackResponse = await fetch(`${baseUrl}${locDir}/${variable}/${file}`);
+    if (!fallbackResponse.ok) {
+      throw new Error(`Failed to load ${variable} from fallback URL`);
+    }
+    const fallbackData = await fallbackResponse.json();
+    forecastDataCache[cacheKey] = fallbackData.map(([t, v]) => ({ x: new Date(t), y: v }));
+    return forecastDataCache[cacheKey];
+  } catch (fallbackError) {
+    console.error(fallbackError.message);
+    document.getElementById('error-message').textContent = fallbackError.message;
+    // Return null if both attempts fail
+    forecastDataCache[cacheKey] = null;
+    return null;
+  }
+}
+
+
 /************************************************************
  * 1) Create a new chart in a given container
  ************************************************************/
@@ -213,7 +271,6 @@ async function addSeries({
   variable,
   alias,
   color,
-  showInterval,
   pastDataRatio,
   seriesData,
   annotations
@@ -221,135 +278,140 @@ async function addSeries({
   // Standard file names
   const prevFittedFile = 'forecast_prev_fitted.json';
   const prevActualFile = 'forecast_prev_actual.json';
-  const prevLowerFile  = 'forecast_prev_lower.json';
-  const prevUpperFile  = 'forecast_prev_upper.json';
   const currFittedFile = 'forecast_curr_fitted.json';
-  const currLowerFile  = 'forecast_curr_lower.json';
-  const currUpperFile  = 'forecast_curr_upper.json';
 
   // Fetch data in parallel
   const [
     pastFittedData,
     pastActualData,
-    pastLowerData,
-    pastUpperData,
-    currentData,
-    currentLowerData,
-    currentUpperData
+    currentData
   ] = await Promise.all([
-    fetchData(variable, prevFittedFile),
-    fetchData(variable, prevActualFile),
-    showInterval ? fetchData(variable, prevLowerFile) : null,
-    showInterval ? fetchData(variable, prevUpperFile) : null,
-    fetchData(variable, currFittedFile),
-    showInterval ? fetchData(variable, currLowerFile) : null,
-    showInterval ? fetchData(variable, currUpperFile) : null
+    getCachedData(variable, prevFittedFile),
+    getCachedData(variable, prevActualFile),
+    getCachedData(variable, currFittedFile)
   ]);
 
-  // -------------------- PAST FITTED --------------------
-  if (pastFittedData) {
+  // -------------------- PAST FITTED (Solid Line) --------------------
+  if (pastFittedData && pastFittedData.length > 0) {
     const pastToShow = Math.floor(pastFittedData.length * pastDataRatio);
     seriesData.push({
       name : `${alias} (${i18next.t('past-fitted-label')})`,
       data : pastFittedData.slice(-pastToShow),
       color: color,
-      dashArray: 0 // Solid line
+      type : 'line',
+      stroke: {
+        width: 2,
+        dashArray: 0,
+        curve: 'smooth'
+      }
     });
   }
 
-  // -------------------- PAST ACTUAL --------------------
-  if (pastActualData) {
+  // -------------------- PAST ACTUAL (Dashed Line) --------------------
+  if (pastActualData && pastActualData.length > 0) {
     const pastToShow = Math.floor(pastActualData.length * pastDataRatio);
     seriesData.push({
-      name    : `${alias} (${i18next.t('past-actual-label')})`,
-      data    : pastActualData.slice(-pastToShow),
-      color   : lightenColor(color, 20),
-      dashArray: 5 // Adjust this number to control dash length (e.g., 5 for short dashes)
+      name : `${alias} (${i18next.t('past-actual-label')})`,
+      data : pastActualData.slice(-pastToShow),
+      color: color,//lightenColor(color, 20),
+      stroke: {
+        width: 2,
+        dashArray: 5,
+        curve: 'smooth'
+      }
     });
   }
 
-  // -------------------- CURRENT FORECAST (Line) --------------------
-  if (currentData) {
+  // -------------------- CURRENT FORECAST (Solid Line) --------------------
+  if (currentData && currentData.length > 0) {
     seriesData.push({
       name : `${alias} (${i18next.t('current-label')})`,
       data : currentData,
       color: color,
       type : 'line'
     });
+
     // Annotation for the first forecast point
-    if (currentData.length > 0) {
-      annotations.push({
-        x: currentData[0].x.getTime(),
-        borderColor: '#808080',
-        label: {
-          text: i18next.t('last-forecast-label'),
-          style: { color: '#FFFFFF', background: '#808080' }
-        }
-      });
-    }
+    annotations.push({
+      x: currentData[0].x.getTime(),
+      label: {
+        text: i18next.t('last-forecast-label'),
+        style: { color: '#FFFFFF', background: '#808080' }
+      }
+    });
   }
+}
+/************************************************************
+ * Function that adds confidence intervals (area regions) to the chart
+ ************************************************************/
+async function addCI({
+  variable,
+  alias,
+  color,
+  showInterval,
+  pastDataRatio,
+  seriesData
+}) {
+  // Standard file names
+  const prevLowerFile = 'forecast_prev_lower.json';
+  const prevUpperFile = 'forecast_prev_upper.json';
+  const currLowerFile = 'forecast_curr_lower.json';
+  const currUpperFile = 'forecast_curr_upper.json';
+
+  // Fetch data in parallel
+  const [
+    pastLowerData,
+    pastUpperData,
+    currentLowerData,
+    currentUpperData
+  ] = await Promise.all([
+    getCachedData(variable, prevLowerFile),
+    getCachedData(variable, prevUpperFile),
+    getCachedData(variable, currLowerFile),
+    getCachedData(variable, currUpperFile)
+  ]);
 
   // -------------------- PREV FORECAST INTERVAL (Area) --------------------
-  if (
-    showInterval &&
-    pastLowerData &&
-    pastUpperData &&
-    pastLowerData.length === pastUpperData.length
-  ) {
-    const pastLength = Math.floor(pastLowerData.length * pastDataRatio);
-    const lowerSlice = pastLowerData.slice(-pastLength);
-    const upperSlice = pastUpperData.slice(-pastLength);
+  if (showInterval && pastLowerData && pastUpperData) {
+    if (pastLowerData.length === pastUpperData.length && pastLowerData.length > 0) {
+      const pastLength = Math.floor(pastLowerData.length * pastDataRatio);
+      const lowerSlice = pastLowerData.slice(-pastLength);
+      const upperSlice = pastUpperData.slice(-pastLength);
 
-    const forecastPolygon = [
-      ...lowerSlice.map((pt) => ({ x: pt.x, y: pt.y })),
-      ...upperSlice.slice().reverse().map((pt) => ({ x: pt.x, y: pt.y }))
-    ];
+      const pastForecastPolygon = [
+        ...lowerSlice.map((pt) => ({ x: pt.x, y: pt.y })),
+        ...upperSlice.slice().reverse().map((pt) => ({ x: pt.x, y: pt.y }))
+      ];
 
-    if (forecastPolygon.length > 0) {
-      seriesData.push({
-        name        : `${alias} (${i18next.t('prev-forecast-interval-label')})`,
-        type        : 'area',
-        data        : forecastPolygon,
-        color       : color,
-        fillOpacity : 0.7,
-        showInLegend: true,
-        fill: {
-          type: 'gradient',
-          gradient: {
-            shade           : 'light',
-            type            : 'vertical',
-            shadeIntensity  : 0.7,
-            gradientToColors: [color],
-            inverseColors   : false,
-            opacityFrom     : 0.2,
-            opacityTo       : 0.5
-          }
-        },
-        stroke: { width: 1 }
-      });
+      if (pastForecastPolygon.length > 0) {
+        seriesData.push({
+          name        : `${alias} (${i18next.t('prev-forecast-interval-label')})`,
+          type        : 'area',
+          data        : pastForecastPolygon,
+          color       : color,
+          fillOpacity : 0.1
+        });
+      }
     }
   }
 
   // -------------------- CURRENT FORECAST INTERVAL (Area) --------------------
-  if (
-    showInterval &&
-    currentLowerData &&
-    currentUpperData &&
-    currentLowerData.length === currentUpperData.length
-  ) {
-    const forecastPolygon = [
-      ...currentLowerData.map((pt) => ({ x: pt.x, y: pt.y })),
-      ...currentUpperData.slice().reverse().map((pt) => ({ x: pt.x, y: pt.y }))
-    ];
+  if (showInterval && currentLowerData && currentUpperData) {
+    if (currentLowerData.length === currentUpperData.length && currentLowerData.length > 0) {
+      const forecastPolygon = [
+        ...currentLowerData.map((pt) => ({ x: pt.x, y: pt.y })),
+        ...currentUpperData.slice().reverse().map((pt) => ({ x: pt.x, y: pt.y }))
+      ];
 
-    if (forecastPolygon.length > 0) {
-      seriesData.push({
-        name : `${alias} (${i18next.t('forecast-interval-label')})`,
-        type : 'area',
-        data : forecastPolygon,
-        color: color,
-        stroke: { width: 1 }
-      });
+      if (forecastPolygon.length > 0) {
+        seriesData.push({
+          name : `${alias} (${i18next.t('forecast-interval-label')})`,
+          type : 'area',
+          data : forecastPolygon,
+          color: color,
+          fillOpacity : 0.1
+        });
+      }
     }
   }
 }
@@ -359,7 +421,6 @@ async function addSeries({
  *    Pass a config object so you can re-use for onshore, solar, etc.
  ************************************************************/
 async function updateChartGeneric(config) {
-  
   const {
     chartInstance,
     yAxisLabel,
@@ -370,7 +431,6 @@ async function updateChartGeneric(config) {
     isDarkMode
   } = config;
 
-  
   // If the chart is not yet created, do nothing
   if (!chartInstance) return;
 
@@ -383,23 +443,50 @@ async function updateChartGeneric(config) {
 
   // Get user preferences from the DOM
   const pastDataRatio = document.getElementById(pastDataSliderId).value / 100;
-  const showInterval  = document.getElementById(showIntervalId).checked;
+  const showInterval = document.getElementById(showIntervalId).checked;
 
-  // For each region in regionConfigs, fetch & add data if checkbox is checked
+  // Fetch and build series data for each selected region
   for (const region of regionConfigs) {
     const checkbox = document.getElementById(region.checkboxId);
     if (checkbox && checkbox.checked) {
+      // Fetch series for the region
       await addSeries({
-        variable      : region.variable,
-        alias         : region.alias,
-        color         : region.color,
-        showInterval  : showInterval,
-        pastDataRatio : pastDataRatio,
-        seriesData    : seriesData,
-        annotations   : annotations
+        variable: region.variable,
+        alias: region.alias,
+        color: region.color,
+        pastDataRatio: pastDataRatio,
+        seriesData: seriesData,
+        annotations: annotations
       });
     }
   }
+  
+  // attempt to split to remove artifacts from turning CI off
+  for (const region of regionConfigs) {
+    const checkbox = document.getElementById(region.checkboxId);
+    if (checkbox && checkbox.checked) {
+      // Fetch confidence intervals for the region if showInterval is enabled
+      if (showInterval) {
+        await addCI({
+          variable: region.variable,
+          alias: region.alias,
+          color: region.color,
+          showInterval: showInterval,
+          pastDataRatio: pastDataRatio,
+          seriesData: seriesData
+        });
+      }
+    }
+  }
+
+  // Ensure no leftover CI data remains in seriesData
+  const filteredSeriesData = seriesData.filter(series => {
+    // Remove past CI series when `showInterval` is false
+    if (!showInterval && series.name.includes(i18next.t('prev-forecast-interval-label'))) {
+      return false;
+    }
+    return true;
+  });
 
   // Add a “Now” line annotation
   const now = new Date();
@@ -412,57 +499,71 @@ async function updateChartGeneric(config) {
     }
   });
 
-  // Update the chart
+  // Update the chart with filtered data and annotations
   chartInstance.updateOptions({
-    series: seriesData.map(series => {
-      if (series.name.includes(i18next.t('past-actual-label'))) {
-        return { ...series, dashArray: 5 }; // Dashed line
-      }
-      return { ...series, dashArray: 0 }; // Solid line for others
-    }),
+    series: filteredSeriesData,
     annotations: {
       xaxis: annotations,
-      yaxis: [], // Optional: Add custom annotations for Y-axis if needed
+      yaxis: [],
       points: [],
       texts: [
         {
-          x: '3%', // Horizontal position (percentage of chart width)
-          y: '3%',  // Vertical position (percentage of chart height)
-          text: yAxisLabel, // Text to display
-          borderColor: 'transparent', // No border around text
+          x: '3%',
+          y: '3%',
+          text: yAxisLabel,
+          borderColor: 'transparent',
           style: {
-            fontSize: '16px',
-            color   : isDarkMode ? '#e0e0e0' : '#000',
-            fontWeight: 'bold', // Make the text stand out
+            fontSize: '14px',
+            color: isDarkMode ? '#e0e0e0' : '#000',
+            fontWeight: 'bold',
           },
-        }
-      ]
+        },
+      ],
     },
+    stroke: {
+      width: 1, // Set line width
+      dashArray: Array(regionConfigs.length).fill([3, 0, 3]).flat(), // Dynamically set dashArray
+    },
+
     tooltip: { theme: isDarkMode ? 'dark' : 'light' },
     xaxis: {
       labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } },
-      title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } }
+      title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } },
     },
     yaxis: {
       labels: {
         style: {
-          colors  : isDarkMode ? '#e0e0e0' : '#000', // Adjust label colors based on theme
-          fontSize: '14px' // Font size for Y-axis labels
+          colors: isDarkMode ? '#e0e0e0' : '#000',
+          fontSize: '14px',
         },
-        formatter: function(value) {
-          return Math.round(value); // Ensure integer labels
-        }
+        formatter: function (value) {
+          return Math.round(value);
+        },
       },
-      tickAmount: 5, // Optional: Control the number of ticks on the Y-axis
-      min: 0,        // Optional: Set a minimum value
-      // max: 100,      // Optional: Set a maximum value
-      forceNiceScale: true // Ensure intervals are rounded nicely
+      tickAmount: 5,
+      min: 0,
+      forceNiceScale: true,
     },
     legend: {
-      labels: { colors: isDarkMode ? '#e0e0e0' : '#000' }
-    }
+      show: false, // Hides the legend
+    },
+    // legend: {
+    //   labels: { show:false, colors: isDarkMode ? '#e0e0e0' : '#000' },
+    // },
   });
 }
+
+/************************************************************
+ * =========================================================
+ ************************************************************/
+
+const tsoColorMap = {
+  "50Hertz": "#0000FF",  // Blue
+  "TenneT": "#008000",   // Green
+  "TransnetBW": "#FF0000", // Red
+  "Amprion": "#FFFF00",  // Yellow
+  "Total": "#800090"     // Purple
+};
 
 /************************************************************
  * 5) Setup for the first chart
@@ -474,9 +575,12 @@ function getBaseChartOptions() {
       chart: {
           type: 'line',
           height: 350,
+    
           toolbar: { show: true }
       },
-      series: [], // Add your series data here
+      series: [{stroke:{dashArray: 5}}], // Add your series data here
+      // makers: [],
+      // lines: [],
       xaxis: {
           type: 'datetime',
           labels: {
@@ -490,7 +594,7 @@ function getBaseChartOptions() {
                       // minute: '2-digit',
                       // hour12: false,
                   });
-                  return dateFormatter.format(new Date(timestamp));
+                  return dateFormatter.format( new Date(timestamp) );
               }
           },
           title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } }
@@ -502,7 +606,7 @@ function getBaseChartOptions() {
             offsetY: -50, // Move the label to the top
             style: {
                 color   : isDarkMode ? '#e0e0e0' : '#000',
-                fontSize: '16px', // Adjust this size as needed
+                fontSize: '14px', // Adjust this size as needed
             },
         },
         labels: {
@@ -514,8 +618,8 @@ function getBaseChartOptions() {
                 return Math.round(value); // Format as integers
             },
         },
-        tickAmount: 5, // Optional: control the number of ticks on the Y-axis
-        forceNiceScale: true, // Optional: ensure nice intervals on Y-axis
+        // tickAmount: 5, // Optional: control the number of ticks on the Y-axis
+        // forceNiceScale: true, // Optional: ensure nice intervals on Y-axis
       },
       annotations: { xaxis: [] },
       tooltip: {
@@ -545,12 +649,19 @@ function getBaseChartOptions() {
  * 6) The actual update function for “Offshore” Chart #1
  *    (matching the onChange handlers in the HTML)
  ************************************************************/
-// Listen for toggle on the chart #1 description details
+
+//Listen for toggle on the chart #1 description details
 document
-.getElementById('chart1-description-details')
-.addEventListener('toggle', async function (e) {
-    // If the user is opening the details and it's not loaded yet...
-    if (e.target.open && !chart1DescLoaded) {
+  .getElementById('description1-toggle-checkbox')
+  .addEventListener('click', async function () {
+    const content = document.getElementById('chart1-description-container');
+    
+    // Toggle visibility of the dropdown content
+    const isVisible = content.style.display === 'block';
+    content.style.display = isVisible ? 'none' : 'block';
+
+    // If opening the dropdown and content is not loaded, load it dynamically
+    if (!isVisible && !chart1DescLoaded) {
         chart1DescLoaded = true;
         
         // Determine the language-specific file
@@ -560,7 +671,7 @@ document
         // Load the appropriate Markdown file
         await loadMarkdown(`data/forecasts/${fileName}`, 'chart1-description-container');
     }
-});   
+  }); 
 
 // Toggle listener for the first <details> block
 document.querySelector('details:nth-of-type(1)')
@@ -584,19 +695,19 @@ async function updateChart1() {
         checkboxId: '50hz-checkbox-1',
         variable  : 'wind_offshore_50hz',
         alias     : '50Hertz',
-        color     : '#1E90FF',
+        color     : tsoColorMap['50Hertz'],
       },
       {
         checkboxId: 'tenn-checkbox-1',
         variable  : 'wind_offshore_tenn',
         alias     : 'TenneT',
-        color     : '#FF6347',
+        color     : tsoColorMap['TenneT'],
       },
       {
         checkboxId: 'total-checkbox-1',
         variable  : 'wind_offshore',
         alias     : 'Total',
-        color     : '#9370DB'
+        color     : tsoColorMap['Total']
       }
     ],
 
@@ -611,12 +722,19 @@ async function updateChart1() {
  * 6) The actual update function for “Onshore” Chart #2
  *    (matching the onChange handlers in the HTML)
  ************************************************************/
-// Listen for toggle on the chart #2 description details
+
+//Listen for toggle on the chart #1 description details
 document
-.getElementById('chart2-description-details')
-.addEventListener('toggle', async function (e) {
-    // If the user is opening the details and it's not loaded yet...
-    if (e.target.open && !chart2DescLoaded) {
+  .getElementById('description2-toggle-checkbox')
+  .addEventListener('click', async function () {
+    const content = document.getElementById('chart2-description-container');
+    
+    // Toggle visibility of the dropdown content
+    const isVisible = content.style.display === 'block';
+    content.style.display = isVisible ? 'none' : 'block';
+
+    // If opening the dropdown and content is not loaded, load it dynamically
+    if (!isVisible && !chart2DescLoaded) {
         chart2DescLoaded = true;
         
         // Determine the language-specific file
@@ -626,7 +744,7 @@ document
         // Load the appropriate Markdown file
         await loadMarkdown(`data/forecasts/${fileName}`, 'chart2-description-container');
     }
-});   
+  }); 
 
 // Toggle listener for the second <details> block
 document.querySelector('details:nth-of-type(1)')
@@ -650,31 +768,31 @@ async function updateChart2() {
         checkboxId: 'ampr-checkbox-2',
         variable  : 'wind_onshore_ampr',
         alias     : 'Amprion',
-        color     : '#FF4500',
+        color     : tsoColorMap['Amprion'],
       },
       {
         checkboxId: 'tran-checkbox-2',
         variable  : 'wind_onshore_tran',
-        alias     : 'TransentBW',
-        color     : '#32CD32',
+        alias     : 'TransnetBW',
+        color     : tsoColorMap['TransnetBW'],
       },
       {
         checkboxId: '50hz-checkbox-2',
         variable  : 'wind_onshore_50hz',
         alias     : '50Hertz',
-        color     : '#1E90FF',
+        color     : tsoColorMap['50Hertz'],
       },
       {
         checkboxId: 'tenn-checkbox-2',
         variable  : 'wind_onshore_tenn',
         alias     : 'TenneT',
-        color     : '#FFD700',
+        color     : tsoColorMap['TenneT'],
       },
       {
         checkboxId: 'total-checkbox-2',
         variable  : 'wind_onshore',
         alias     : 'Total',
-        color     : '#9370DB'
+        color     : tsoColorMap['Total']
       }
     ],
 
