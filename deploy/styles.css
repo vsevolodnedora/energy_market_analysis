@@ -3,20 +3,39 @@
 /* ============================================= */
 
 /* Base body styles (shared by all modes) */
+/* Base body styles for light mode */
 body {
   font-family: 'Arial', sans-serif;
   margin: 0;
   padding: 0;
-  background-color: #f4f4f4;
-  color: #333;
+  background-color: #f4f4f4; /* Light mode background */
+  color: #333; /* Light mode text color */
   line-height: 1.6;
   transition: background-color 0.3s, color 0.3s;
 }
 
-/* Dark mode overrides for body */
+/* Dark mode styling for the entire page */
 body.dark-mode {
-  background-color: #202020;
-  color: #e0e0e0;
+  background-color: #121212; /* Dark mode background for the entire page */
+  color: #e0e0e0; /* Dark mode text color */
+}
+
+/* Dark mode for the A4 wrapper */
+body.dark-mode .a4-wrapper {
+  background-color: #1e1e1e; /* Dark mode "paper" background */
+  color: #e0e0e0; /* Dark mode text color for content */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8); /* Darker shadow for contrast */
+}
+
+/* Ensure light mode wrapper remains white */
+.a4-wrapper {
+  max-width: 210mm; /* A4 width */
+  margin: 0 auto;
+  padding: 5mm;
+  background: white;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  border-radius: 5px;
+  transition: background-color 0.3s, color 0.3s;
 }
 
 /* ============================================= */
@@ -26,23 +45,14 @@ body.dark-mode {
 /* Base header styles */
 header {
   color: #333;
-  padding: 5px 10px;          /* Reduced padding for a more compact look */
+  padding: 0px 0px;          /* Reduced padding for a more compact look */
   text-align: center;
   border-bottom: 2px solid rgba(0, 0, 0, 0.1); /* Subtle separating line */
   position: relative;
   transition: color 0.3s;
 }
 
-/* Compact fancy line at the bottom */
-header::after {
-  content: "";
-  display: block;
-  width: 40%;                 /* Slightly shorter line */
-  height: 2px;                /* Thinner line */
-  background: linear-gradient(to right, #6a11cb, #2575fc);
-  margin: 5px auto 0;         /* Reduced spacing below */
-  border-radius: 1px;         /* Subtle rounded edges */
-}
+
 
 /* Dark mode header styles */
 body.dark-mode header {
@@ -56,7 +66,7 @@ body.dark-mode header::after {
 
 /* Header text styles */
 header h1 {
-  margin: 5px 0;              /* Minimized vertical margin */
+  margin: 2px 0;              /* Minimized vertical margin */
   font-size: 2rem;            /* Slightly smaller font */
   font-weight: bold;
   line-height: 1.1;           /* Tighter line spacing */
@@ -67,82 +77,61 @@ header p {
   font-size: 1rem;            /* Slightly smaller font size */
 }
 
-/* Button and link adjustments */
-header a.cta-link {
-  font-size: 0.9rem;          /* Reduced font size for the link */
-}
-
-header button.toggle-button {
-  font-size: 0.9rem;          /* Reduced font size for buttons */
-  padding: 5px 8px;           /* Reduced padding inside buttons */
-  margin: 0 5px;              /* Compact spacing between buttons */
-}
-
-
 
 /* ============================================= */
-/* ================ CTA LINK =================== */
+/* ========== Pre-Renewables Forecast Intro ========== */
 /* ============================================= */
 
-/* Header-specific CTA link in default mode */
-header .cta-link {
-  display: inline-block;
-  margin-top: 5px;
-  padding: 5px 5px;
-  background-color: #6a1b9a;
-  color: #fff;
-  text-decoration: none;
-  font-weight: bold;
-  border-radius: 5px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  transition: background-color 0.3s, transform 0.3s;
+.forecast-intro {
+  margin: 10px auto;
+  padding: 10px;
+  max-width: 800px; /* Center-align and limit width */
+  background-color: #f9f9f9; /* Light background for visibility */
+  border: 0px solid #ddd; /* Subtle border */
+  border-radius: 5px; /* Rounded edges for a polished look */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Light shadow for depth */
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #333;
 }
 
-header .cta-link:hover {
-  background-color: #5a1782;
-  transform: translateY(-2px);
+/* Dark mode adjustments */
+body.dark-mode .forecast-intro {
+  background-color: #2e2e2e; /* Dark background */
+  border-color: #444; /* Darker border */
+  color: #e0e0e0; /* Light text */
 }
 
-/* Dark mode override for header CTA link */
-body.dark-mode header .cta-link {
-  background-color: #9e7bd4;
-  color: #202020;
-}
-
-body.dark-mode header .cta-link:hover {
-  background-color: #8465b6;
-}
 
 /* ============================================= */
 /* ========== FORECAST SECTION STYLES ========== */
 /* ============================================= */
 
-/* Base forecast section styles */
+/* Base forecast section styles
 .forecast-section {
   margin-top: 5px;
   padding: 5px;
   background: #f9f9f9;
   border: 0px solid #ddd;
-  border-radius: 5px;
+  border-radius: 0px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: background-color 0.3s, box-shadow 0.3s;
 }
+*/
 
-/* Hover effect */
+/* Hover effect 
 .forecast-section:hover {
   background-color: #fff;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
-
-/* Dark mode overrides for forecast section */
+*/
+/* Dark mode overrides for forecast section
 body.dark-mode .forecast-section {
   background: #202020;
   border: 0px solid #555;
   box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
   color: #e0e0e0;
-  /* transition removed (identical to base) */
 }
-
 body.dark-mode .forecast-section:hover {
   background: #2a2a2a;
   box-shadow: 0 4px 8px rgba(255, 255, 255, 0.15);
@@ -152,7 +141,7 @@ body.dark-mode .forecast-section:hover {
 /* ============ CONTROL AREA STYLES ============ */
 /* ============================================= */
 
-/* Base control area styles */
+/* Base control area styles
 .control-area {
   margin-top: 5px;
   margin-left: 5px;
@@ -160,29 +149,27 @@ body.dark-mode .forecast-section:hover {
   padding: 5px;
   background: #f6f6f6;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-  /* border-radius: 8px;  <-- commented out originally */
-  /* border: 1px solid #ccc; <-- commented out originally */
+  border-radius: 8px; 
+  border: 0px solid #ccc;
 }
-
-/* Dark mode override for control area */
 body.dark-mode .control-area {
   background: #252525;
   border: 1px solid #444;
   color: #d0d0d0;
 }
-
+*/
 /* ============================================= */
 /* ====== CHART DESCRIPTION (NESTED DETAILS) ==== */
 /* ============================================= */
 
 /* Base details styling */
-#chart1-description-details, 
+#chart1-description-details,
 #chart2-description-details {
   margin-top: 10px;           /* Reduced vertical spacing */
   padding: 5px;              /* Reduced padding */
   border: 1px solid #ccc;    /* Softer border color */
   border-radius: 4px;        /* Reduced border radius */
-  background: #f9f9f9;       /* Slightly lighter background */
+   /*  background: #f9f9f9;       Slightly lighter background */
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* Lighter and minimal shadow */
   font-size: 0.95rem;        /* Slightly smaller font size */
 }
@@ -198,7 +185,7 @@ body.dark-mode .control-area {
 }
 
 /* Description container */
-#chart1-description-container, 
+#chart1-description-container,
 #chart2-description-container {
   font-size: 0.9rem;         /* Smaller text for details */
   color: #555;
@@ -245,38 +232,95 @@ body.dark-mode input[type="range"] {
 /* ================ OLD DETAILS ================ */
 /* ============================================= */
 
+/* Base styles for the details container */
 details {
-  margin: 5px 5px;
-  padding: 5px;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-  transition: background-color 0.3s, color 0.3s;
+  margin: 5px 0; /* Add spacing between sections */
+  padding: 5px 10px; /* Create padding for better readability */
+  max-width: 800px; /* Center-align and limit width */
+  background: #fff; /* Light mode background */
+  border: 1px solid #ddd; /* Subtle border */
+  border-radius: 5px; /* Rounded corners for a modern look */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Softer shadow for depth */
+  transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease; /* Smooth transitions */
 }
 
+/* Styling the summary element */
 details summary {
-  font-size: 1.0rem;
-  font-weight: bold;
-  cursor: pointer;
-  margin-bottom: 2px;
+  max-width: 800px; /* Center-align and limit width */
+  font-size: 1.1rem; /* Slightly larger font size for headers */
+  font-weight: bold; /* Emphasize the chapter title */
+  cursor: pointer; /* Indicate interactivity */
+  margin-bottom: 5px; /* Add spacing between summary and content */
+  color: #444; /* Darker text for better contrast */
+  list-style: none; /* Remove default markers */
+  padding: 5px; /* Add some padding */
+  border-radius: 3px; /* Rounded corners */
+  transition: background-color 0.3s ease, color 0.3s ease; /* Smooth transitions */
 }
 
-body.dark-mode details {
-  background: #333;
-  border-color: #555;
-  color: #e0e0e0;
+/* Hover and focus styles for summary */
+details summary:hover,
+details summary:focus {
+  background: rgba(0, 0, 0, 0.05); /* Subtle highlight on hover */
+  color: #222; /* Slightly darker text */
 }
+
+/* Styling for expanded details */
+details[open] {
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15); /* Enhance shadow when expanded */
+  background: #f9f9f9; /* Slightly lighter background when open */
+}
+
+details[open] summary {
+  background: rgba(0, 0, 0, 0.03); /* Highlight for open summary */
+  color: #333; /* Adjust text color for open state */
+}
+
+/* Dark mode styles for details */
+body.dark-mode details {
+  background: #2e2e2e; /* Darker background for dark mode */
+  border-color: #444; /* Darker border */
+  color: #e0e0e0; /* Light text for readability */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); /* Adjust shadow for dark mode */
+}
+
+body.dark-mode details summary {
+  color: #ddd; /* Light text for summary */
+}
+
+body.dark-mode details[open] {
+  background: #383838; /* Slightly lighter background for expanded state */
+}
+
+body.dark-mode details summary:hover,
+body.dark-mode details summary:focus {
+  background: rgba(255, 255, 255, 0.1); /* Subtle highlight in dark mode */
+}
+
+/* Optional: Add an indicator (e.g., an arrow) */
+details summary::after {
+  content: "▼"; /* Default arrow */
+  font-size: 0.8rem;
+  margin-left: 10px;
+  transition: transform 0.3s ease; /* Smooth rotation for open state */
+}
+
+details[open] summary::after {
+  transform: rotate(180deg); /* Rotate arrow when expanded */
+}
+
 
 /* ============================================= */
 /* ========= CHART CONTAINER & CONTROLS ======== */
 /* ============================================= */
 
 .chart-container {
-  margin-top: 10px;
+  margin-top: 5px;
+  width: 100%; /* Ensure charts fit within their container */
 }
 
 .controls {
+  max-width: 800px; /* Center-align and limit width */
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -487,6 +531,23 @@ body.dark-mode .controls-buttons label:active {
   stroke-width: 2px; /* Border thickness */
 }
 
+/* Adjust layout for print */
+@media print {
+  .controls {
+    max-width: 210mm; /* Fit within A4 width */
+    margin: 10px auto; /* Center-align for print */
+    gap: 0.2rem; /* Minimize gap for compact layout */
+  }
+
+  .controls-buttons label {
+    font-size: 0.75rem; /* Smaller font size for print */
+    padding: 4px 8px; /* Reduce button padding */
+  }
+
+  .slider-container input[type="range"] {
+    max-width: 200px; /* Reduce slider width for print */
+  }
+}
 
 /* ============================================= */
 /* ================= SLIDER ==================== */
@@ -740,15 +801,15 @@ body.dark-mode table tr:hover {
 }
 
 /* ============================================= */
-/* =============== BUTTON STYLES =============== */
+/* =============== HEADER BUTTON STYLES =============== */
 /* ============================================= */
 
 /* Shared button base (cta-link & toggle-button) */
 .cta-link,
 .toggle-button {
   display: inline-block;
-  margin: 10px 5px;
-  padding: 10px 20px;
+  margin: 5px 10px;
+  padding: 5px 10px;
   text-align: center;
   font-size: 1rem;
   font-weight: bold;
@@ -759,15 +820,17 @@ body.dark-mode table tr:hover {
 
 /* CTA (GitHub) button in default mode */
 .cta-link {
+  padding:2px 5px;
   background-color: #6a1b9a;
   color: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .cta-link:hover {
   background-color: #5a1782;
   transform: translateY(-2px);
 }
+
 
 /* Toggle button in default mode */
 .toggle-button {

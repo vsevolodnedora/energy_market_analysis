@@ -21,7 +21,9 @@
       "current-label": "Current",
       "prev-forecast-interval-label": "Previous Forecast Interval",
       "forecast-interval-label": "Forecast Interval",
-      "historic-data": "Historic Data"
+      "historic-data": "Historic Data",
+      "details-label": "Details",
+      "forecast-intro":"Renewable energy forecasting is essential for understanding and shaping future energy markets. Leveraging data from a diverse range of wind farms and solar farms, our system employs anautomated approach to identify the most informative features (both raw and engineered) for accurately predicting energy generation. Detailed insights and methodologies are provided within each section below."
     }
   },
   "de": {
@@ -46,7 +48,10 @@
       "current-label": "Aktuell",
       "prev-forecast-interval-label": "Vorheriges Prognoseintervall",
       "forecast-interval-label": "Prognoseintervall",
-      "historic-data": "Historische Daten"
+      "historic-data": "Historische Daten",
+      "details-label": "Einzelheiten",
+      "forecast-intro": "Die Prognose erneuerbarer Energien ist entscheidend für das Verständnis und die Gestaltung zukünftiger Energiemärkte. Durch die Nutzung von Daten aus einer Vielzahl von Wind- und Solaranlagen verwendet unser System einen automatisierten Ansatz, um die informativsten Merkmale (sowohl rohe als auch abgeleitete) für die genaue Vorhersage der Energieerzeugung zu identifizieren. Detaillierte Einblicke und Methoden finden Sie in den einzelnen Abschnitten unten."
+
     }
   }
 }

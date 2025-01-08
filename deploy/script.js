@@ -1,3 +1,30 @@
+// GLOBAL DEFINITIONS
+let baseUrl = "https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/";
+
+/************************************************************
+ * 0) Utils
+ ************************************************************/
+
+// Example color utility
+function lightenColor(color, percent) {
+  const num = parseInt(color.slice(1), 16),
+      amt = Math.round(2.55 * percent),
+      R = (num >> 16) + amt,
+      G = (num >> 8 & 0x00FF) + amt,
+      B = (num & 0x0000FF) + amt;
+      return `#${(
+              0x1000000 +
+              (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x25000 +
+              (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x250 +
+              (B < 255 ? (B < 1 ? 0 : B) : 255)
+          ).toString(16).slice(1).toUpperCase()
+      }`;
+}
+
+/************************************************************
+ * 0) Language
+ ************************************************************/
+
 // Update all elements with [data-i18n] using i18next
 function updateContent() {
   document.querySelectorAll('[data-i18n]').forEach(element => {
@@ -6,7 +33,6 @@ function updateContent() {
   });
 }
 
-// ----------------- LANGUAGE --------------------------
 // Function to load JSON file asynchronously
 async function loadTranslations(url) {
     const response = await fetch(url);
@@ -65,13 +91,9 @@ async function toggleLanguage() {
 }
   
 
-
-
-
-// ----------------- CHARTS --------------------------
-    
-let baseUrl = "https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/";
-let isDarkMode = true;
+/************************************************************
+ * 0) Dark Mode
+ ************************************************************/
 
 function toggleDarkMode() {
     const body = document.body;
@@ -82,8 +104,7 @@ function toggleDarkMode() {
     if (chartInstance1) updateChart1();
     if (chartInstance2) updateChart2();
 }
-    
-
+let isDarkMode = true;
 
 // A helper to track whether each chart was created
 let chart1Created = false;
@@ -95,26 +116,9 @@ let chart1DescLoaded = false;
 let chart2DescLoaded = false;
     
 
-    
-
-// Example color utility
-function lightenColor(color, percent) {
-  const num = parseInt(color.slice(1), 16),
-      amt = Math.round(2.55 * percent),
-      R = (num >> 16) + amt,
-      G = (num >> 8 & 0x00FF) + amt,
-      B = (num & 0x0000FF) + amt;
-      return `#${(
-              0x1000000 +
-              (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x25000 +
-              (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x250 +
-              (B < 255 ? (B < 1 ? 0 : B) : 255)
-          ).toString(16).slice(1).toUpperCase()
-      }`;
-}
-
-
-
+/************************************************************
+ * 0) Load Markdown FIles
+ ************************************************************/
 
 // Helper function to load Markdown from a given URL
 async function loadMarkdown(url, containerId) {
@@ -165,15 +169,6 @@ async function loadMarkdown(url, containerId) {
 // Optional: start in dark mode
 toggleDarkMode();
 
-
-
-function rebuildChartSeries() {
-  seriesData.length = 0; // Clear seriesData
-  Object.values(chartState).forEach((series) => {
-    if (series) seriesData.push(series);
-  });
-}
-
 /************************************************************
  * 0) Create a CACHE
  ************************************************************/
@@ -184,7 +179,7 @@ const forecastDataCache = {};
  * Fetches a data file and returns it as an array of { x: Date, y: number }.
  * Tries default location first, then a fallback. Results are cached.
  */
-async function getCachedData(variable, file) {
+async function getCachedData(variable, file, errorElementId) {
   const locDir = 'data/forecasts';  // local directory
   const cacheKey = `${variable}-${file}`;
 
@@ -217,7 +212,7 @@ async function getCachedData(variable, file) {
     return forecastDataCache[cacheKey];
   } catch (fallbackError) {
     console.error(fallbackError.message);
-    document.getElementById('error-message').textContent = fallbackError.message;
+    document.getElementById(errorElementId).textContent = fallbackError.message;
     // Return null if both attempts fail
     forecastDataCache[cacheKey] = null;
     return null;
@@ -238,9 +233,9 @@ async function createChart(containerSelector, baseOptions) {
 
 
 /************************************************************
- * 2) Generic data fetch function with fallback logic
+ * MISSALENOUS  Generic data fetch function with fallback logic
  ************************************************************/
-async function fetchData(variable, file) {
+async function fetchData(variable, file, errorElementId) {
   const loc_dir = 'data/forecasts' // location of the forecast files
   try {
     // Attempt to fetch data from the default location
@@ -258,7 +253,7 @@ async function fetchData(variable, file) {
       return fallbackData.map(([timestamp, value]) => ({ x: new Date(timestamp), y: value }));
     } catch (fallbackError) {
       // Handle failure from both locations
-      document.getElementById('error-message').textContent = fallbackError.message;
+      document.getElementById(errorElementId).textContent = fallbackError.message;
       return null;
     }
   }
@@ -273,7 +268,8 @@ async function addSeries({
   color,
   pastDataRatio,
   seriesData,
-  annotations
+  annotations,
+  errorElementId
 }) {
   // Standard file names
   const prevFittedFile = 'forecast_prev_fitted.json';
@@ -286,9 +282,9 @@ async function addSeries({
     pastActualData,
     currentData
   ] = await Promise.all([
-    getCachedData(variable, prevFittedFile),
-    getCachedData(variable, prevActualFile),
-    getCachedData(variable, currFittedFile)
+    getCachedData(variable, prevFittedFile, errorElementId),
+    getCachedData(variable, prevActualFile, errorElementId),
+    getCachedData(variable, currFittedFile, errorElementId)
   ]);
 
   // -------------------- PAST FITTED (Solid Line) --------------------
@@ -350,7 +346,8 @@ async function addCI({
   color,
   showInterval,
   pastDataRatio,
-  seriesData
+  seriesData,
+  errorElementId
 }) {
   // Standard file names
   const prevLowerFile = 'forecast_prev_lower.json';
@@ -365,10 +362,10 @@ async function addCI({
     currentLowerData,
     currentUpperData
   ] = await Promise.all([
-    getCachedData(variable, prevLowerFile),
-    getCachedData(variable, prevUpperFile),
-    getCachedData(variable, currLowerFile),
-    getCachedData(variable, currUpperFile)
+    getCachedData(variable, prevLowerFile, errorElementId),
+    getCachedData(variable, prevUpperFile, errorElementId),
+    getCachedData(variable, currLowerFile, errorElementId),
+    getCachedData(variable, currUpperFile, errorElementId)
   ]);
 
   // -------------------- PREV FORECAST INTERVAL (Area) --------------------
@@ -456,7 +453,8 @@ async function updateChartGeneric(config) {
         color: region.color,
         pastDataRatio: pastDataRatio,
         seriesData: seriesData,
-        annotations: annotations
+        annotations: annotations,
+        errorElementId:errorElementId
       });
     }
   }
@@ -473,7 +471,8 @@ async function updateChartGeneric(config) {
           color: region.color,
           showInterval: showInterval,
           pastDataRatio: pastDataRatio,
-          seriesData: seriesData
+          seriesData: seriesData,
+          errorElementId: errorElementId
         });
       }
     }
@@ -601,7 +600,7 @@ function getBaseChartOptions() {
       },
       yaxis: {
         title: {
-            text: i18next.t('offshore-power-label'),
+//            text: 'MW'//i18next.t('offshore-power-label'),
             offsetX: 300, // Move the label far to the right
             offsetY: -50, // Move the label to the top
             style: {
@@ -688,7 +687,7 @@ async function updateChart1() {
   
   await updateChartGeneric({
     chartInstance   : chartInstance1,
-    yAxisLabel      : i18next.t('offshore-power-label-mw'),
+    yAxisLabel      : 'Power (MW)',//i18next.t('offshore-power-label-mw'),
     
     regionConfigs   : [
       {
@@ -713,7 +712,7 @@ async function updateChart1() {
 
     pastDataSliderId: 'past-data-slider-1',
     showIntervalId  : 'showci_checkbox-1',
-    errorElementId  : 'error-message',
+    errorElementId  : 'error-message1',
     isDarkMode      : isDarkMode // or define it yourself
   });
 }
@@ -761,7 +760,7 @@ async function updateChart2() {
   
   await updateChartGeneric({
     chartInstance   : chartInstance2,
-    yAxisLabel      : i18next.t('onshore-power-label-mw'),
+    yAxisLabel      : 'Power (MW)',//i18next.t('onshore-power-label-mw'),
     
     regionConfigs   : [
       {
@@ -798,7 +797,7 @@ async function updateChart2() {
 
     pastDataSliderId: 'past-data-slider-2',
     showIntervalId  : 'showci_checkbox-2',
-    errorElementId  : 'error-message',
+    errorElementId  : 'error-message2',
     isDarkMode      : isDarkMode // or define it yourself
   });
 }
