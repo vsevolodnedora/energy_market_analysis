@@ -2,8 +2,12 @@ import copy, re, pandas as pd
 import numpy as np
 
 from data_collection_modules.collect_data_openmeteo import OpenMeteo
-from data_collection_modules.locations import (
-    locations, offshore_windfarms, onshore_windfarms, solarfarms, de_regions
+from data_collection_modules.german_locations import (
+    de_regions,
+    loc_onshore_windfarms,
+    loc_offshore_windfarms,
+    loc_cities,
+    loc_solarfarms
 )
 from data_modules.utils import (
     validate_dataframe
@@ -32,57 +36,40 @@ def extract_from_database(target:str, datapath:str, verbose:bool, region:str, n_
         -> tuple[pd.DataFrame, pd.DataFrame]:
 
     df_smard = pd.read_parquet(datapath + 'smard/' + 'history.parquet')
-    df_om = pd.read_parquet(datapath + 'openmeteo/' + 'history.parquet')
-    df_om_f = pd.read_parquet(datapath + 'openmeteo/' + 'forecast.parquet')
+    df_om_offshore = pd.read_parquet(datapath + 'openmeteo/' + 'offshore_history.parquet')
+    df_om_offshore_f = pd.read_parquet(datapath + 'openmeteo/' + 'offshore_forecast.parquet')
+    df_om_onshore = pd.read_parquet(datapath + 'openmeteo/' + 'onshore_history.parquet')
+    df_om_onshore_f = pd.read_parquet(datapath + 'openmeteo/' + 'onshore_forecast.parquet')
+    df_om_solar = pd.read_parquet(datapath + 'openmeteo/' + 'solar_history.parquet')
+    df_om_solar_f = pd.read_parquet(datapath + 'openmeteo/' + 'solar_forecast.parquet')
     df_es = pd.read_parquet(datapath + 'epexspot/' + 'history.parquet')
     df_entsoe = pd.read_parquet(datapath + 'entsoe/' + 'history.parquet')
+    if len(df_om_offshore_f) != len(df_om_offshore_f) or len(df_om_solar_f) != len(df_om_solar_f):
+        raise IOError("The forecast DataFrames have different number of columns.")
 
     # -------------------
     if verbose:
         print(f"SMARD data shapes hist={df_smard.shape} (days={len(df_smard)/24}) start={df_smard.index[0]} end={df_smard.index[-1]}")
         print(f"ENTSOE data shapes hist={df_entsoe.shape} (days={len(df_entsoe)/24}) start={df_entsoe.index[0]} end={df_entsoe.index[-1]}")
-        print(f"Openmeteo data shapes hist={df_om.shape} (days={len(df_om)/24}) start={df_om.index[0]} end={df_om.index[-1]}")
-        print(f"Openmeteo data shapes forecast={df_om_f.shape} (days={len(df_om_f)/24}) start={df_om_f.index[0]} end={df_om_f.index[-1]}")
+        print(f"OM offshore data shapes hist={df_om_offshore.shape} (days={len(df_om_offshore)/24}) start={df_om_offshore.index[0]} end={df_om_offshore.index[-1]}")
+        print(f"OM offshore data shapes forecast={df_om_offshore_f.shape} (days={len(df_om_offshore_f)/24}) start={df_om_offshore_f.index[0]} end={df_om_offshore_f.index[-1]}")
+        print(f"OM onshore data shapes hist={df_om_onshore.shape} (days={len(df_om_onshore)/24}) start={df_om_onshore.index[0]} end={df_om_onshore.index[-1]}")
+        print(f"OM onshore data shapes forecast={df_om_onshore_f.shape} (days={len(df_om_onshore_f)/24}) start={df_om_onshore_f.index[0]} end={df_om_onshore_f.index[-1]}")
+        print(f"OM solar data shapes hist={df_om_solar.shape} (days={len(df_om_solar)/24}) start={df_om_solar.index[0]} end={df_om_solar.index[-1]}")
+        print(f"OM solar data shapes forecast={df_om_solar_f.shape} (days={len(df_om_solar_f)/24}) start={df_om_solar_f.index[0]} end={df_om_solar_f.index[-1]}")
         print(f"EPEXSPOT data shapes hist={df_es.shape} (days={len(df_es)/24}) start={df_es.index[0]} end={df_es.index[-1]}")
-    if horizon < len(df_om_f):
+
+    if horizon < len(df_om_offshore_f):
         if verbose: print("Forecast dataframe has {} rows while {} rows are requested. Trimming...")
-        df_om_f = df_om_f.iloc[:horizon]
-        assert len(df_om_f) == horizon
-        assert (df_om_f.index[-1].hour == 23 and
-                df_om_f.index[-1].minute == 0 and
-                df_om_f.index[-1].second == 0)
+        df_om_offshore_f = df_om_offshore_f.iloc[:horizon]
+        df_om_onshore_f = df_om_onshore_f.iloc[:horizon]
+        df_om_solar_f = df_om_solar_f.iloc[:horizon]
+        assert len(df_om_offshore_f) == horizon
+        assert (df_om_offshore_f.index[-1].hour == 23 and
+                df_om_offshore_f.index[-1].minute == 0 and
+                df_om_offshore_f.index[-1].second == 0)
+
     # -----------------
-    # if target in ['wind_offshore_tenn','wind_offshore_50hz']:
-    #
-    #     if target == 'wind_offshore_tenn' and region != 'DE_TENNET':
-    #         raise IOError(f"The region must be 'DE_TENNE' for target={target}")
-    #
-    #     if target == 'wind_offshore_50hz' and region != 'DE_50HZ':
-    #         raise IOError(f"The region must be 'DE_50HZ' for target={target}")
-    #
-    #     if verbose: print(f"Target={target} Nans={df_entsoe[target].isna().sum().sum()}")
-    #
-    #     # get openmeteo data for locations within this region (for windmills associated with this TSO)
-    #     region_:dict = [reg for reg in de_regions if reg['name']==region][0]
-    #     reg_suffix = region_['suffix']
-    #     entsoe_column = 'wind_offshore' + reg_suffix
-    #     target = df_entsoe[entsoe_column]
-    #     om_suffixes = [wind_farm['suffix'] for wind_farm in offshore_windfarms if wind_farm['TSO'] == region_['TSO']]
-    #     columns_to_select = df_om.columns[df_om.columns.str.endswith(tuple(om_suffixes))]
-    #
-    #
-    #     # combine weather data and target column (convention)
-    #     df_hist = pd.merge(left=df_om[columns_to_select],right=target, left_index=True, right_index=True, how='left')
-    #     df_forecast = df_om_f[columns_to_select]
-    #     df_hist = df_hist.tail(len(df_forecast)*n_horizons) # crop the dataset if needed
-    #
-    #     if not len(df_hist.columns) == len(df_forecast.columns)+1:
-    #         raise ValueError(f'The DataFrames have different columns. '
-    #                          f'hist={df_hist.shape} forecast={df_forecast.shape}')
-    #
-    #     if len(df_hist) <= 1 or len(df_forecast) <= 1:
-    #         raise ValueError(f'The DataFrames must have >1 rows '
-    #                          f'hist={df_hist.shape} forecast={df_forecast.shape}')
 
     if 'wind_offshore' or 'wind_onshore' in target:
         # quick sanity checks that regions is set correctly
@@ -101,13 +88,16 @@ def extract_from_database(target:str, datapath:str, verbose:bool, region:str, n_
         region_:dict = [reg for reg in de_regions if reg['name']==region][0]
         reg_suffix = region_['suffix']
         entsoe_column = str('wind_offshore' if 'wind_offshore' in target else 'wind_onshore') + reg_suffix
-        wind_farms = offshore_windfarms if 'wind_offshore' in target else onshore_windfarms
+        wind_farms = loc_offshore_windfarms if 'wind_offshore' in target else loc_onshore_windfarms
         om_suffixes = [wind_farm['suffix'] for wind_farm in wind_farms if wind_farm['TSO'] == region_['TSO']]
-        columns_to_select = df_om.columns[df_om.columns.str.endswith(tuple(om_suffixes))]
+        dataframe = df_om_offshore if 'wind_offshore' in target else df_om_onshore
+        columns_to_select = dataframe.columns[dataframe.columns.str.endswith(tuple(om_suffixes))]
 
         # combine weather data and target column (convention)
-        df_hist = pd.merge(left=df_om[columns_to_select],right=df_entsoe[entsoe_column], left_index=True, right_index=True, how='left')
-        df_forecast = df_om_f[columns_to_select]
+        df_hist = pd.merge(left=dataframe[columns_to_select],right=df_entsoe[entsoe_column], left_index=True, right_index=True, how='left')
+        dataframe_f = df_om_offshore_f if 'wind_offshore' in target else df_om_onshore_f
+
+        df_forecast = dataframe_f[columns_to_select]
         df_hist = df_hist.tail(len(df_forecast)*n_horizons) # crop the dataset if needed
 
         if not len(df_hist.columns) == len(df_forecast.columns)+1:

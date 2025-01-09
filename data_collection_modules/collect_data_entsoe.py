@@ -6,7 +6,7 @@ from entsoe import EntsoePandasClient
 import pandas as pd
 from datetime import timedelta, datetime
 
-from data_collection_modules.locations import de_regions
+from data_collection_modules.german_locations import de_regions
 from data_collection_modules.utils import compare_columns
 
 def preprocess_generation(df_gen:pd.DataFrame, downsample:bool, drop_consumption:bool, verbose:bool)->pd.DataFrame:

@@ -15,7 +15,6 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, MaxAbsScaler, RobustScaler
 
 from data_collection_modules.utils import compare_columns, validate_dataframe_simple
-from data_collection_modules.locations import locations
 from data_modules.utils import validate_dataframe
 from data_modules.feature_eng import (
     create_holiday_weekend_series,

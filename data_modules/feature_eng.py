@@ -9,8 +9,7 @@ from math import radians, sin, cos
 import joblib
 import gc
 
-
-from data_collection_modules.locations import locations
+from data_collection_modules.german_locations import all_locations
 
 
 def create_holiday_weekend_series(df_index):
@@ -63,7 +62,7 @@ class WeatherFeatureEngineer_OLD:
         self.loc_names = self.config.get("locations", [])
         if len(self.loc_names) == 0:
             raise ValueError("No locations configured.")
-        self.locations:list[dict] = [loc for loc in locations if loc['name'] in self.loc_names]
+        self.locations:list[dict] = [loc for loc in all_locations if loc['name'] in self.loc_names]
         if len(self.loc_names) == 0:
             raise ValueError("No locations configured.")
         self.sp_agg_config = self.config.get("spatial_aggregation", {})
@@ -321,7 +320,7 @@ class WeatherFeatureEngineer:
         self.loc_names = self.config.get("locations", [])
         if len(self.loc_names) == 0:
             raise ValueError("No locations configured.")
-        self.locations:list[dict] = [loc for loc in locations if loc['name'] in self.loc_names]
+        self.locations:list[dict] = [loc for loc in all_locations if loc['name'] in self.loc_names]
         if len(self.locations) == 0:
             raise ValueError("No locations configured.")
         self.sp_agg_config = self.config.get("spatial_aggregation", {})
@@ -628,7 +627,7 @@ class WeatherFeatureEngineer_2:
         self.loc_names = self.config.get("locations", [])
         if len(self.loc_names) == 0:
             raise ValueError("No locations configured.")
-        self.locations:list[dict] = [loc for loc in locations if loc['name'] in self.loc_names]
+        self.locations:list[dict] = [loc for loc in all_locations if loc['name'] in self.loc_names]
         if len(self.locations) == 0:
             raise ValueError("No locations configured.")
 
