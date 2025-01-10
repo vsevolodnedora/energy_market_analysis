@@ -19,7 +19,7 @@ openmeteo-requests = "*"
 entsoe-py = "*"
 numpy = "*"
 matplotlib = "*"
-scikit-learn = "*"
+scikit-learn = "==1.5.2"
 torch = "*"
 joblib = "*"
 xgboost = "*"
@@ -34,4 +34,3 @@ tabulate = "*"
 
 [requires]
 python_version = "3.11"
-#python_full_version = "3.11.5"
