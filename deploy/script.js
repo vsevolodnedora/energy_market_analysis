@@ -1,6 +1,27 @@
 // GLOBAL DEFINITIONS
 let baseUrl = "https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/";
 
+/**
+ * Show only one content section and hide the others.
+ * @param {string} sectionId - The ID of the section to display.
+ */
+
+/**
+ * Toggles a subpage’s visibility by adding/removing an .active class.
+ * Called by the onClick of each checkbox in the top nav.
+ *
+ * @param {string} subpageId - The ID of the subpage container div.
+ * @param {boolean} isChecked - true if checkbox is checked (show), false if unchecked (hide).
+ */
+function toggleSubpage(subpageId, isChecked) {
+  const subpage = document.getElementById(subpageId);
+  if (!subpage) return;
+  if (isChecked) {
+    subpage.classList.add('active');
+  } else {
+    subpage.classList.remove('active');
+  }
+}
 /************************************************************
  * 0) Utils
  ************************************************************/
@@ -47,7 +68,7 @@ async function loadTranslations(url) {
 async function initializeI18n() {
     try {
         const resources = await loadTranslations('translations.json');
-    
+
         // Initialize i18next with loaded resources
         await i18next.init({
             lng: 'en', // default language
@@ -64,32 +85,68 @@ async function initializeI18n() {
 
 // Toggle between English and German
 async function toggleLanguage() {
-    
-  
     const newLang = (i18next.language === 'en') ? 'de' : 'en';
     await i18next.changeLanguage(newLang);
-  
+
     updateContent(); // Updates text translations
-  
+
     if (chartInstance1) {
         updateChart1(); // Force chart update to reformat labels/axes
     }
     if (chartInstance2) {
         updateChart2();
     }
-  
+    if (chartInstance3) {
+        updateChart3();
+    }
     // Reload the description in the new language if already loaded
     if (chart1DescLoaded) {
         const language = i18next.language; // Get the new current language
         const fileName = `wind_offshore_notes_${language}.md`  ;
         await loadMarkdown(`data/forecasts/${fileName}`, 'chart1-description-container');
     }
-  
+
+
+    // Reload HTML files with different languages (1/3)
+    const mainInfoFileName = (newLang === 'en') ? 'main_info_en.html' : 'main_info_de.html';
+    await loadHTML(`${mainInfoFileName}`, 'main_info-content');
+
     // Update the text of the language toggle button
     const languageToggleButton = document.getElementById('language-toggle');
     languageToggleButton.textContent = (newLang === 'en') ? 'DE' : 'EN'; // Show the other language
+
 }
-  
+
+
+/************************************************************
+ * 0) HTML LOADERS (LANGUAGE DEPENDENT) (2 and 3 / 3)
+ ************************************************************/
+
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Load the default mainFile content based on the initial language
+        const initialLanguage = i18next.language || 'en'; // Use 'en' if not set
+        const mainFileFileName = (initialLanguage === 'en') ? 'main_info_en.html' : 'main_info_de.html';
+        await loadHTML(`${mainFileFileName}`, 'main_info-content');
+    } catch (error) {
+        console.error('Error initializing i18next or loading mainFile content:', error);
+    }
+});
+
+// Function to dynamically load HTML content into a target container
+async function loadHTML(filePath, containerId) {
+    try {
+        const response = await fetch(filePath);
+        if (!response.ok) throw new Error(`Failed to load ${filePath}`);
+        const htmlContent = await response.text();
+        const container = document.getElementById(containerId);
+        container.innerHTML = htmlContent;
+    } catch (error) {
+        console.error(`Error loading HTML content from ${filePath}:`, error);
+        const container = document.getElementById(containerId);
+        container.innerHTML = '<p>Error loading content. </p>';
+    }
+}
 
 /************************************************************
  * 0) Dark Mode
@@ -99,22 +156,26 @@ function toggleDarkMode() {
     const body = document.body;
     body.classList.toggle('dark-mode');
     isDarkMode = !isDarkMode;
-    
+
     // If charts exist, refresh them
     if (chartInstance1) updateChart1();
     if (chartInstance2) updateChart2();
+    if (chartInstance3) updateChart3();
 }
 let isDarkMode = true;
 
 // A helper to track whether each chart was created
-let chart1Created = false;
-let chart2Created = false;
-let chartInstance1 = null;
-let chartInstance2 = null;
-    
-let chart1DescLoaded = false;
-let chart2DescLoaded = false;
-    
+let chart1Created = false; // offshore wind power
+let chart2Created = false; // onshore wind power
+let chart3Created = false; // solar power
+
+let chartInstance1 = null; // offshore wind power
+let chartInstance2 = null; // onshore wind power
+let chartInstance3 = null; // solar power
+
+let chart1DescLoaded = false; // offshore wind power
+let chart2DescLoaded = false; // onshore wind power
+let chart3DescLoaded = false; // solar power
 
 /************************************************************
  * 0) Load Markdown FIles
@@ -126,20 +187,20 @@ async function loadMarkdown(url, containerId) {
     try {
         // Attempt to fetch the file from the local path
         let response = await fetch(url);
-    
+
         // If the response is not OK, throw an error to trigger the fallback
         if (!response.ok) {
             console.warn(`Failed to load markdown from local path: ${url}. Trying fallback URL.`);
             response = await fetch(fallbackUrl);
         }
-    
+
         // If the fallback response is also not OK, throw an error
         if (!response.ok) {
             throw new Error(`Failed to load markdown from both local and fallback URLs.`);
         }
-    
+
         const markdownText = await response.text();
-    
+
         // Use showdown to convert the markdown to HTML
         const converter = new showdown.Converter({
             tables: true,
@@ -153,7 +214,7 @@ async function loadMarkdown(url, containerId) {
             simpleLineBreaks: true
         });
         const html = converter.makeHtml(markdownText);
-    
+
         // Insert HTML into the container
             document.getElementById(containerId).innerHTML = html;
     } catch (error) {
@@ -458,7 +519,7 @@ async function updateChartGeneric(config) {
       });
     }
   }
-  
+
   // attempt to split to remove artifacts from turning CI off
   for (const region of regionConfigs) {
     const checkbox = document.getElementById(region.checkboxId);
@@ -574,7 +635,7 @@ function getBaseChartOptions() {
       chart: {
           type: 'line',
           height: 350,
-    
+
           toolbar: { show: true }
       },
       series: [{stroke:{dashArray: 5}}], // Add your series data here
@@ -635,17 +696,24 @@ function getBaseChartOptions() {
           }
       },
       legend: {
-          labels: { 
-              colors: isDarkMode ? '#e0e0e0' : '#000', 
-              useSeriesColors: false 
+          labels: {
+              colors: isDarkMode ? '#e0e0e0' : '#000',
+              useSeriesColors: false
           }
       }
   };
 }
 
 
+
+
+/*************************************************************/
+
+
+
+
 /************************************************************
- * 6) The actual update function for “Offshore” Chart #1
+ * 6.1) The actual update function for “Offshore” Chart #1
  *    (matching the onChange handlers in the HTML)
  ************************************************************/
 
@@ -654,7 +722,7 @@ document
   .getElementById('description1-toggle-checkbox')
   .addEventListener('click', async function () {
     const content = document.getElementById('chart1-description-container');
-    
+
     // Toggle visibility of the dropdown content
     const isVisible = content.style.display === 'block';
     content.style.display = isVisible ? 'none' : 'block';
@@ -662,15 +730,15 @@ document
     // If opening the dropdown and content is not loaded, load it dynamically
     if (!isVisible && !chart1DescLoaded) {
         chart1DescLoaded = true;
-        
+
         // Determine the language-specific file
         const language = i18next.language; // Get the current language ('en' or 'de')
         const fileName = `wind_offshore_notes_${language}.md`;
-        
+
         // Load the appropriate Markdown file
         await loadMarkdown(`data/forecasts/${fileName}`, 'chart1-description-container');
     }
-  }); 
+  });
 
 // Toggle listener for the first <details> block
 document.querySelector('details:nth-of-type(1)')
@@ -681,14 +749,14 @@ document.querySelector('details:nth-of-type(1)')
       chartInstance1 = await createChart('#chart1', getBaseChartOptions());
       updateChart1(); // do first update
     }
-  }); 
+  });
 
 async function updateChart1() {
-  
+
   await updateChartGeneric({
     chartInstance   : chartInstance1,
     yAxisLabel      : 'Power (MW)',//i18next.t('offshore-power-label-mw'),
-    
+
     regionConfigs   : [
       {
         checkboxId: '50hz-checkbox-1',
@@ -717,8 +785,12 @@ async function updateChart1() {
   });
 }
 
+
+
+
+
 /************************************************************
- * 6) The actual update function for “Onshore” Chart #2
+ * 6.2) The actual update function for “Onshore” Chart #2
  *    (matching the onChange handlers in the HTML)
  ************************************************************/
 
@@ -727,7 +799,7 @@ document
   .getElementById('description2-toggle-checkbox')
   .addEventListener('click', async function () {
     const content = document.getElementById('chart2-description-container');
-    
+
     // Toggle visibility of the dropdown content
     const isVisible = content.style.display === 'block';
     content.style.display = isVisible ? 'none' : 'block';
@@ -735,15 +807,15 @@ document
     // If opening the dropdown and content is not loaded, load it dynamically
     if (!isVisible && !chart2DescLoaded) {
         chart2DescLoaded = true;
-        
+
         // Determine the language-specific file
         const language = i18next.language; // Get the current language ('en' or 'de')
         const fileName = `wind_onshore_notes_${language}.md`;
-        
+
         // Load the appropriate Markdown file
         await loadMarkdown(`data/forecasts/${fileName}`, 'chart2-description-container');
     }
-  }); 
+  });
 
 // Toggle listener for the second <details> block
 document.querySelector('details:nth-of-type(1)')
@@ -755,13 +827,13 @@ document.querySelector('details:nth-of-type(1)')
       updateChart2(); // do first update
     }
   });
-  
+
 async function updateChart2() {
-  
+
   await updateChartGeneric({
     chartInstance   : chartInstance2,
     yAxisLabel      : 'Power (MW)',//i18next.t('onshore-power-label-mw'),
-    
+
     regionConfigs   : [
       {
         checkboxId: 'ampr-checkbox-2',
@@ -798,6 +870,92 @@ async function updateChart2() {
     pastDataSliderId: 'past-data-slider-2',
     showIntervalId  : 'showci_checkbox-2',
     errorElementId  : 'error-message2',
+    isDarkMode      : isDarkMode // or define it yourself
+  });
+}
+
+
+/************************************************************
+ * 6.3) The actual update function for “Solar” Chart #2
+ *    (matching the onChange handlers in the HTML)
+ ************************************************************/
+
+//Listen for toggle on the chart #1 description details
+document
+  .getElementById('description3-toggle-checkbox')
+  .addEventListener('click', async function () {
+    const content = document.getElementById('chart3-description-container');
+
+    // Toggle visibility of the dropdown content
+    const isVisible = content.style.display === 'block';
+    content.style.display = isVisible ? 'none' : 'block';
+
+    // If opening the dropdown and content is not loaded, load it dynamically
+    if (!isVisible && !chart3DescLoaded) {
+        chart3DescLoaded = true;
+
+        // Determine the language-specific file
+        const language = i18next.language; // Get the current language ('en' or 'de')
+        const fileName = `solar_notes_${language}.md`;
+
+        // Load the appropriate Markdown file
+        await loadMarkdown(`data/forecasts/${fileName}`, 'chart3-description-container');
+    }
+  });
+
+// Toggle listener for the second <details> block
+document.querySelector('details:nth-of-type(1)')
+  .addEventListener('toggle', async function(e) {
+    if (e.target.open && !chart3Created) {
+      await initializeI18n();            // loads i18n, sets default language
+      chart3Created = true;
+      chartInstance3 = await createChart('#chart3', getBaseChartOptions());
+      updateChart3(); // do first update
+    }
+  });
+
+async function updateChart3() {
+
+  await updateChartGeneric({
+    chartInstance   : chartInstance3,
+    yAxisLabel      : 'Power (MW)',//i18next.t('onshore-power-label-mw'),
+
+    regionConfigs   : [
+      {
+        checkboxId: 'ampr-checkbox-3',
+        variable  : 'solar_ampr',
+        alias     : 'Amprion',
+        color     : tsoColorMap['Amprion'],
+      },
+      {
+        checkboxId: 'tran-checkbox-3',
+        variable  : 'solar_tran',
+        alias     : 'TransnetBW',
+        color     : tsoColorMap['TransnetBW'],
+      },
+      {
+        checkboxId: '50hz-checkbox-3',
+        variable  : 'solar_50hz',
+        alias     : '50Hertz',
+        color     : tsoColorMap['50Hertz'],
+      },
+      {
+        checkboxId: 'tenn-checkbox-3',
+        variable  : 'solar_tenn',
+        alias     : 'TenneT',
+        color     : tsoColorMap['TenneT'],
+      },
+      {
+        checkboxId: 'total-checkbox-3',
+        variable  : 'solar',
+        alias     : 'Total',
+        color     : tsoColorMap['Total']
+      }
+    ],
+
+    pastDataSliderId: 'past-data-slider-3',
+    showIntervalId  : 'showci_checkbox-3',
+    errorElementId  : 'error-message3',
     isDarkMode      : isDarkMode // or define it yourself
   });
 }

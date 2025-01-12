@@ -1,9 +1,8 @@
 /* ============================================= */
 /* ================ BODY STYLES ================ */
 /* ============================================= */
+/* ==================== BODY & WRAPPER (unchanged from your snippet) ==================== */
 
-/* Base body styles (shared by all modes) */
-/* Base body styles for light mode */
 body {
   font-family: 'Arial', sans-serif;
   margin: 0;
@@ -14,22 +13,16 @@ body {
   transition: background-color 0.3s, color 0.3s;
 }
 
-/* Dark mode styling for the entire page */
 body.dark-mode {
   background-color: #121212; /* Dark mode background for the entire page */
   color: #e0e0e0; /* Dark mode text color */
 }
 
-/* Dark mode for the A4 wrapper */
-body.dark-mode .a4-wrapper {
-  background-color: #1e1e1e; /* Dark mode "paper" background */
-  color: #e0e0e0; /* Dark mode text color for content */
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8); /* Darker shadow for contrast */
-}
-
-/* Ensure light mode wrapper remains white */
+/* If you want an "A4 style" card look around each subpage, you can still use something like this: */
 .a4-wrapper {
-  max-width: 210mm; /* A4 width */
+  /* You can remove or keep this;
+     if you keep it, you could place it around each subpage separately if you want them to each look like an A4 */
+  max-width: 210mm;
   margin: 0 auto;
   padding: 5mm;
   background: white;
@@ -38,44 +31,356 @@ body.dark-mode .a4-wrapper {
   transition: background-color 0.3s, color 0.3s;
 }
 
+body.dark-mode .a4-wrapper {
+  background-color: #1e1e1e; /* Dark mode "paper" background */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
+}
+
+/* ==================== TOP NAVIGATION ==================== */
+.top-nav {
+  display: flex;
+  justify-content: center; /* Horizontally center the buttons */
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: #eee;
+  border-bottom: 1px solid #ccc;
+}
+
+body.dark-mode .top-nav {
+  background-color: #2a2a2a;
+  border-bottom: 1px solid #444;
+}
+
+.nav-toggle {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.nav-toggle input[type="checkbox"] {
+  margin-right: 0.5em;
+  transform: scale(1.2);
+}
+
+/* ==================== SUBPAGES CONTAINER ==================== */
+.subpages-container {
+  /* Flexible container that can wrap subpages side by side if there's space */
+  display: flex;
+  flex-wrap: wrap;
+  /* optional: align-items:flex-start to keep top aligned if different heights */
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+/* Each subpage gets a box/card. Adjust sizes as desired. */
+.subpage {
+  /* By default, hide subpages that are not "active" */
+  display: none;
+  flex: 1 1 500px;  /* grow to fill space, but at least 300px wide */
+  height: auto;    /* or some suitable height for your layout */
+  overflow-y: auto; /* each subpage scrolls independently */
+  box-sizing: border-box;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  color: #333;
+}
+
+body.dark-mode .subpage {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  border: 1px solid #444;
+}
+
+/* Only show the subpage if it has .active */
+.subpage.active {
+  display: block;
+}
+
+
 /* ============================================= */
 /* ================ HEADER STYLES ============== */
 /* ============================================= */
+.header-container {
+    display: flex;
+    flex-wrap: wrap; /* Allows wrapping for responsiveness */
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 1rem 2rem;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+    background-color: #f9f9f9;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+}
 
-/* Base header styles */
-header {
+body.dark-mode .header-container {
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    background-color: #2c2c2c;
+    color: #fff;
+}
+
+/* Left Section */
+.header-left {
+    flex: 1 1 auto;
+    max-width: 80%; /* Prevents it from taking excessive space */
+    padding-right: 1rem;
+}
+
+.header-title {
+    font-size: 2rem;
+    font-weight: bold;
+    line-height: 1.3;
+    margin: 0 0 0.5rem;
+}
+
+.header-subtitle {
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin: 0.3rem 0;
+}
+
+.header-description {
+    font-size: 1rem;
+    color: #666;
+    margin: 0.3rem 0;
+}
+
+.header-updates {
+    margin-top: 0.8rem;
+    font-size: 0.95rem;
+    color: #444;
+}
+
+body.dark-mode .header-description,
+body.dark-mode .header-updates {
+    color: #bbb;
+}
+
+/* Right Section */
+.header-right {
+    display: flex;
+    flex-direction: column; /* Stacks items vertically */
+    align-items: flex-end;
+    gap: 0.5rem; /* Adds space between items */
+    min-width: 120px; /* Prevents shrinking too small */
+
+}
+
+.cta-link {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #0073e6;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border: 2px solid #0073e6;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.cta-link:hover {
+    background-color: #0073e6;
+    color: #fff;
+}
+
+.toggle-button {
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    background-color: #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.toggle-button:hover {
+    background-color: #e0e0e0;
+}
+
+body.dark-mode .toggle-button {
+    background-color: #444;
+    color: #fff;
+}
+
+body.dark-mode .toggle-button:hover {
+    background-color: #555;
+}
+
+/* =============== CONTROLS (TOP-RIGHT ON LARGE SCREENS) =============== */
+.header-controls {
+  flex: 0 0 auto;    /* Fixed width, won't stretch */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* Align controls to the right on wide screens */
+  gap: 0.5rem;
+  min-width: 150px;
+}
+
+/* The row (or column) of buttons: GitHub, Dark Mode, Language */
+.header-buttons {
+  display: flex;
+  flex-wrap: wrap;  /* Wrap if insufficient horizontal space */
+  gap: 0.5rem;
+  justify-content: flex-end; /* Buttons float to the right if wide enough */
+}
+
+/* Buttons styling */
+.cta-link {
+  background-color: #007bff;
+  color: #fff;
+  text-decoration: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: background-color 0.3s;
+}
+
+.cta-link:hover {
+  background-color: #0056b3;
+}
+
+.toggle-button {
+  background-color: #f0f0f0;
   color: #333;
-  padding: 0px 0px;          /* Reduced padding for a more compact look */
-  text-align: center;
-  border-bottom: 2px solid rgba(0, 0, 0, 0.1); /* Subtle separating line */
-  position: relative;
-  transition: color 0.3s;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.3s;
 }
 
+.toggle-button:hover {
+  background-color: #e0e0e0;
+}
 
-
-/* Dark mode header styles */
-body.dark-mode header {
+body.dark-mode .toggle-button {
+  background-color: #3a3a3a;
   color: #e0e0e0;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
 }
 
-body.dark-mode header::after {
-  background: linear-gradient(to right, #ff7e5f, #feb47b);
+body.dark-mode .toggle-button:hover {
+  background-color: #555;
 }
 
-/* Header text styles */
-header h1 {
-  margin: 2px 0;              /* Minimized vertical margin */
-  font-size: 2rem;            /* Slightly smaller font */
-  font-weight: bold;
-  line-height: 1.1;           /* Tighter line spacing */
+body.dark-mode .cta-link {
+  background-color: #3949ab;
 }
 
-header p {
-  margin: 5px 0;              /* Reduced spacing between paragraphs */
-  font-size: 1rem;            /* Slightly smaller font size */
+body.dark-mode .cta-link:hover {
+  background-color: #303f9f;
 }
+
+/********************************************
+  BUTTONS AREA
+*********************************************/
+
+/* Wrapper for the action buttons */
+.header-buttons {
+  display: flex;
+  flex-wrap: wrap;       /* Allow buttons to wrap into multiple lines if needed */
+  gap: 0.5rem;           /* Spacing between buttons */
+  justify-content: flex-end; /* Align buttons to the right */
+}
+
+/* GitHub link button */
+.header-buttons .cta-link {
+  background-color: #007bff;
+  color: #fff;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: background-color 0.3s;
+}
+
+.header-buttons .cta-link:hover {
+  background-color: #0056b3;
+}
+
+/* Dark mode toggle button */
+.toggle-button {
+  background-color: #f0f0f0;
+  color: #333;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.toggle-button:hover {
+  background-color: #e0e0e0;
+}
+
+/********************************************
+  DARK MODE STYLING
+*********************************************/
+
+body.dark-mode .header-updates {
+  color: #ccc;
+}
+
+body.dark-mode .cta-link {
+  background-color: #3949ab;
+}
+
+body.dark-mode .cta-link:hover {
+  background-color: #303f9f;
+}
+
+body.dark-mode .toggle-button {
+  background-color: #3a3a3a;
+  color: #e0e0e0;
+}
+
+body.dark-mode .toggle-button:hover {
+  background-color: #555;
+}
+
+/********************************************
+  RESPONSIVENESS
+*********************************************/
+
+/* Make header responsive for smaller screens */
+@media (max-width: 1100px) {
+  .header-container {
+    flex-direction: column;     /* stack header-left & header-right vertically */
+    align-items: flex-start;    /* align to the left */
+  }
+
+  .header-right {
+    flex-direction: row;       /* align buttons horizontally */
+    justify-content: flex-start; /* align to the left */
+    align-items: center;       /* vertically center-align buttons */
+    gap: 0.5rem;               /* spacing between buttons/links */
+    margin-top: 1rem;          /* add space from the text above */
+  }
+}
+
+/* On narrow screens, stack branding and controls */
+@media (max-width: 768px) {
+  header.header-container {
+    flex-direction: column; /* Stack everything vertically */
+    align-items: flex-start; /* Align to the left */
+  }
+
+  .header-controls {
+    align-items: flex-start; /* Align controls to the left as well */
+    text-align: left;
+  }
+
+  .header-buttons {
+    justify-content: flex-start; /* Align buttons to the left */
+  }
+}
+
 
 
 /* ============================================= */
