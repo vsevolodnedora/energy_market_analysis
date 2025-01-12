@@ -1,15 +1,15 @@
 {
-    "trial_id": 18,
-    "best_value": 2940.793307018986,
+    "trial_id": 24,
+    "best_value": 2213.377030869931,
     "params": {
-        "n_estimators": 314,
-        "learning_rate": 0.01895433451876848,
-        "max_depth": 6,
-        "min_child_weight": 5,
-        "subsample": 0.8485659900058886,
-        "colsample_bytree": 0.9074452696803555,
-        "reg_alpha": 7.210714453504679e-06,
-        "reg_lambda": 1.1155932017993219e-08,
+        "n_estimators": 561,
+        "learning_rate": 0.08339928186872293,
+        "max_depth": 3,
+        "min_child_weight": 1,
+        "subsample": 0.702299556333213,
+        "colsample_bytree": 0.7905724701720711,
+        "reg_alpha": 0.007801892739880515,
+        "reg_lambda": 0.11983299591875587,
         "use_base_models_pred_intervals": false,
         "cv_folds_base": 35
     }

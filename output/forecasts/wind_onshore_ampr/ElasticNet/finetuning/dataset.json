@@ -10,6 +10,6 @@
         "Windpark A31 Gescher-Reken"
     ],
     "add_cyclical_time_features": true,
-    "feature_engineer": "WeatherFeatureEngineer",
+    "feature_engineer": "WeatherWindPowerFE",
     "target": "wind_onshore_ampr"
 }

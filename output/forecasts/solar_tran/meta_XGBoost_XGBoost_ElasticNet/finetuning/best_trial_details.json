@@ -1,0 +1,16 @@
+{
+    "trial_id": 2,
+    "best_value": 175.27876869559626,
+    "params": {
+        "n_estimators": 576,
+        "learning_rate": 0.011367651484211688,
+        "max_depth": 3,
+        "min_child_weight": 5,
+        "subsample": 0.7977118217590301,
+        "colsample_bytree": 0.5656162812329664,
+        "reg_alpha": 0.0003837638816273705,
+        "reg_lambda": 0.030437554639611304,
+        "use_base_models_pred_intervals": false,
+        "cv_folds_base": 35
+    }
+}
