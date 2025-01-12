@@ -1,8 +1,8 @@
 
-Our __week-ahead__ forecast has average RMSE of __1350__.  
-SMARD __day-ahead__ forecast has average accuracy of __1008__. 
+Our __week-ahead__ forecast has average RMSE of __1254__.  
+SMARD __day-ahead__ forecast has average accuracy of __1015__. 
     
 | TSO/Region   | Train Date   |   N Features | Best Model   |   Average RMSE |
 |:-------------|:-------------|-------------:|:-------------|---------------:|
-| 50Hz         | 2025-01-11   |           20 | XGBoost      |            290 |
-| TenneT       | 2025-01-11   |           23 | XGBoost      |           1177 |
+| 50Hz         | 2025-01-12   |           20 | XGBoost      |            302 |
+| TenneT       | 2025-01-12   |            7 | Ensemble     |           1108 |
