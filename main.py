@@ -23,7 +23,7 @@ from forecasting_modules import (
 )
 
 from publish_data import (
-    publish_wind_generation
+    publish_generation
 )
 
 if __name__ == '__main__':
@@ -77,6 +77,7 @@ if __name__ == '__main__':
                                today=today, data_dir=db_path + 'entsoe/', api_key=entsoe_api_key, verbose=verbose)
 
     elif task == 'update':
+
         # --- update database ---
         update_smard_from_api(today=today, data_dir=db_path + 'smard/', verbose=verbose)
 
@@ -103,13 +104,23 @@ if __name__ == '__main__':
 
 
         # --- update forecasts ---
-        update_forecast_production(database=db_path, outdir='./output/forecasts/', verbose=verbose)
+        update_forecast_production(
+            database=db_path, variable='wind_offshore', outdir='./output/forecasts/', verbose=verbose
+        )
+        update_forecast_production(
+            database=db_path, variable='wind_onshore', outdir='./output/forecasts/', verbose=verbose
+        )
+        update_forecast_production(
+            database=db_path, variable='solar', outdir='./output/forecasts/', verbose=verbose
+        )
+
+        # --- serve forecasts ---
 
 
-        # # --- serve forecasts ---
-        publish_wind_generation(
+
+        publish_generation(
             target='wind_offshore',
-            regions=('DE_50HZ', 'DE_TENNET'),
+            avail_regions=('DE_50HZ', 'DE_TENNET'),
             n_folds = 3,
             metric = 'rmse',
             method_type = 'trained', # 'trained'
@@ -117,9 +128,19 @@ if __name__ == '__main__':
             database_dir = db_path,
             output_dir = './deploy/data/forecasts/'
         )
-        publish_wind_generation(
+        publish_generation(
             target='wind_onshore',
-            regions=('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'),
+            avail_regions=('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'),
+            n_folds = 3,
+            metric = 'rmse',
+            method_type = 'trained', # 'trained'
+            results_root_dir = './output/forecasts/',
+            database_dir = db_path,
+            output_dir = './deploy/data/forecasts/'
+        )
+        publish_generation(
+            target='solar',
+            avail_regions=('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'),
             n_folds = 3,
             metric = 'rmse',
             method_type = 'trained', # 'trained'
@@ -128,5 +149,4 @@ if __name__ == '__main__':
             output_dir = './deploy/data/forecasts/'
         )
 
-
-        print(f"All tasks completed successfully!")
+        print(f"All tasks in update are completed successfully!")

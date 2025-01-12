@@ -19,8 +19,9 @@ from data_modules.utils import validate_dataframe
 from data_modules.feature_eng import (
     create_holiday_weekend_series,
     create_time_features,
-    WeatherFeatureEngineer,
-    WeatherFeatureEngineer_2
+    physics_informed_feature_engineering,
+    WeatherWindPowerFE,
+    WeatherSolarPowerFE,
 )
 
 
@@ -94,11 +95,13 @@ def _adjust_dataframe_to_divisible_by_N(df, N, verbose:bool):
 
     return df
 
-def suggest_values_for_ds_pars_optuna(feature_engineering_pipeline, trial, fixed:dict):
+def suggest_values_for_ds_pars_optuna(feature_engineering_pipeline:str, trial:optuna.Trial, fixed:dict):
     config = {}
 
-    if feature_engineering_pipeline == 'WeatherFeatureEngineer':
-        config.update( WeatherFeatureEngineer_2.selector_for_optuna(trial, fixed)  )
+    if feature_engineering_pipeline == 'WeatherWindPowerFE':
+        config.update( WeatherWindPowerFE.selector_for_optuna( trial, fixed )  )
+    elif feature_engineering_pipeline == 'WeatherSolarPowerFE':
+        config.update( WeatherSolarPowerFE.selector_for_optuna( trial, fixed )  )
 
     if'log_target' in fixed:
         config['log_target'] = fixed['log_target']
@@ -127,6 +130,10 @@ class HistForecastDataset:
             raise ValueError("full_index must be continuous with hourly frequency.")
 
         self.target_key = pars['target']
+        if self.target_key in ['offshore_wind', 'onshore_wind', 'solar']:
+            self.ensure_positive = True
+        else:
+            self.ensure_positive = False
         self.verbose = pars['verbose']
 
         if pars['copy_input']:
@@ -245,24 +252,9 @@ class HistForecastDataset:
             name=data.name
         )
 
+        ''' ---- add physics-informed features ----- '''
+        df_hist_, df_forecast_ = physics_informed_feature_engineering(df_hist_, df_forecast_, config, self.verbose)
 
-        ''' ---- TARGET-AWARE FEATURE ENGINEERING ----- '''
-
-        if config['feature_engineer'] == 'WeatherFeatureEngineer':
-            if self.verbose:print(f"Performing feature engineering with {config['feature_engineer']}")
-            o_feat = WeatherFeatureEngineer_2( config, verbose=self.verbose )
-            n_h, n_f = len(df_hist_), len(df_forecast_)
-            df_tmp = pd.concat([df_hist_,df_forecast_],axis=0)
-            assert len(df_tmp) == n_h + n_f
-            df_tmp = o_feat(df_tmp)
-            df_tmp = validate_dataframe(df_tmp)
-            df_hist_, df_forecast_ = df_tmp[:df_forecast_.index[0]-pd.Timedelta(hours=1)], df_tmp[df_forecast_.index[0]:]
-
-            assert len(df_forecast_) == n_f
-            # assert len(df_hist_) == n_h
-            df_hist_ = df_hist_.dropna(inplace=False) # in case there are lagged features -- nans are introguded
-        elif config['feature_engineer'] is None:
-            df_hist_ = pd.DataFrame(index=df_hist_.index)
 
         expected_range = pd.date_range(start=df_hist_.index.min(), end=df_hist_.index.max(), freq='h')
         if not df_hist_.index.equals(expected_range):

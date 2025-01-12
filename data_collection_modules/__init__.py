@@ -8,7 +8,8 @@ from .collect_data_openmeteo import (
     OpenMeteo,
     # check_phys_limits_in_data,
     create_openmeteo_from_api,
-    update_openmeteo_from_api
+    update_openmeteo_from_api,
+    add_solar_elevation_and_azimuth
 )
 from .collect_data_entsoe import (
     create_entsoe_from_api,

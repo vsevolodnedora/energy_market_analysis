@@ -1,3 +1,5 @@
+''' Point forecasting classes with uncertanty estimation using MAPIE '''
+
 import copy
 import joblib
 import pandas as pd, numpy as np, matplotlib.pyplot as plt
@@ -127,6 +129,17 @@ class BaseForecaster:
             # get confidence intervals
             lower.append(forecast_pis[:, 0, 0][0])
             upper.append(forecast_pis[:, 1, 0][0])
+
+        # check for nans
+        array = np.array(forecast_values)  # Ensure input is a NumPy array
+        if np.isnan(array).any():
+            nan_count = np.isnan(array).sum()
+            raise ValueError(f"Forecast window contains NaN values: {nan_count} for {self.target}")
+        if np.isinf(array).any():
+            inf_count = np.isinf(array).sum()
+            raise ValueError(f"Forecast window contains inf values: {inf_count} for {self.target}")
+
+
         # Save x_futures for later use Convert x_futures to DataFrame
         self.X_futures_df = pd.concat(X_futures, axis=0, ignore_index=True)
         self.X_futures_df.index = X_test.index
@@ -137,6 +150,7 @@ class BaseForecaster:
             f'{self.target}_lower': pd.Series(lower, index=X_test.index),
             f'{self.target}_upper': pd.Series(upper, index=X_test.index)
         }, index=X_test.index)
+
         return df
 
     def get_model_feature_importance(self, X_train_scaled, y_train_scaled, X_test_scaled, lags_target:int or None)->pd.DataFrame:

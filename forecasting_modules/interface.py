@@ -193,7 +193,8 @@ def OLD__input_preprocessing_pipeline_wind_offshore(datapath:str, verbose:bool, 
 
     return df_hist, df_forecast
 
-def process_task_list(task_list:list, outdir:str, database:str, verbose:bool):
+
+def main_forecasting_pipeline(task_list:list, outdir:str, database:str, verbose:bool):
 
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
@@ -204,7 +205,7 @@ def process_task_list(task_list:list, outdir:str, database:str, verbose:bool):
 
         # get features + target (historic) and features (forecast) from database
         df_hist, df_forecast = extract_from_database(
-            target=target,datapath=database,verbose=verbose,region=region,n_horizons=100,horizon=7*24
+            target=target, db_path=database, verbose=verbose, tso_name=region, n_horizons=100, horizon=7*24
         )
 
         # clean data from nans and outliers
@@ -249,14 +250,14 @@ def process_task_list(task_list:list, outdir:str, database:str, verbose:bool):
 
 
 
-def update_forecast_production(database:str, outdir:str, verbose:bool):
+def update_forecast_production(database:str, outdir:str, variable:str, verbose:bool):
     cv_folds_ft = 3
     cv_folds_eval = 5
     task_list = [
         {
             "target": "wind_offshore_tenn",
             "region": "DE_TENNET",
-            "label": "Wind off-shore [MW]",
+            "label": "Offshore Wind Power Generation (TenneT) [MW]",
             "task_fine_tuning":[
                 # {'model':'Prophet',
                 #  'dataset_pars':{
@@ -279,11 +280,11 @@ def update_forecast_production(database:str, outdir:str, verbose:bool):
                 #      'target_scaler':'StandardScaler',
                 #      'feature_scaler':'StandardScaler',
                 #      'copy_input':True,
-                #      'locations':[loc['name'] for loc in offshore_windfarms if loc['TSO']=='TenneT'],
+                #      'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
                 #      'add_cyclical_time_features':True,
-                #      'feature_engineer':'WeatherFeatureEngineer'
+                #      'feature_engineer':'WeatherWindPowerFE'
                 #  },
-                #  'finetuning_pars':{'n_trials':100,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+                #  'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
                 #
                 # {'model':'ElasticNet',
                 #  'dataset_pars':{
@@ -292,9 +293,9 @@ def update_forecast_production(database:str, outdir:str, verbose:bool):
                 #      'target_scaler':'StandardScaler',
                 #      'feature_scaler':'StandardScaler',
                 #      'copy_input':True,
-                #      'locations':[loc['name'] for loc in offshore_windfarms if loc['TSO']=='TenneT'],
+                #      'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
                 #      'add_cyclical_time_features':True,
-                #      'feature_engineer':'WeatherFeatureEngineer'
+                #      'feature_engineer':'WeatherWindPowerFE'
                 #  },
                 #  'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
                 #
@@ -305,8 +306,8 @@ def update_forecast_production(database:str, outdir:str, verbose:bool):
                 #      'target_scaler':'StandardScaler',
                 #      'feature_scaler':'StandardScaler',
                 #      'add_cyclical_time_features':True,
-                #      'locations':[loc for loc in offshore_windfarms if loc['TSO']=='TenneT'],
-                #      'feature_engineer': None,#'WeatherFeatureEngineer',
+                #      'locations':[loc for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
+                #      'feature_engineer': None,#'WeatherWindPowerFE',
                 #      'lags_target': None,
                 #      'copy_input':True
                 #  },
@@ -318,9 +319,9 @@ def update_forecast_production(database:str, outdir:str, verbose:bool):
             ],
             "task_training":[
                 # {'model':'Prophet', 'pars':{'cv_folds':cv_folds_eval}},
-                {'model':'XGBoost', 'pars':{'cv_folds':cv_folds_eval}},
-                {'model':'ElasticNet', 'pars':{'cv_folds':cv_folds_eval}},
-                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'XGBoost', 'pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'ElasticNet', 'pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','pars':{'cv_folds':cv_folds_eval}},
                 # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','pars':{'cv_folds':cv_folds_eval}}
             ],
             "task_forecasting":[
@@ -356,55 +357,158 @@ def update_forecast_production(database:str, outdir:str, verbose:bool):
         }
     ]
 
-    ''' -------------- OFFSHORE WIND GENERATION (2 TSOs) ------------- '''
+    ''' -------------- OFFSHORE WIND POWER GENERATION (2 TSOs) ------------- '''
 
-    task_list_ = copy.deepcopy(task_list)
-    process_task_list(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+    if variable == "wind_offshore":
+        avail_regions = ["DE_TENNET", "DE_50HZ"]
+        for tso_reg in de_regions:
+            if tso_reg['name'] in avail_regions:
+                task_list_ = copy.deepcopy(task_list)
+                for t in task_list_:
+                    t['label'] = f"Offshore Wind Power Generation ({tso_reg['name']}) [MW]"
+                    t['target'] = f"wind_offshore{tso_reg['suffix']}"
+                    t['region'] = tso_reg['name']
+                    for tt in t['task_fine_tuning']:
+                        tt['dataset_pars']['feature_engineer']  = 'WeatherWindPowerFE'
+                        tt['dataset_pars']['locations'] = \
+                            [loc['name'] for loc in loc_offshore_windfarms if loc['TSO']==tso_reg['TSO']]
+                main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
 
-    task_list_ = copy.deepcopy(task_list)
-    for t in task_list_:
-        t['target'] = "wind_offshore_50hz"
-        t['region'] = "DE_50HZ"
-        for tt in t['task_fine_tuning']:
-            tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='50Hertz']
 
-    process_task_list(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+    ''' -------------- ONSHORE WIND POWER GENERATION (4 TSOs) ------------- '''
+
+    if variable == "wind_onshore":
+        avail_regions = ["DE_TENNET", "DE_50HZ", "DE_AMPRION", "DE_TRANSNET"]
+        for tso_reg in de_regions:
+            if tso_reg['name'] in avail_regions:
+                task_list_ = copy.deepcopy(task_list)
+                for t in task_list_:
+                    t['label'] = f"Onshore Wind Power Generation ({tso_reg['name']}) [MW]"
+                    t['target'] = f"wind_onshore{tso_reg['suffix']}"
+                    t['region'] = tso_reg['name']
+                    for tt in t['task_fine_tuning']:
+                        tt['dataset_pars']['feature_engineer']  = 'WeatherWindPowerFE'
+                        tt['dataset_pars']['locations'] = \
+                            [loc['name'] for loc in loc_offshore_windfarms if loc['TSO']==tso_reg['TSO']]
+                main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+
+    ''' -------------- SOLAR POWER GENERATION (4 TSOs) ------------- '''
+
+    if variable == "solar":
+        avail_regions = ["DE_TENNET", "DE_50HZ", "DE_AMPRION", "DE_TRANSNET"]
+        for tso_reg in de_regions:
+            if tso_reg['name'] in avail_regions:
+                task_list_ = copy.deepcopy(task_list)
+                for t in task_list_:
+                    t['label'] = f"Solar Power Generation ({tso_reg['name']}) [MW]"
+                    t['target'] = f"solar{tso_reg['suffix']}"
+                    t['region'] = tso_reg['name']
+                    for tt in t['task_fine_tuning']:
+                        tt['dataset_pars']['feature_engineer']  = 'WeatherSolarPowerFE'
+                        tt['dataset_pars']['locations'] = \
+                            [loc['name'] for loc in loc_offshore_windfarms if loc['TSO']==tso_reg['TSO']]
+                main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
 
 
-    ''' -------------- ONSHORE WIND GENERATION (4 TSOs) ------------- '''
 
-    task_list_ = copy.deepcopy(task_list)
-    for t in task_list_:
-        t['target'] = "wind_onshore_50hz"
-        t['region'] = "DE_50HZ"
-        for tt in t['task_fine_tuning']:
-            tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_onshore_windfarms if loc['TSO']=='50Hertz']
-    process_task_list(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
 
-    task_list_ = copy.deepcopy(task_list)
-    for t in task_list_:
-        t['target'] = "wind_onshore_tran"
-        t['region'] = "DE_TRANSNET"
-        for tt in t['task_fine_tuning']:
-            tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_onshore_windfarms if loc['TSO']=='TransnetBW']
-    process_task_list(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
 
-    task_list_ = copy.deepcopy(task_list)
-    for t in task_list_:
-        t['target'] = "wind_onshore_ampr"
-        t['region'] = "DE_AMPRION"
-        for tt in t['task_fine_tuning']:
-            tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_onshore_windfarms if loc['TSO']=='Amprion']
-    process_task_list(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+    # task_list_ = copy.deepcopy(task_list)
+    # for t in task_list_:
+    #     t['label'] = "Offshore Wind Power Generation (TenneT) [MW]"
+    #     t['target'] = "wind_offshore_tenn"
+    #     t['region'] = "DE_TENNET"
+    #     for tt in t['task_fine_tuning']:
+    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT']
+    # main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+    #
+    # task_list_ = copy.deepcopy(task_list)
+    # for t in task_list_:
+    #     t['label'] = "Offshore Wind Power Generation (50Hertz) [MW]"
+    #     t['target'] = "wind_offshore_50hz"
+    #     t['region'] = "DE_50HZ"
+    #     for tt in t['task_fine_tuning']:
+    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='50Hertz']
+    # main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+    #
+    #
+    # ''' -------------- ONSHORE WIND GENERATION (4 TSOs) ------------- '''
+    #
+    # task_list_ = copy.deepcopy(task_list)
+    # for t in task_list_:
+    #     t['label'] = "Onshore Wind Power Generation (50Hertz) [MW]"
+    #     t['target'] = "wind_onshore_50hz"
+    #     t['region'] = "DE_50HZ"
+    #     for tt in t['task_fine_tuning']:
+    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_onshore_windfarms if loc['TSO']=='50Hertz']
+    # main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+    #
+    # task_list_ = copy.deepcopy(task_list)
+    # for t in task_list_:
+    #     t['label'] = "Onshore Wind Power Generation (TransnetBW) [MW]"
+    #     t['target'] = "wind_onshore_tran"
+    #     t['region'] = "DE_TRANSNET"
+    #     for tt in t['task_fine_tuning']:
+    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_onshore_windfarms if loc['TSO']=='TransnetBW']
+    # main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+    #
+    # task_list_ = copy.deepcopy(task_list)
+    # for t in task_list_:
+    #     t['label'] = "Onshore Wind Power Power Generation (Amprion) [MW]"
+    #     t['target'] = "wind_onshore_ampr"
+    #     t['region'] = "DE_AMPRION"
+    #     for tt in t['task_fine_tuning']:
+    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_onshore_windfarms if loc['TSO']=='Amprion']
+    # main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+    #
+    # task_list_ = copy.deepcopy(task_list)
+    # for t in task_list_:
+    #     t['label'] = "Onshore Wind Power Generation (TenneT) [MW]"
+    #     t['target'] = "wind_onshore_tenn"
+    #     t['region'] = "DE_TENNET"
+    #     for tt in t['task_fine_tuning']:
+    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_onshore_windfarms if loc['TSO']=='TenneT']
+    # main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
 
-    task_list_ = copy.deepcopy(task_list)
-    for t in task_list_:
-        t['target'] = "wind_onshore_tenn"
-        t['region'] = "DE_TENNET"
-        for tt in t['task_fine_tuning']:
-            tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_onshore_windfarms if loc['TSO']=='TenneT']
-    process_task_list(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+    ''' -------------- SOLAR GENERATION (4 TSOs) ------------- '''
 
+    # task_list_ = copy.deepcopy(task_list)
+    # for t in task_list_:
+    #     t['label'] = "Solar Power Generation (50Hz) [MW]"
+    #     t['target'] = "solar_50hz"
+    #     t['region'] = "DE_50HZ"
+    #     for tt in t['task_fine_tuning']:
+    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_solarfarms if loc['TSO']=='50Hertz']
+    #         tt['dataset_pars']['feature_engineer']  = 'WeatherSolarPowerFE'
+    # main_forecasting_pipeline(task_list=task_list_, outdir='./output/', database='../database/', verbose=True)
+    #
+    # task_list_ = copy.deepcopy(task_list)
+    # for t in task_list_:
+    #     t['label'] = "Solar Power Generation (TenneT) [MW]"
+    #     t['target'] = "solar_tran"
+    #     t['region'] = "DE_TRANSNET"
+    #     for tt in t['task_fine_tuning']:
+    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_solarfarms if loc['TSO']=='TransnetBW']
+    #         tt['dataset_pars']['feature_engineer']  = 'WeatherSolarPowerFE'
+    # main_forecasting_pipeline(task_list=task_list_, outdir='./output/', database='../database/', verbose=True)
+    #
+    # task_list_ = copy.deepcopy(task_list)
+    # for t in task_list_:
+    #     t['target'] = "solar_ampr"
+    #     t['region'] = "DE_AMPRION"
+    #     for tt in t['task_fine_tuning']:
+    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_solarfarms if loc['TSO']=='Amprion']
+    #         tt['dataset_pars']['feature_engineer']  = 'WeatherSolarPowerFE'
+    # main_forecasting_pipeline(task_list=task_list_, outdir='./output/', database='../database/', verbose=True)
+    #
+    # task_list_ = copy.deepcopy(task_list)
+    # for t in task_list_:
+    #     t['target'] = "solar_tenn"
+    #     t['region'] = "DE_TENNET"
+    #     for tt in t['task_fine_tuning']:
+    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_solarfarms if loc['TSO']=='TenneT']
+    #         tt['dataset_pars']['feature_engineer']  = 'WeatherSolarPowerFE'
+    # main_forecasting_pipeline(task_list=task_list_, outdir='./output/', database='../database/', verbose=True)
 
 
 def main():
@@ -440,10 +544,10 @@ def main():
                      'copy_input':True,
                      'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
                      'add_cyclical_time_features':True,
-                     'feature_engineer':'WeatherFeatureEngineer'
+                     'feature_engineer':'WeatherWindPowerFE'
                  },
                  'finetuning_pars':{'n_trials':20,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
-                #
+
                 {'model':'ElasticNet',
                  'dataset_pars':{
                      'log_target':True,
@@ -453,7 +557,7 @@ def main():
                      'copy_input':True,
                      'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
                      'add_cyclical_time_features':True,
-                     'feature_engineer':'WeatherFeatureEngineer'
+                     'feature_engineer':'WeatherWindPowerFE'
                  },
                  'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
                 #
@@ -465,7 +569,7 @@ def main():
                      'feature_scaler':'StandardScaler',
                      'add_cyclical_time_features':True,
                      'locations':[loc for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
-                     'feature_engineer': None,#'WeatherFeatureEngineer',
+                     'feature_engineer': None,#'WeatherWindPowerFE',
                      'lags_target': None,
                      'copy_input':True
                  },
@@ -546,21 +650,59 @@ def main():
     #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_onshore_windfarms if loc['TSO']=='TransnetBW']
     # process_task_list(task_list=task_list_, outdir='./output/', database='../database/', verbose=True)
 
-    # task_list_ = copy.deepcopy(task_list)
-    # for t in task_list_:
-    #     t['target'] = "wind_onshore_ampr"
-    #     t['region'] = "DE_AMPRION"
-    #     for tt in t['task_fine_tuning']:
-    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_onshore_windfarms if loc['TSO']=='Amprion']
-    # process_task_list(task_list=task_list_, outdir='./output/', database='../database/', verbose=True)
-
     task_list_ = copy.deepcopy(task_list)
     for t in task_list_:
-        t['target'] = "wind_onshore_tenn"
-        t['region'] = "DE_TENNET"
+        t['target'] = "wind_onshore_ampr"
+        t['region'] = "DE_AMPRION"
         for tt in t['task_fine_tuning']:
-            tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_onshore_windfarms if loc['TSO']=='TenneT']
-    process_task_list(task_list=task_list_, outdir='./output/', database='../database/', verbose=True)
+            tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_onshore_windfarms if loc['TSO']=='Amprion']
+    main_forecasting_pipeline(task_list=task_list_, outdir='./output/', database='../database/', verbose=True)
+
+    # task_list_ = copy.deepcopy(task_list)
+    # for t in task_list_:
+    #     t['target'] = "wind_onshore_tenn"
+    #     t['region'] = "DE_TENNET"
+    #     for tt in t['task_fine_tuning']:
+    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_onshore_windfarms if loc['TSO']=='TenneT']
+    # process_task_list(task_list=task_list_, outdir='./output/', database='../database/', verbose=True)
+
+    ''' -------------- SOLAR GENERATION (4 TSOs) ------------- '''
+
+    # task_list_ = copy.deepcopy(task_list)
+    # for t in task_list_:
+    #     t['target'] = "solar_50hz"
+    #     t['region'] = "DE_50HZ"
+    #     for tt in t['task_fine_tuning']:
+    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_solarfarms if loc['TSO']=='50Hertz']
+    #         tt['dataset_pars']['feature_engineer']  = 'WeatherSolarPowerFE'
+    # main_forecasting_pipeline(task_list=task_list_, outdir='./output/', database='../database/', verbose=True)
+    #
+    # task_list_ = copy.deepcopy(task_list)
+    # for t in task_list_:
+    #     t['target'] = "solar_tran"
+    #     t['region'] = "DE_TRANSNET"
+    #     for tt in t['task_fine_tuning']:
+    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_solarfarms if loc['TSO']=='TransnetBW']
+    #         tt['dataset_pars']['feature_engineer']  = 'WeatherSolarPowerFE'
+    # main_forecasting_pipeline(task_list=task_list_, outdir='./output/', database='../database/', verbose=True)
+    #
+    # task_list_ = copy.deepcopy(task_list)
+    # for t in task_list_:
+    #     t['target'] = "solar_ampr"
+    #     t['region'] = "DE_AMPRION"
+    #     for tt in t['task_fine_tuning']:
+    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_solarfarms if loc['TSO']=='Amprion']
+    #         tt['dataset_pars']['feature_engineer']  = 'WeatherSolarPowerFE'
+    # main_forecasting_pipeline(task_list=task_list_, outdir='./output/', database='../database/', verbose=True)
+    #
+    # task_list_ = copy.deepcopy(task_list)
+    # for t in task_list_:
+    #     t['target'] = "solar_tenn"
+    #     t['region'] = "DE_TENNET"
+    #     for tt in t['task_fine_tuning']:
+    #         tt['dataset_pars']['locations'] = [loc['name'] for loc in loc_solarfarms if loc['TSO']=='TenneT']
+    #         tt['dataset_pars']['feature_engineer']  = 'WeatherSolarPowerFE'
+    # main_forecasting_pipeline(task_list=task_list_, outdir='./output/', database='../database/', verbose=True)
 
 
 if __name__ == '__main__':

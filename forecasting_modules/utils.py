@@ -738,7 +738,9 @@ def compute_timeseries_split_cutoffs(
 
 
 def compute_error_metrics(target:str,result:pd.DataFrame)->dict:
+
     res = copy.deepcopy(result)
+
     def smape(actual, predicted):
         """
         Calculate Symmetric Mean Absolute Percentage Error (sMAPE).
@@ -758,14 +760,21 @@ def compute_error_metrics(target:str,result:pd.DataFrame)->dict:
         smape_value = np.mean(2 * np.abs(predicted - actual) / denominator) * 100
 
         return smape_value
-    # undo normalization used everywhere
-    # res = res.apply(self.dss[0].inv_transform_target_series)
+
+
     # extract arrays
     y_true = res[f'{target}_actual'].values
     y_pred = res[f'{target}_fitted'].values
     y_lower = res[f'{target}_lower'].values
     y_upper = res[f'{target}_upper'].values
     coverage = np.mean((y_true >= y_lower) & (y_true <= y_upper))
+
+    if not np.all(np.isfinite(y_true)):
+        print ("WARNIGN! y_true contains NaN, infinity, or values too large for dtype('float64').")
+        y_pred = np.nan_to_num(y_pred, nan=0.0, posinf=1e10, neginf=-1e10)
+    if not np.all(np.isfinite(y_pred)):
+        print ("WARNING! y_pred contains NaN, infinity, or values too large for dtype('float64').")
+        y_pred = np.nan_to_num(y_pred, nan=0.0, posinf=1e10, neginf=-1e10)
 
     # compute metrics
     res_dict = {

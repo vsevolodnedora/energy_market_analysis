@@ -5,7 +5,7 @@ from .data_vis import plot_time_series_with_residuals
 from .feature_eng import (
     create_time_features,
     create_holiday_weekend_series,
-    WeatherFeatureEngineer
+    WeatherWindPowerFE
 )
 from .data_loaders import (
     extract_from_database,

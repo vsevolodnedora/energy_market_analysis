@@ -615,8 +615,8 @@ loc_solarfarms = [
 all_locations = loc_cities + loc_solarfarms + loc_offshore_windfarms + loc_onshore_windfarms
 
 de_regions = [
-    {'name':'DE_AMPRION','suffix':'_ampr', 'TSO':'Amprion'},
-    {'name':'DE_50HZ','suffix':'_50hz', 'TSO':'50Hertz'},
-    {'name':'DE_TENNET','suffix':'_tenn', 'TSO':'TenneT'},
-    {'name':'DE_TRANSNET','suffix':'_tran', 'TSO':'TransnetBW'},
+    {'name':'DE_AMPRION', 'suffix':'_ampr', 'TSO':'Amprion'},
+    {'name':'DE_50HZ', 'suffix':'_50hz', 'TSO':'50Hertz'},
+    {'name':'DE_TENNET', 'suffix':'_tenn', 'TSO':'TenneT'},
+    {'name':'DE_TRANSNET', 'suffix':'_tran', 'TSO':'TransnetBW'},
 ]

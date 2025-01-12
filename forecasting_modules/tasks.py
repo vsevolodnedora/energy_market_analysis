@@ -136,8 +136,8 @@ def get_parameters_for_optuna_trial(model_name, trial:optuna.trial):
 
     elif model_name == 'ElasticNet':
         param = {
-            'l1_ratio': trial.suggest_float('l1_ratio', 1e-5, 1.0, log=True),
-            'alpha': trial.suggest_float('alpha', 1e-6, 1.0, log=True)
+            'l1_ratio': trial.suggest_float('l1_ratio', 0.01, 1.0, log=False),
+            'alpha': trial.suggest_float('alpha', 0.01, 1.0, log=False)
         }
 
     elif model_name == 'Prophet':
@@ -159,6 +159,7 @@ def get_parameters_for_optuna_trial(model_name, trial:optuna.trial):
     return param
 
 def instantiate_base_forecaster(model_name:str, target:str, model_pars:dict, verbose:bool)->BaseForecaster:
+    # if 'l1_ratio' in model_pars: del model_pars['l1_ratio']
     # train the forecasting model several times to evaluate its performance, get all results
     if model_name == 'XGBoost':
         return XGBoostMapieRegressor(
@@ -170,7 +171,7 @@ def instantiate_base_forecaster(model_name:str, target:str, model_pars:dict, ver
     elif model_name == 'ElasticNet':
         return ElasticNetMapieRegressor(
             model=MapieRegressor(
-                ElasticNet(**(model_pars | {'max_iter':10000, 'tol':1e-2})),
+                ElasticNet(**(model_pars | { 'max_iter':1e6, 'tol':1e-8 })),
                 method='naive', cv='prefit'#TimeSeriesSplit(n_splits=5)
             ), target=target, alpha=0.05, verbose=verbose)
 
@@ -414,6 +415,7 @@ def get_average_metrics(metrics:dict)->dict:
     }
     return res
 
+
 class TaskPaths:
 
     train_forecast = ['trained','forecast']
@@ -474,6 +476,7 @@ class TaskPaths:
         if dir == 'trained': return self.to_trained()
         elif dir == 'forecast': return self.to_forecast()
         else: raise ValueError(f"Directory {dir} is not supported. Expected 'trained' or 'forecast'")
+
 
 class BaseModelTasks(TaskPaths):
 
@@ -606,8 +609,7 @@ class BaseModelTasks(TaskPaths):
             )
             # 'result' has f'{target}_actual' and f'{target}_fitted' columns with N=horizon number of timesteps
             result[f'{target}_actual'] = y_for_model.loc[test_idx] # add actual target values to result for error estimation
-            # undo transformations
-            if len(result[f'{target}_fitted'][~np.isfinite(result[f'{target}_fitted'])]) > 0:
+            if not validate_dataframe_simple(result.apply(ds.inv_transform_target_series)):
                 raise ValueError(f"Forecasting result contains nans. Fitted={result[f'{target}_fitted']}")
             # collect results (Dataframe with actual, fitted, lower and upper) for each fold (still transformed!)
             self.results[c] = result
@@ -887,6 +889,7 @@ class BaseModelTasks(TaskPaths):
         forecast = forecast.apply(self.base_ds.inv_transform_target_series)
         if self.verbose: print(f"Saving {self.to_forecast() + 'forecast.csv'}")
         forecast.to_csv(self.to_forecast() + 'forecast.csv')
+
 
 class EnsembleModelTasks(BaseModelTasks):
 

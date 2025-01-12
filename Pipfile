@@ -29,6 +29,7 @@ optuna = "*"
 mapie = "*"
 statsmodels = "*"
 tabulate = "*"
+pysolar = "*"
 
 [dev-packages]
 
