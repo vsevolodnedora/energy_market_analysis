@@ -163,51 +163,69 @@ body.dark-mode .header-updates {
 .header-right {
     display: flex;
     flex-direction: column; /* Stacks items vertically */
-    align-items: flex-end;
-    gap: 0.5rem; /* Adds space between items */
-    min-width: 120px; /* Prevents shrinking too small */
+    align-items: flex-end; /* Aligns items to the right */
+    gap: 0.75rem; /* Adds slightly more spacing between items */
+    min-width: 140px; /* Ensures enough width for professional spacing */
 
+    padding: 0.5rem; /* Adds spacing inside the frame */
+    border: 1px solid rgba(0, 0, 0, 0.1); /* Subtle gray border for a clean appearance */
+    border-radius: 0px; /* Slightly rounded corners for a modern touch */
+    background-color: #ffffff; /* Neutral background for a professional look */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08); /* Soft shadow for depth */
 }
 
+/* Adjustments for dark mode */
+body.dark-mode .header-right {
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle border in dark mode */
+    background-color: #2c2c2c; /* Dark background */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); /* Slightly stronger shadow for contrast */
+}
+
+/* Button and link refinements for consistency */
 .cta-link {
-    font-size: 1rem;
-    font-weight: bold;
-    color: #0073e6;
+    font-size: 0.95rem;
+    font-weight: 600; /* Slightly heavier font for emphasis */
+    color: #0056b3; /* Professional dark blue */
     text-decoration: none;
     padding: 0.5rem 1rem;
-    border: 2px solid #0073e6;
-    border-radius: 4px;
+    border: 1px solid #0056b3; /* Matches the text color */
+    border-radius: 4px; /* Slight rounding for a modern look */
     transition: all 0.3s ease;
 }
 
 .cta-link:hover {
-    background-color: #0073e6;
-    color: #fff;
+    background-color: #0056b3; /* Solid blue on hover */
+    color: #fff; /* White text on hover */
 }
 
 .toggle-button {
     font-size: 0.9rem;
-    font-weight: 500;
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 4px;
-    background-color: #f0f0f0;
+    font-weight: 500; /* Medium weight for readability */
+    padding: 0.4rem 1rem; /* Balanced padding for compactness */
+    border: 1px solid #ccc; /* Subtle border */
+    border-radius: 4px; /* Rounded corners for cohesion */
+    background-color: #f9f9f9; /* Light background */
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 .toggle-button:hover {
-    background-color: #e0e0e0;
+    background-color: #eaeaea; /* Slightly darker on hover */
+    border-color: #bbb; /* Adjust border color for hover state */
 }
 
+/* Dark mode for buttons */
 body.dark-mode .toggle-button {
     background-color: #444;
     color: #fff;
+    border: 1px solid #666; /* Subtle border for dark mode */
 }
 
 body.dark-mode .toggle-button:hover {
     background-color: #555;
+    border-color: #888; /* Adjusted border color on hover */
 }
+
 
 /* =============== CONTROLS (TOP-RIGHT ON LARGE SCREENS) =============== */
 .header-controls {
@@ -275,6 +293,8 @@ body.dark-mode .cta-link:hover {
   background-color: #303f9f;
 }
 
+
+
 /********************************************
   BUTTONS AREA
 *********************************************/
@@ -318,6 +338,8 @@ body.dark-mode .cta-link:hover {
 .toggle-button:hover {
   background-color: #e0e0e0;
 }
+
+
 
 /********************************************
   DARK MODE STYLING

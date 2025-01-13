@@ -6,6 +6,7 @@
       "description": "Empowering utilities, traders, and policymakers with actionable insights for optimized operations and sustainability.",
       "updated-daily-label": "Updated Daily:",
       "updated-daily-description": "Forecasts are refined using the latest energy, weather, and market data.",
+      "personal-project": "Personal project by",
       "offshore-forecast": "Offshore Wind Power Forecast",
       "onshore-forecast": "Onshore Wind Power Forecast",
       "solar-forecast": "Solar Power Forecast",
@@ -25,6 +26,7 @@
       "historic-data": "Historic Data",
       "details-label": "Details",
       "forecast-intro":"Renewable energy forecasting is essential for understanding and shaping future energy markets. Leveraging data from a diverse range of wind farms and solar farms, our system employs anautomated approach to identify the most informative features (both raw and engineered) for accurately predicting energy generation. Detailed insights and methodologies are provided within each section below."
+
     }
   },
   "de": {
@@ -34,6 +36,7 @@
       "description": "Wir bieten Versorgungsunternehmen, Händlern und politischen Entscheidungsträgern verwertbare Erkenntnisse für optimierte Abläufe und Nachhaltigkeit.",
       "updated-daily-label": "Täglich aktualisiert:",
       "updated-daily-description": "Die Prognosen werden mit den neuesten Energie-, Wetter- und Marktdaten verfeinert.",
+      "personal-project": "Persönliches Projekt von",
       "offshore-forecast": "Offshore-Windprognose",
       "onshore-forecast": "Onshore-Windprognose",
       "solar-forecast": "Solarstrom-Prognose",

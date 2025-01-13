@@ -188,6 +188,14 @@ def publish_generation(
         output_dir = 'deploy/data/forecasts/'
 ):
 
+    def retain_most_recent_entries(data:dict, N:int):
+        # Sort keys by timestamp (assuming keys are sortable timestamps)
+        sorted_keys = sorted(data.keys(), reverse=True)
+        # Select the most recent N keys
+        most_recent_keys = sorted_keys[:N]
+        # Create a new dictionary with only the most recent N entries
+        recent_entries = {key: data[key] for key in most_recent_keys}
+        return recent_entries
 
     # Ensemble model will be abbreviated for simplicity
     def convert_ensemble_string(input_string):
@@ -199,10 +207,30 @@ def publish_generation(
         output_string = f"meta_{ensemble_name}_" + "_".join(components)
         return output_string
 
+    def compute_error_metrics_cutoffs(
+            df_, cutoffs:list, horizon:int, target:str, key_actual:str, key_fitted:str)->dict:
+        ''' compute errror metrics for batches separated by cutoffs'''
+        smard_metrics = {}
+        for i, cutoff in enumerate(cutoffs):
+            mask_ = (df_.index >= cutoff) & (df_.index < cutoff + pd.Timedelta(hours=horizon))
+            actual = df_[key_actual][mask_]
+            predicted = df_[key_fitted][mask_]
+            df = pd.DataFrame({
+                f'{target}_actual':actual.values,
+                f'{target}_fitted': predicted.values,
+                f'{target}_lower': np.zeros_like(actual.values),
+                f'{target}_upper': np.zeros_like(actual.values)
+            }, index=actual.index)
+            smard_metrics[cutoff] = compute_error_metrics(target, df)
+        return smard_metrics
+
     table = [] # to be shown in 'description'
 
     df_results = pd.DataFrame()
 
+    df_entsoe = pd.read_parquet(database_dir + 'entsoe/' + 'history.parquet')
+
+    # collect total values from all regions; compute error using average metric and ENTSO-E data
     for de_reg in de_regions:
         if de_reg['name'] in avail_regions:
             key = de_reg['TSO']
@@ -225,12 +253,23 @@ def publish_generation(
             with open(f"{results_root_dir}{var}/{best_model}/{method_type}/metadata.json", "r") as file:
                 metadata:dict = json.load(file)
 
+            cutoffs = df[df['method'] == method_type]['horizon'].unique()
+            cutoffs = [pd.to_datetime(cutoff) for cutoff in cutoffs]
+            horizon = int(metadata['horizon'])
+            entsoe_metrics = compute_error_metrics_cutoffs(
+                df_=df_entsoe,  cutoffs=cutoffs, horizon=horizon, target=var,
+                key_actual=var, key_fitted=f"{target}_forecast{suffix}"
+            )
+            smard_metrics = retain_most_recent_entries(entsoe_metrics, n_folds)
+            ave_smard_metric = np.average([smard_metrics[time_s][metric] for time_s in smard_metrics.keys()])
+
             table.append({
                 'TSO/Region':key,
                 'Train Date':train_time.strftime('%Y-%m-%d'),
                 'N Features':len(metadata['features']),
                 'Best Model':best_model,
-                'Average RMSE':float(res_models[f'avg_{metric}'].values[0])
+                'RMSE':float(res_models[f'avg_{metric}'].values[0]),
+                'TSO RMSE': float(ave_smard_metric),
             })
 
             # compute total (for SMARD comparison)
@@ -238,35 +277,16 @@ def publish_generation(
                 f"{results_root_dir}{var}/{best_model}/{method_type}/result.csv",
                 index_col=0, parse_dates=True)
             df_res.columns = [ col.replace(suffix, '') for col in df_res.columns ]
+
+
+
             if df_results.empty: df_results = df_res.copy()
             else: df_results += df_res.copy()
 
 
-    def compute_error_metrics_cutoffs(
-            df_, cutoffs:list, horizon:int, target:str, key_actual:str, key_fitted:str)->dict:
-        ''' compute errror metrics for batches separated by cutoffs'''
-        smard_metrics = {}
-        for i, cutoff in enumerate(cutoffs):
-            mask_ = (df_.index >= cutoff) & (df_.index < cutoff + pd.Timedelta(hours=horizon))
-            actual = df_[key_actual][mask_]
-            predicted = df_[key_fitted][mask_]
-            df = pd.DataFrame({
-                f'{target}_actual':actual.values,
-                f'{target}_fitted': predicted.values,
-                f'{target}_lower': np.zeros_like(actual.values),
-                f'{target}_upper': np.zeros_like(actual.values)
-            }, index=actual.index)
-            smard_metrics[cutoff] = compute_error_metrics(target, df)
-        return smard_metrics
 
-    def retain_most_recent_entries(data:dict, N:int):
-        # Sort keys by timestamp (assuming keys are sortable timestamps)
-        sorted_keys = sorted(data.keys(), reverse=True)
-        # Select the most recent N keys
-        most_recent_keys = sorted_keys[:N]
-        # Create a new dictionary with only the most recent N entries
-        recent_entries = {key: data[key] for key in most_recent_keys}
-        return recent_entries
+
+
 
     # -------- FOR TOTAL COMPUTE ERROR OVER THE LAST N HORIZONS --------------- #
 
@@ -289,6 +309,7 @@ def publish_generation(
     # ----------- COMPUTE SMARD ERROR OVER THE LAST N HORIZONS ------------------ #
 
     df_smard = pd.read_parquet(database_dir + 'smard/' + 'history.parquet')
+
 
     smard_metrics = compute_error_metrics_cutoffs(
         df_=df_smard,  cutoffs=cutoffs, horizon=horizon, target=target,
@@ -363,16 +384,18 @@ def publish_generation(
             cols=[f"fitted", f"lower", f"upper"] if ftype == 'forecast.csv' else [f"actual", f"fitted", f"lower", f"upper"]#[f"actual", f"fitted", f"lower", f"upper"]
         )
 
+    ''' ---------- PREPARE RESULTS FOR SERVING ------------- '''
 
-    # print(table)
     # Rename values starting with 'meta_' to 'Ensemble'
     table["Best Model"] = table["Best Model"].apply(lambda x: "Ensemble" if x.startswith("meta_") else x)
     # Round floating point values to integers
-    table["Average RMSE"] = table["Average RMSE"].round().astype(int)
+    table[r"RMSE"] = table[r"RMSE"].round().astype(int)
+    table[r"TSO RMSE"] = table[r"TSO RMSE"].round().astype(int)
     # Save as markdown
     summary_fpath = f'{output_dir}/{target}_notes_en.md'
     table.to_markdown(summary_fpath, index=False)
 
+    # ------------- ENGLISH TEXT ---------------
 
     intro_sentences = \
         f"""

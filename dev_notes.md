@@ -9,5 +9,12 @@
 
 ## Serving
 - Add wind rose to the webpage
-- Add Carbon intensity forecasts
+- Add Carbon intensity forecasts 
+  - Plot via __Carbon Heat Clock__ for a location
+  - Allow companies to compute __Gross Carbon Emission by Product__
+- Find a way to generate guarantees of origin certificate, carbon insights and other carbon-intellegent products
+
+
+## Branding
+- __Towards De-carbonized Electricity System__
 

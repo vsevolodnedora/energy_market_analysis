@@ -113,7 +113,7 @@ async function toggleLanguage() {
 
     // Update the text of the language toggle button
     const languageToggleButton = document.getElementById('language-toggle');
-    languageToggleButton.textContent = (newLang === 'en') ? 'DE' : 'EN'; // Show the other language
+    languageToggleButton.textContent = (newLang === 'en') ? '🌍 DE' : '🌍 EN'; // Show the other language
 
 }
 

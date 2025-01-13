@@ -76,6 +76,7 @@ if __name__ == '__main__':
         create_entsoe_from_api(start_date=start_date,
                                today=today, data_dir=db_path + 'entsoe/', api_key=entsoe_api_key, verbose=verbose)
 
+
     elif task == 'update':
 
         # --- update database ---
