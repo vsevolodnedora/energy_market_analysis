@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 
 from pyarrow import dictionary
 
-from forecasting_modules import compute_timeseries_split_cutoffs, compute_error_metrics
+from forecasting_modules import compute_error_metrics, analyze_model_performance, convert_ensemble_string
 from data_collection_modules.german_locations import de_regions
 
 def convert_csv_to_json(df, target, output_dir, prefix, cols):
@@ -47,132 +47,6 @@ def convert_csv_to_json(df, target, output_dir, prefix, cols):
         else:
             print(f"Column '{column}' not found in the CSV file. (columns={df.columns})")
 
-def pick_best_models_and_check_drift(
-        df: pd.DataFrame,
-        n_foldsLint: int = 3,
-        metric: str = 'mse'
-):
-    """
-    Given a DataFrame containing error metrics for different models and methods
-    ('trained' vs 'forecast'), selects the best model in each method by
-    averaging the chosen metric over the last n_foldsLint horizons.
-    Also checks if there is a model drift (i.e., forecast error > trained error).
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        A DataFrame with columns:
-        ['method', 'model_label', 'horizon', 'mse', 'rmse', 'mae', 'mape'].
-    n_foldsLint : int
-        How many of the most recent horizons to use when averaging the error.
-    metric : str
-        The error metric column to use for determining the best model
-        (e.g., 'mse', 'rmse', 'mae', 'mape').
-
-    Returns
-    -------
-    dict
-        A dictionary with:
-          {
-            'best_trained_model': (model_label, avg_metric_value),
-            'best_forecast_model': (model_label, avg_metric_value),
-            'model_drift': bool
-          }
-        Where 'model_drift' is True if the forecast’s best average error
-        is strictly greater than the trained best average error.
-    """
-
-    # 1) Ensure horizon is a proper datetime for correct sorting:
-    df['horizon'] = pd.to_datetime(df['horizon'])
-
-    # 2) Split into trained and forecast
-    trained_df = df[df['method'] == 'trained'].copy()
-    forecast_df = df[df['method'] == 'forecast'].copy()
-
-    # 3) Function: for each model_label, pick the last n_foldsLint horizons
-    #    (based on horizon descending), compute the mean of the chosen metric
-    def compute_model_averages(data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Groups by model_label, sorts by horizon descending, takes the
-        last n_foldsLint records, and computes mean of the chosen metric.
-        """
-        # Sort by horizon descending
-        data = data.sort_values('horizon', ascending=False)
-
-        # We want to group by model_label, then "tail" n_foldsLint rows in each group
-        # and compute the mean of the metric.
-        # One approach is to use groupby.apply(...). Another approach is a custom aggregator.
-
-        def tail_and_mean(group):
-            tail_group = group.head(n_foldsLint)
-            return tail_group[metric].mean()
-
-        # Apply groupby
-        avg_df = (
-            data.groupby('model_label', as_index=False)
-            .apply(tail_and_mean)
-            .reset_index()
-        )
-        avg_df.columns = ['model_label', metric]
-        return avg_df
-
-    # Compute the mean metric for trained, forecast
-    trained_avgs = compute_model_averages(trained_df)
-    forecast_avgs = compute_model_averages(forecast_df)
-
-    # 4) Find best model in trained (lowest metric)
-    best_trained_row = trained_avgs.loc[trained_avgs[metric].idxmin()]
-    best_trained_model = best_trained_row['model_label']
-    best_trained_error = best_trained_row[metric]
-
-    # 5) Find best model in forecast (lowest metric)
-    best_forecast_row = forecast_avgs.loc[forecast_avgs[metric].idxmin()]
-    best_forecast_model = best_forecast_row['model_label']
-    best_forecast_error = best_forecast_row[metric]
-
-    # 6) Check for model drift
-    #    For simplicity, define drift = forecast metric > trained metric
-    model_drift = (best_forecast_error > best_trained_error)
-
-    return {
-        'best_trained_model': (best_trained_model, best_trained_error),
-        'best_forecast_model': (best_forecast_model, best_forecast_error),
-        'model_drift': model_drift
-    }
-
-
-def analyze_model_performance(data: pd.DataFrame, n_folds: int, metric: str)->tuple[pd.DataFrame, pd.DataFrame]:
-    # Validate inputs
-    if metric not in ['mse', 'rmse', 'mae', 'mape']:
-        raise ValueError(f"Invalid metric '{metric}'. Choose from 'mse', 'rmse', 'mae', 'mape'.")
-
-    # Filter data by the number of folds
-    data['horizon'] = pd.to_datetime(data['horizon'])
-    data = data.sort_values(by=['method', 'model_label', 'horizon'], ascending=[True, True, False])
-    recent_data = data.groupby(['method', 'model_label']).head(n_folds)
-
-    # Compute the average error for each model and method
-    avg_errors = (recent_data
-                  .groupby(['method', 'model_label'])[metric]
-                  .mean()
-                  .reset_index()
-                  .rename(columns={metric: f'avg_{metric}'}))
-
-    # Determine the best model for each method (trained and forecast)
-    best_models = avg_errors.loc[avg_errors.groupby('method')[f'avg_{metric}'].idxmin()]
-
-    # Check for model drift (forecast errors systematically larger than trained errors)
-    trained_errors = avg_errors[avg_errors['method'] == 'trained']
-    forecast_errors = avg_errors[avg_errors['method'] == 'forecast']
-
-    drift_data = pd.merge(trained_errors, forecast_errors, on='model_label', suffixes=('_trained', '_forecast'))
-    drift_data['error_difference'] = drift_data[f'avg_{metric}_forecast'] - drift_data[f'avg_{metric}_trained']
-    drift_data['drift_detected'] = drift_data['error_difference'] > 0
-
-    # Summarize drift detection
-    drift_summary = drift_data[['model_label', 'error_difference', 'drift_detected']]
-
-    return best_models, drift_summary
 
 
 
@@ -198,14 +72,7 @@ def publish_generation(
         return recent_entries
 
     # Ensemble model will be abbreviated for simplicity
-    def convert_ensemble_string(input_string):
-        # Extract the ensemble name and the components
-        ensemble_name = input_string.split('[')[1].split(']')[0]
-        components = input_string.split('(')[1].split(')')[0].split(',')
 
-        # Construct the desired format
-        output_string = f"meta_{ensemble_name}_" + "_".join(components)
-        return output_string
 
     def compute_error_metrics_cutoffs(
             df_, cutoffs:list, horizon:int, target:str, key_actual:str, key_fitted:str)->dict:
@@ -279,7 +146,6 @@ def publish_generation(
             df_res.columns = [ col.replace(suffix, '') for col in df_res.columns ]
 
 
-
             if df_results.empty: df_results = df_res.copy()
             else: df_results += df_res.copy()
 
@@ -310,7 +176,10 @@ def publish_generation(
 
     df_smard = pd.read_parquet(database_dir + 'smard/' + 'history.parquet')
 
-
+    df_smard.rename(columns={
+        "total_grid_load_forecasted": "load_forecasted",
+        "total_grid_load": "load",
+    }, inplace=True)
     smard_metrics = compute_error_metrics_cutoffs(
         df_=df_smard,  cutoffs=cutoffs, horizon=horizon, target=target,
         key_actual=target, key_fitted=f"{target}_forecasted"

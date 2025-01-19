@@ -22,6 +22,7 @@ from data_modules.feature_eng import (
     physics_informed_feature_engineering,
     WeatherWindPowerFE,
     WeatherSolarPowerFE,
+    WeatherLoadFE
 )
 
 
@@ -102,11 +103,13 @@ def suggest_values_for_ds_pars_optuna(feature_engineering_pipeline:str, trial:op
         config.update( WeatherWindPowerFE.selector_for_optuna( trial, fixed )  )
     elif feature_engineering_pipeline == 'WeatherSolarPowerFE':
         config.update( WeatherSolarPowerFE.selector_for_optuna( trial, fixed )  )
-
-    if'log_target' in fixed:
-        config['log_target'] = fixed['log_target']
+    elif feature_engineering_pipeline == 'WeatherLoadFE':
+        config.update( WeatherLoadFE.selector_for_optuna( trial, fixed )  )
     else:
-        config['log_target'] = trial.suggest_categorical("log_target", [True, False])
+        raise ValueError(f"Unknown feature engineering pipeline: {feature_engineering_pipeline}")
+
+    if'log_target' in fixed: config['log_target'] = fixed['log_target']
+    else: config['log_target'] = trial.suggest_categorical("log_target", [True, False])
 
     config['lags_target'] = trial.suggest_categorical(
         "lags_target", [None, 1, 6, 12]

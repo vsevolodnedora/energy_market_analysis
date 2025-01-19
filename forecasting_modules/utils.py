@@ -845,3 +845,13 @@ def save_datetime_now(outdir:str):
     today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
     with open(f'{outdir}datetime.json', "w") as file:
         json.dump({"datetime": today.isoformat()}, file)
+
+
+def convert_ensemble_string(input_string):
+    # Extract the ensemble name and the components
+    ensemble_name = input_string.split('[')[1].split(']')[0]
+    components = input_string.split('(')[1].split(')')[0].split(',')
+
+    # Construct the desired format
+    output_string = f"meta_{ensemble_name}_" + "_".join(components)
+    return output_string

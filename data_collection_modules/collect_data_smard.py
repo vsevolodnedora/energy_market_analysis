@@ -646,15 +646,20 @@ def update_smard_from_api(today:pd.Timestamp,data_dir:str,verbose:bool):
     fname = data_dir + 'history.parquet'
     df_hist = pd.read_parquet(fname)
     last_timestamp = pd.Timestamp(df_hist.dropna(how='all', inplace=False).last_valid_index())
-    start_date_ = last_timestamp - timedelta(hours=24)
+    start_date_ = last_timestamp - timedelta(hours=72) # account for weekends where no data is published
     end_date_ = today + timedelta(hours=24)
-    df_smard = collect_smard_from_api(start_date=start_date_, end_date=end_date_, datadir=data_dir, verbose=verbose)
+    df_smard = collect_smard_from_api(
+        start_date=start_date_, end_date=end_date_, datadir=data_dir, verbose=verbose
+    )
     # check columns
     for col in df_hist.columns:
         if not col in df_smard.columns:
             raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
-    df_hist = df_smard.combine_first(df_hist)
+
+    df_hist = pd.concat([df_hist[:start_date_-timedelta(hours=1)], df_smard[start_date_:]], axis=0)
     df_hist.sort_index(inplace=True)
+    # df_hist = df_smard.combine_first(df_hist[:start_date_])
+
     # combined_df = pd.concat([df_hist[:start_date_], df_smard[start_date_:]])
     # result_df = combined_df[~combined_df.index.duplicated(keep='first')]
     # df_hist = result_df.sort_index()

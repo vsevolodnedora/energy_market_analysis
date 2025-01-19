@@ -1,5 +1,6 @@
 import copy, re, pandas as pd
 import numpy as np
+import os
 
 from data_collection_modules.collect_data_openmeteo import OpenMeteo
 from data_collection_modules.german_locations import (
@@ -12,6 +13,7 @@ from data_collection_modules.german_locations import (
 from data_modules.utils import (
     validate_dataframe
 )
+from forecasting_modules.utils import convert_ensemble_string
 
 def load_prepared_data(target:str,datapath:str, verbose:bool)  ->tuple[pd.DataFrame, pd.DataFrame]:
 
@@ -32,7 +34,7 @@ def load_prepared_data(target:str,datapath:str, verbose:bool)  ->tuple[pd.DataFr
 
     return df_history, df_forecast
 
-def extract_from_database(target:str, db_path:str, tso_name:str, n_horizons:int, horizon:int, verbose:bool) \
+def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_horizons:int, horizon:int, verbose:bool)\
         -> tuple[pd.DataFrame, pd.DataFrame]:
 
     # -------- laod database TODO move to SQLlite DB
@@ -43,6 +45,8 @@ def extract_from_database(target:str, db_path:str, tso_name:str, n_horizons:int,
     df_om_onshore_f = pd.read_parquet(db_path + 'openmeteo/' + 'onshore_forecast.parquet')
     df_om_solar = pd.read_parquet(db_path + 'openmeteo/' + 'solar_history.parquet')
     df_om_solar_f = pd.read_parquet(db_path + 'openmeteo/' + 'solar_forecast.parquet')
+    df_om_cities = pd.read_parquet(db_path + 'openmeteo/' + 'cities_history.parquet')
+    df_om_cities_f = pd.read_parquet(db_path + 'openmeteo/' + 'cities_forecast.parquet')
     df_es = pd.read_parquet(db_path + 'epexspot/' + 'history.parquet')
     df_entsoe = pd.read_parquet(db_path + 'entsoe/' + 'history.parquet')
 
@@ -69,6 +73,7 @@ def extract_from_database(target:str, db_path:str, tso_name:str, n_horizons:int,
         df_om_offshore_f = df_om_offshore_f.iloc[:horizon]
         df_om_onshore_f = df_om_onshore_f.iloc[:horizon]
         df_om_solar_f = df_om_solar_f.iloc[:horizon]
+        df_om_cities_f = df_om_cities_f.iloc[:horizon]
         assert len(df_om_offshore_f) == horizon
         assert (df_om_offshore_f.index[-1].hour == 23 and
                 df_om_offshore_f.index[-1].minute == 0 and
@@ -76,7 +81,7 @@ def extract_from_database(target:str, db_path:str, tso_name:str, n_horizons:int,
 
     target_notso = ''
     tso_dict = {}
-    if (('wind_offshore' in target) or ('wind_onshore' in target) or ('solar' in target)):
+    if (('wind_offshore' in target) or ('wind_onshore' in target) or ('solar' in target) or ('load' in target)):
 
         for de_reg in de_regions:
             if target.__contains__(de_reg['suffix']) and tso_name != de_reg['name']:
@@ -96,13 +101,17 @@ def extract_from_database(target:str, db_path:str, tso_name:str, n_horizons:int,
         if 'wind_offshore' in target: dataframe, dataframe_f = df_om_offshore, df_om_offshore_f
         elif 'wind_onshore' in target: dataframe, dataframe_f = df_om_onshore, df_om_onshore_f
         elif 'solar' in target: dataframe, dataframe_f = df_om_solar, df_om_solar_f
-
+        elif 'load' in target: dataframe, dataframe_f = df_om_cities, df_om_cities_f
+        else: raise NotImplementedError(f"No dataframe selection for target={target} tso_name={tso_name}")
 
         # get features specific to this location (TSO)
         locations = []
         if 'wind_offshore' in target: locations = loc_offshore_windfarms
         elif 'wind_onshore' in target: locations = loc_onshore_windfarms
         elif 'solar' in target: locations = loc_solarfarms
+        elif 'load' in target: locations = loc_cities
+        else: raise NotImplementedError(f"Locations are not available for target={target} tso_name={tso_name}")
+
         om_suffixes = [loc['suffix'] for loc in locations if loc['TSO'] == tso_dict['TSO']]
         feature_col_names = dataframe.columns[dataframe.columns.str.endswith(tuple(om_suffixes))]
 
@@ -118,6 +127,54 @@ def extract_from_database(target:str, db_path:str, tso_name:str, n_horizons:int,
         df_forecast = dataframe_f[feature_col_names]
     else:
         raise NotImplementedError(f"target={target} is not yet supported")
+
+    # add additional quantities
+    if ('load' in target):
+        if len(tso_dict.keys()) == 0: raise NotImplementedError(f"No TSO dict available for target={target}")
+        for exog in ["wind_offshore", "wind_onshore", "solar"]:
+            # load historic data
+            exog_tso = exog + tso_dict['suffix']
+            if not exog_tso in df_entsoe.columns.tolist():
+                if verbose: print(f"Warning! Required exogenous feature {exog_tso} is not in ENTSO-E dataset. Skipping.")
+                continue
+
+            entsoe_col = df_entsoe[exog_tso]
+            df_hist = pd.merge(left=df_hist, right=entsoe_col, left_index=True, right_index=True, how='left')
+
+            # load forecast from current best forecast
+            best_model = None
+            fpath = outdir+exog_tso+'/'+'best_model.txt'
+            if not os.path.isfile(fpath):
+                raise FileNotFoundError(f"Best model file not found {fpath}")
+            with open(fpath, 'r') as f:
+                best_model = f.read().strip()
+
+            if best_model.__contains__('ensemble'):
+                best_model = convert_ensemble_string(best_model)
+
+            fpath = outdir+exog_tso+'/' + best_model + '/' + 'forecast/' + 'forecast.csv'
+            if not os.path.isfile(fpath):
+                raise FileNotFoundError(f"Forecast file not found {fpath}")
+
+            # load the latest forecast for exogenous variable and add it to df_forecast
+            df_ = pd.read_csv(fpath, index_col=0)
+            df_.index = pd.to_datetime(df_.index)
+            df_.rename(columns={f'{exog_tso}_fitted':f'{exog_tso}'},inplace=True)
+
+            # import matplotlib.pyplot as plt
+            # plt.plot(df_.index, df_[f'{exog_tso}_fitted'])
+            # plt.plot(df_forecast.index, df_forecast[df_forecast.columns.tolist()[0]])
+            # plt.show()
+            # exit(1)
+
+            df_forecast = pd.merge(
+                left=df_forecast,
+                right=df_[f'{exog_tso}'],
+                left_index=True,
+                right_index=True,
+                how='left'
+            )
+
 
     # limit dataframe to the required max size
     df_hist = df_hist.tail(len(df_forecast)*n_horizons)
@@ -144,6 +201,9 @@ def extract_from_database(target:str, db_path:str, tso_name:str, n_horizons:int,
     expected_range = pd.date_range(start=df_hist.index.min(), end=df_hist.index.max(), freq='h')
     if not df_hist.index.equals(expected_range):
         raise ValueError("full_index must be continuous with hourly frequency.")
+
+    if df_forecast.isna().any().any():
+        raise ValueError(f"df_forecast contains NaN entries. df_forecast={df_forecast[df_forecast.isna()]}")
 
     return df_hist, df_forecast
 
@@ -218,105 +278,6 @@ def extract_from_database(target:str, db_path:str, tso_name:str, n_horizons:int,
     #     raise ValueError("full_index must be continuous with hourly frequency.")
     #
     # return (df_hist, df_forecast)
-
-def OLD__mask_outliers_and_unphysical_values(df_hist: pd.DataFrame, df_forecast: pd.DataFrame, target:str, verbose: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Mask unphysical values based on predefined physical limits and detect outliers
-    using the IQR method. Outlier indices are replaced with NaNs for columns matching
-    known weather features.
-
-    Parameters
-    ----------
-    df_hist : pd.DataFrame
-        Historical (training) dataset containing time-series weather features.
-    df_forecast : pd.DataFrame
-        Forecast (test) dataset containing time-series weather features.
-    verbose : bool, optional
-        If True, prints warnings when outliers are detected. Defaults to False.
-
-    Returns
-    -------
-    Tuple[pd.DataFrame, pd.DataFrame]
-        A tuple of (df_hist_clean, df_forecast_clean), each with outliers
-        and unphysical values replaced by NaN.
-    """
-
-
-
-    # Iterate over historical DataFrame columns
-    for col in df_hist.columns:
-
-        # 1) Skip non-numeric columns entirely (no outlier masking for them)
-        if not pd.api.types.is_numeric_dtype(df_hist[col]):
-            if verbose:
-                print(f"Skipping column '{col}' (non-numeric).")
-            continue
-
-        # 2) (Optional) check if we also want to skip columns that don't exist in df_forecast
-        #    to avoid KeyErrors later
-        if col not in df_forecast.columns:
-            if verbose:
-                print(f"Skipping column '{col}' (not found in df_forecast).")
-            continue
-
-        # 3) Attempt to match a known weather feature and apply physical constraints
-        matched_feature = False
-        for feature, (phys_lower, phys_upper) in OpenMeteo.phys_limits.items():
-            if feature in str(col):
-                matched_feature = True
-                # If historical data is entirely NaN, skip
-                hist_series_valid = df_hist[col].dropna()
-                if hist_series_valid.empty:
-                    if verbose:
-                        print(f"Skipping column '{col}' (all NaN in df_hist).")
-                    # We do a 'continue' to skip outlier detection for this column
-                    # in the outer loop
-                    continue
-
-                # 3a) Apply physical constraints
-                df_hist[col] = df_hist[col].where(
-                    (df_hist[col] >= phys_lower) & (df_hist[col] <= phys_upper),
-                    np.nan
-                )
-                df_forecast[col] = df_forecast[col].where(
-                    (df_forecast[col] >= phys_lower) & (df_forecast[col] <= phys_upper),
-                    np.nan
-                )
-                if verbose and df_hist[col].isnull().sum() > 0:
-                    print(f"Found {df_hist[col].isnull().sum()} NaNs in df_hist[{col}]")
-                if verbose and df_forecast[col].isnull().sum() > 0:
-                    print(f"Found {df_forecast[col].isnull().sum()} NaNs in df_forecast[{col}].")
-                # No need to check other features once matched
-                break
-
-        # If you ONLY want outlier masking for columns that match a known feature, do:
-        if not matched_feature:
-            if verbose:
-                print(f"Skipping outlier detection for '{col}' (no matched feature).")
-            continue
-
-        # 4) Compute outlier bounds from the (cleaned) historical data
-        # lower_bound, upper_bound = compute_outlier_bounds(df_hist[col].dropna())
-
-        # # 5) Mask outliers in both dataframes
-        # hist_outliers = df_hist[col][ (df_hist[col] < lower_bound) | (df_hist[col] > upper_bound) ]
-        # # If col not in df_forecast.columns, we already continued above
-        # forecast_outliers = df_forecast[col][ (df_forecast[col] < lower_bound) | (df_forecast[col] > upper_bound) ]
-        #
-        # # df_hist.loc[hist_outliers, col] = np.nan
-        # # df_forecast.loc[forecast_outliers, col] = np.nan
-        #
-        # # 6) Verbose logging
-        # if verbose:
-        #     if hist_outliers.sum() > 0:
-        #         n_hist_outliers = hist_outliers.sum()
-        #         print(f"WARNING [HIST] {n_hist_outliers} outliers in '{col}'.")
-        #     if forecast_outliers.sum() > 0:
-        #         n_forecast_outliers = forecast_outliers.sum()
-        #         print(f"WARNING [FORECAST] {n_forecast_outliers} outliers in '{col}'.")
-
-    return df_hist, df_forecast
-
 
 def mask_outliers_and_unphysical_values(
         df_hist: pd.DataFrame,

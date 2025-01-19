@@ -12,6 +12,67 @@ import logging
 import holidays
 from prophet import Prophet
 
+def detect_outliers_zscore(values, z_thresh: float = 3.0):
+    """
+    Return a boolean mask where True indicates the value is an outlier
+    based on a simple z-score threshold.
+    """
+    series = pd.Series(values, dtype=float)  # ensure float
+    mean_val = series.mean()
+    std_val = series.std()
+    if std_val == 0:
+        # Avoid division by zero; no variation => no outliers
+        return [False]*len(series)
+
+    z_scores = (series - mean_val).abs() / std_val
+    return z_scores > z_thresh
+
+def detect_outliers_diff(values, diff_thresh: float = 10.0):
+    """
+    Return a boolean mask where True indicates the value is an outlier
+    if it differs from the previous forecast by more than diff_thresh.
+    """
+    series = pd.Series(values, dtype=float)
+    diffs = series.diff().abs()
+    # For the first value, you can treat it as not outlier or handle it separately
+    return diffs > diff_thresh
+
+def fill_outliers_in_forecast_with_interpolation(
+        array:np.ndarray, index:pd.DatetimeIndex, z_thresh:float=3.0, diff_thresh:float=100.,
+        msg:str or None=None,
+        verbose:bool=False
+):
+
+    array = np.array(array)
+
+    # check for large outliers
+    has_outliers = False
+    outlier_mask = detect_outliers_zscore(array, z_thresh=z_thresh)
+    if (len(array[outlier_mask]) > 0):
+        array[outlier_mask] = np.nan
+        if verbose: print (
+            f"Outlier detection alert! "
+            f"Method:z={z_thresh}-score "
+            f"N={len(array[outlier_mask])} "
+            f"msg={msg}"
+        )
+
+    outlier_mask = detect_outliers_diff(array, diff_thresh=diff_thresh)
+    if (len(array[outlier_mask]) > 0):
+        array[outlier_mask] = np.nan
+        if verbose: print (
+            f"Outlier detection alert! "
+            f"Method:diff={diff_thresh} "
+            f"N={len(array[outlier_mask])} "
+            f"msg={msg}"
+        )
+
+    if np.isnan(array).any():
+        series = pd.Series(array, index=index, dtype=float)
+        forecast_series = series.interpolate(method='time')
+        array = forecast_series.values
+
+    return array
 
 class BaseForecaster:
 
@@ -62,16 +123,33 @@ class BaseForecaster:
         '''
         # predict with model
         res, pis = self.model.predict(X_scaled, alpha=self.alpha)
+        lower = np.array( pis[:, 0, 0] )
+        upper = np.array( pis[:, 1, 0] )
 
         # form results
         if y_scaled is None:
             y_scaled = pd.Series([np.nan] * len(X_scaled), index=X_scaled.index)
 
+        array = np.array(res)
+        # check for outliers (due to method failing)
+        # array = fill_outliers_in_forecast_with_interpolation(
+        #     np.array(res), index=y_scaled.index, verbose=self.verbose,
+        #     msg=f" in 'predict' for target={self.target} method={self.name} (fitted)"
+        # )
+        # lower = fill_outliers_in_forecast_with_interpolation(
+        #     np.array(lower), index=y_scaled.index, verbose=self.verbose,
+        #     msg=f" in 'predict' for target={self.target} method={self.name} (lower)"
+        # )
+        # upper = fill_outliers_in_forecast_with_interpolation(
+        #     np.array(upper), index=y_scaled.index, verbose=self.verbose,
+        #     msg=f" in 'predict' for target={self.target} method={self.name} (upper)"
+        # )
+
         results = pd.DataFrame({
             f'{self.target}_actual': y_scaled.values,
-            f'{self.target}_fitted': pd.Series(res, index=y_scaled.index),
-            f'{self.target}_lower': pd.Series(pis[:, 0, 0], index=y_scaled.index),
-            f'{self.target}_upper': pd.Series(pis[:, 1, 0], index=y_scaled.index)
+            f'{self.target}_fitted': pd.Series(array, index=y_scaled.index),
+            f'{self.target}_lower': pd.Series(lower, index=y_scaled.index),
+            f'{self.target}_upper': pd.Series(upper, index=y_scaled.index)
         }, index=X_scaled.index)
         return results
 
@@ -143,6 +221,7 @@ class BaseForecaster:
         # Save x_futures for later use Convert x_futures to DataFrame
         self.X_futures_df = pd.concat(X_futures, axis=0, ignore_index=True)
         self.X_futures_df.index = X_test.index
+
         # combine the result of the forecast
         df = pd.DataFrame({
             f'{self.target}_actual':[np.nan]*len(forecast_values),
@@ -217,52 +296,6 @@ class BaseForecaster:
         del  self.X_futures_df;  self.X_futures_df = pd.DataFrame()
 
 
-
-class XGBoostMapieRegressor(BaseForecaster):
-
-    def __init__(self,target:str,  model: MapieRegressor, alpha:float, verbose:bool): # lags_target:int or None,
-        super().__init__(
-            target, alpha, verbose
-        )
-        self.name='XGBoostMapieRegressor'
-        self.model = model
-
-    def fit(self, X_scaled, y_scaled):
-        # Check if base model is pre-fitted
-        if hasattr(self.model.estimator, "fit"):
-            if self.verbose: print(f"Base model {self.name} is not fitted. Fitting using X={X_scaled.shape}")
-            self.model.estimator.fit(X_scaled, y_scaled)
-        if len(X_scaled) == 0 or len(y_scaled) == 0:
-            raise ValueError(
-                f"Empty dataframe is passed for training: "
-                f"X_scaled={X_scaled.shape} and y_scaled={y_scaled.shape}"
-            )
-        # fit the Mapieregressor model
-        self.model.fit(X_scaled, y_scaled)
-
-        # save data for feature importance analysis
-        # self.features = X_scaled.columns.tolist()
-        # self.lag_y_past = y_scaled.copy()
-
-    # def get_model_feature_importance(self, ):
-    #     # Ensure that the underlying estimator is fitted
-    #     if hasattr(self.model, 'estimator'):
-    #         base_estimator = self.model.estimator
-    #     else:
-    #         raise AttributeError("The base model has not been fitted or is not accessible.")
-    #
-    #     # Access feature importances from XGBoost
-    #     if hasattr(base_estimator, 'feature_importances_'):
-    #         importances = base_estimator.feature_importances_
-    #     else:
-    #         raise AttributeError("No feature_importances_ attribute found in the base model.")
-    #
-    #     # Create a Series of feature importances
-    #     feature_importance = pd.Series(importances, index=self.features)
-    #     feature_importance = feature_importance.sort_values(ascending=False)
-    #     return feature_importance
-
-
 class ElasticNetMapieRegressor(BaseForecaster):
 
     def __init__(self,
@@ -327,6 +360,51 @@ class ElasticNetMapieRegressor(BaseForecaster):
     #     # Create a Series of averaged coefficients for feature importance
     #     feature_importance = pd.Series(avg_coefficients, index=self.features)
     #     feature_importance = feature_importance.abs().sort_values(ascending=False)
+    #     return feature_importance
+
+
+class XGBoostMapieRegressor(BaseForecaster):
+
+    def __init__(self,target:str,  model: MapieRegressor, alpha:float, verbose:bool): # lags_target:int or None,
+        super().__init__(
+            target, alpha, verbose
+        )
+        self.name='XGBoostMapieRegressor'
+        self.model = model
+
+    def fit(self, X_scaled, y_scaled):
+        # Check if base model is pre-fitted
+        if hasattr(self.model.estimator, "fit"):
+            if self.verbose: print(f"Base model {self.name} is not fitted. Fitting using X={X_scaled.shape}")
+            self.model.estimator.fit(X_scaled, y_scaled)
+        if len(X_scaled) == 0 or len(y_scaled) == 0:
+            raise ValueError(
+                f"Empty dataframe is passed for training: "
+                f"X_scaled={X_scaled.shape} and y_scaled={y_scaled.shape}"
+            )
+        # fit the Mapieregressor model
+        self.model.fit(X_scaled, y_scaled)
+
+        # save data for feature importance analysis
+        # self.features = X_scaled.columns.tolist()
+        # self.lag_y_past = y_scaled.copy()
+
+    # def get_model_feature_importance(self, ):
+    #     # Ensure that the underlying estimator is fitted
+    #     if hasattr(self.model, 'estimator'):
+    #         base_estimator = self.model.estimator
+    #     else:
+    #         raise AttributeError("The base model has not been fitted or is not accessible.")
+    #
+    #     # Access feature importances from XGBoost
+    #     if hasattr(base_estimator, 'feature_importances_'):
+    #         importances = base_estimator.feature_importances_
+    #     else:
+    #         raise AttributeError("No feature_importances_ attribute found in the base model.")
+    #
+    #     # Create a Series of feature importances
+    #     feature_importance = pd.Series(importances, index=self.features)
+    #     feature_importance = feature_importance.sort_values(ascending=False)
     #     return feature_importance
 
 

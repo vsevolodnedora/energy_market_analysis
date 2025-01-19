@@ -6,6 +6,8 @@ let baseUrl = "https://raw.githubusercontent.com/vsevolodnedora/energy_market_an
  * @param {string} sectionId - The ID of the section to display.
  */
 
+
+
 /**
  * Toggles a subpage’s visibility by adding/removing an .active class.
  * Called by the onClick of each checkbox in the top nav.
@@ -90,17 +92,17 @@ async function toggleLanguage() {
 
     updateContent(); // Updates text translations
 
-    if (chartInstance1) {
+    if (chartState["chartInstance1"]) {
         updateChart1(); // Force chart update to reformat labels/axes
     }
-    if (chartInstance2) {
+    if (chartState["chartInstance2"]) {
         updateChart2();
     }
-    if (chartInstance3) {
+    if (chartState["chartInstance3"]) {
         updateChart3();
     }
     // Reload the description in the new language if already loaded
-    if (chart1DescLoaded) {
+    if (chartState["chart1DescLoaded"]) {
         const language = i18next.language; // Get the new current language
         const fileName = `wind_offshore_notes_${language}.md`  ;
         await loadMarkdown(`data/forecasts/${fileName}`, 'chart1-description-container');
@@ -152,30 +154,22 @@ async function loadHTML(filePath, containerId) {
  * 0) Dark Mode
  ************************************************************/
 
-function toggleDarkMode() {
-    const body = document.body;
-    body.classList.toggle('dark-mode');
-    isDarkMode = !isDarkMode;
-
-    // If charts exist, refresh them
-    if (chartInstance1) updateChart1();
-    if (chartInstance2) updateChart2();
-    if (chartInstance3) updateChart3();
-}
 let isDarkMode = true;
 
-// A helper to track whether each chart was created
-let chart1Created = false; // offshore wind power
-let chart2Created = false; // onshore wind power
-let chart3Created = false; // solar power
 
-let chartInstance1 = null; // offshore wind power
-let chartInstance2 = null; // onshore wind power
-let chartInstance3 = null; // solar power
+let chartState = {
+   "chart1DescLoaded": false, // offshore wind power
+   "chart2DescLoaded": false, // onshore wind power
+   "chart3DescLoaded": false, // solar power
 
-let chart1DescLoaded = false; // offshore wind power
-let chart2DescLoaded = false; // onshore wind power
-let chart3DescLoaded = false; // solar power
+   "chart1Created": false,
+   "chart2Created": false,
+   "chart3Created": false,
+
+   "chartInstance1": null,
+   "chartInstance2": null,
+   "chartInstance3": null
+};
 
 /************************************************************
  * 0) Load Markdown FIles
@@ -604,13 +598,34 @@ async function updateChartGeneric(config) {
       min: 0,
       forceNiceScale: true,
     },
-    legend: {
-      show: false, // Hides the legend
-    },
     // legend: {
     //   labels: { show:false, colors: isDarkMode ? '#e0e0e0' : '#000' },
     // },
+    chart: {
+      zoom: {
+        enabled: true,
+        type: 'xy',
+      },
+      
+    },
+
+    legend: {
+      show: true,
+      position: 'top', // Position of the legend
+      horizontalAlign: 'center', // Align legend in the center
+      offsetY: 20, // Adjust vertical position (positive values move it lower)
+      formatter: function (seriesName, opts) {
+        // Limit to 3 items
+        const index = opts.seriesIndex;
+        if (index < 3) {
+          return seriesName; // Show the series name for the first 3 items
+        }
+        return ''; // Hide the legend item for the rest
+      },
+    },
+    
   });
+
 }
 
 /************************************************************
@@ -705,56 +720,129 @@ function getBaseChartOptions() {
 }
 
 
+/************************************************************
+ * 6) Controls
+ ************************************************************/
+const forecastData = [
+  {
+    id: 1,
+    title: "Offshore Wind Power Forecast",
+    dataKey: "offshore-forecast",
+    descriptionFile: "wind_offshore_notes",
+    // Show all TSO areas for this ID:
+    buttons: ["50hz", "tenn"]
+  },
+  {
+    id: 2,
+    title: "Onshore Wind Power Forecast",
+    dataKey: "onshore-forecast",
+    descriptionFile: "wind_onshore_notes",
+    // Only show 50Hertz & TenneT for this ID:
+    buttons: ["50hz", "tenn", "tran", "ampr"]
+  },
+  {
+    id: 3,
+    title: "Solar Power Forecast",
+    dataKey: "solar-forecast",
+    descriptionFile: "solar_notes",
+    // Show none of the TSO checkboxes here (only the "always" buttons):
+    buttons: ["50hz", "tenn", "tran", "ampr"]
+  },
+  {
+    id: 4,
+    title: "Load Forecast",
+    dataKey: "load-forecast",
+    descriptionFile: "load_notes",
+    // Show none of the TSO checkboxes here (only the "always" buttons):
+    buttons: ["50hz", "tenn", "tran", "ampr"]
+  },
+];
 
+// Helper object to define each TSO button’s label & CSS class
+const TSO_BUTTONS = {
+  "50hz": { label: "50Hertz", colorClass: "btn-blue" },
+  "tenn": { label: "TenneT", colorClass: "btn-green" },
+  "tran": { label: "TransnetBW", colorClass: "btn-red" },
+  "ampr": { label: "Amprion", colorClass: "btn-yellow" }
+};
 
-/*************************************************************/
+function generateForecastSection({ id, title, dataKey, descriptionFile, buttons = [] }) {
+  // Build the HTML for any TSO buttons this forecast wants:
+  const tsoButtonsHtml = buttons.map(btnKey => {
+    const btn = TSO_BUTTONS[btnKey];
+    return `
+      <input type="checkbox" name="tso-area" id="${btnKey}-checkbox-${id}" onchange="updateChart${id}()" />
+      <label for="${btnKey}-checkbox-${id}" class="${btn.colorClass}">${btn.label}</label>
+    `;
+  }).join("");
 
+  // Mandatory buttons that are always shown
+  const mandatoryButtons = `
+    <!-- Always show 'Total' -->
+    <input type="checkbox" name="tso-area" id="total-checkbox-${id}" checked onchange="updateChart${id}()" />
+    <label for="total-checkbox-${id}" class="btn-purple">Total</label>
 
+    <!-- Always show 'CI' -->
+    <input type="checkbox" name="tso-area" id="showci_checkbox-${id}" onchange="updateChart${id}()" />
+    <label for="showci_checkbox-${id}" class="btn-purple">CI</label>
+
+    <!-- Always show 'Details' -->
+    <input type="checkbox" id="description${id}-toggle-checkbox" class="description-toggle-checkbox" onchange="toggleDescription()" />
+    <label for="description${id}-toggle-checkbox" class="description-button" data-i18n="details-label">Details</label>
+
+    <!-- Always show 'RESET' -->
+    <label for="reloadChart${id}" class="btn-purple">RESET</label>
+    <input type="checkbox" id="reloadChart${id}" style="display: none;" onchange="renderOrReloadChart${id}()" />
+  `;
+
+  return `
+    <details class="forecast-section" open>
+      <summary class="forecast-summary" data-i18n="${dataKey}">
+        ${title}
+      </summary>
+      <div class="chart-container" id="chart${id}"></div>
+      <div id="error-message${id}" class="error-message"></div>
+      <div class="control-area">
+        <div class="controls">
+          <div class="slider-container">
+            <label for="past-data-slider-${id}" data-i18n="historic-data">Historic Data:</label>
+            <input
+              type="range"
+              id="past-data-slider-${id}"
+              min="1"
+              max="100"
+              step="1"
+              value="20"
+              onchange="updateChart${id}()"
+            />
+          </div>
+          <div class="controls-buttons">
+            ${tsoButtonsHtml}
+            ${mandatoryButtons}
+          </div>
+        </div>
+      </div>
+      <div id="chart${id}-description-container" class="dropdown-content">
+        <!-- content loaded asynchronously, e.g. via fetch for descriptionFile -->
+      </div>
+    </details>
+  `;
+}
+
+// Insert all forecast sections into the page
+document.getElementById("individual-forecasts").innerHTML = forecastData
+  .map(generateForecastSection)
+  .join("");
 
 
 /************************************************************
- * 6.1) The actual update function for “Offshore” Chart #1
- *    (matching the onChange handlers in the HTML)
+ * 6.0) Define an array describing each chart
  ************************************************************/
 
-//Listen for toggle on the chart #1 description details
-document
-  .getElementById('description1-toggle-checkbox')
-  .addEventListener('click', async function () {
-    const content = document.getElementById('chart1-description-container');
 
-    // Toggle visibility of the dropdown content
-    const isVisible = content.style.display === 'block';
-    content.style.display = isVisible ? 'none' : 'block';
-
-    // If opening the dropdown and content is not loaded, load it dynamically
-    if (!isVisible && !chart1DescLoaded) {
-        chart1DescLoaded = true;
-
-        // Determine the language-specific file
-        const language = i18next.language; // Get the current language ('en' or 'de')
-        const fileName = `wind_offshore_notes_${language}.md`;
-
-        // Load the appropriate Markdown file
-        await loadMarkdown(`data/forecasts/${fileName}`, 'chart1-description-container');
-    }
-  });
-
-// Toggle listener for the first <details> block
-document.querySelector('details:nth-of-type(1)')
-  .addEventListener('toggle', async function(e) {
-    if (e.target.open && !chart1Created) {
-      await initializeI18n();            // loads i18n, sets default language
-      chart1Created = true;
-      chartInstance1 = await createChart('#chart1', getBaseChartOptions());
-      updateChart1(); // do first update
-    }
-  });
-
-async function updateChart1() {
-
-  await updateChartGeneric({
-    chartInstance   : chartInstance1,
+const getChart1Config = () => { 
+  return {
+    chartInstance   : chartState["chartInstance1"],
     yAxisLabel      : 'Power (MW)',//i18next.t('offshore-power-label-mw'),
 
     regionConfigs   : [
@@ -782,56 +870,12 @@ async function updateChart1() {
     showIntervalId  : 'showci_checkbox-1',
     errorElementId  : 'error-message1',
     isDarkMode      : isDarkMode // or define it yourself
-  });
-}
+  };
+};
 
-
-
-
-
-/************************************************************
- * 6.2) The actual update function for “Onshore” Chart #2
- *    (matching the onChange handlers in the HTML)
- ************************************************************/
-
-//Listen for toggle on the chart #1 description details
-document
-  .getElementById('description2-toggle-checkbox')
-  .addEventListener('click', async function () {
-    const content = document.getElementById('chart2-description-container');
-
-    // Toggle visibility of the dropdown content
-    const isVisible = content.style.display === 'block';
-    content.style.display = isVisible ? 'none' : 'block';
-
-    // If opening the dropdown and content is not loaded, load it dynamically
-    if (!isVisible && !chart2DescLoaded) {
-        chart2DescLoaded = true;
-
-        // Determine the language-specific file
-        const language = i18next.language; // Get the current language ('en' or 'de')
-        const fileName = `wind_onshore_notes_${language}.md`;
-
-        // Load the appropriate Markdown file
-        await loadMarkdown(`data/forecasts/${fileName}`, 'chart2-description-container');
-    }
-  });
-
-// Toggle listener for the second <details> block
-document.querySelector('details:nth-of-type(1)')
-  .addEventListener('toggle', async function(e) {
-    if (e.target.open && !chart2Created) {
-      await initializeI18n();            // loads i18n, sets default language
-      chart2Created = true;
-      chartInstance2 = await createChart('#chart2', getBaseChartOptions());
-      updateChart2(); // do first update
-    }
-  });
-
-async function updateChart2() {
-
-  await updateChartGeneric({
-    chartInstance   : chartInstance2,
+const getChart2Config = () => {
+  return {
+    chartInstance   : chartState["chartInstance2"],
     yAxisLabel      : 'Power (MW)',//i18next.t('onshore-power-label-mw'),
 
     regionConfigs   : [
@@ -871,53 +915,12 @@ async function updateChart2() {
     showIntervalId  : 'showci_checkbox-2',
     errorElementId  : 'error-message2',
     isDarkMode      : isDarkMode // or define it yourself
-  });
-}
+  };
+};
 
-
-/************************************************************
- * 6.3) The actual update function for “Solar” Chart #2
- *    (matching the onChange handlers in the HTML)
- ************************************************************/
-
-//Listen for toggle on the chart #1 description details
-document
-  .getElementById('description3-toggle-checkbox')
-  .addEventListener('click', async function () {
-    const content = document.getElementById('chart3-description-container');
-
-    // Toggle visibility of the dropdown content
-    const isVisible = content.style.display === 'block';
-    content.style.display = isVisible ? 'none' : 'block';
-
-    // If opening the dropdown and content is not loaded, load it dynamically
-    if (!isVisible && !chart3DescLoaded) {
-        chart3DescLoaded = true;
-
-        // Determine the language-specific file
-        const language = i18next.language; // Get the current language ('en' or 'de')
-        const fileName = `solar_notes_${language}.md`;
-
-        // Load the appropriate Markdown file
-        await loadMarkdown(`data/forecasts/${fileName}`, 'chart3-description-container');
-    }
-  });
-
-// Toggle listener for the second <details> block
-document.querySelector('details:nth-of-type(1)')
-  .addEventListener('toggle', async function(e) {
-    if (e.target.open && !chart3Created) {
-      await initializeI18n();            // loads i18n, sets default language
-      chart3Created = true;
-      chartInstance3 = await createChart('#chart3', getBaseChartOptions());
-      updateChart3(); // do first update
-    }
-  });
-
-async function updateChart3() {
-
-  await updateChartGeneric({
-    chartInstance   : chartInstance3,
+const getChart3Config = () => {
+  return {
+    chartInstance   : chartState["chartInstance3"],
     yAxisLabel      : 'Power (MW)',//i18next.t('onshore-power-label-mw'),
 
     regionConfigs   : [
@@ -957,5 +960,196 @@ async function updateChart3() {
     showIntervalId  : 'showci_checkbox-3',
     errorElementId  : 'error-message3',
     isDarkMode      : isDarkMode // or define it yourself
-  });
+  };
+};
+
+const getChart4Config = () => {
+  return {
+    chartInstance   : chartState["chartInstance4"],
+    yAxisLabel      : 'Load (MW)',//i18next.t('onshore-power-label-mw'),
+
+    regionConfigs   : [
+      {
+        checkboxId: 'ampr-checkbox-4',
+        variable  : 'load_ampr',
+        alias     : 'Amprion',
+        color     : tsoColorMap['Amprion'],
+      },
+      {
+        checkboxId: 'tran-checkbox-4',
+        variable  : 'load_tran',
+        alias     : 'TransnetBW',
+        color     : tsoColorMap['TransnetBW'],
+      },
+      {
+        checkboxId: '50hz-checkbox-4',
+        variable  : 'load_50hz',
+        alias     : '50Hertz',
+        color     : tsoColorMap['50Hertz'],
+      },
+      {
+        checkboxId: 'tenn-checkbox-4',
+        variable  : 'load_tenn',
+        alias     : 'TenneT',
+        color     : tsoColorMap['TenneT'],
+      },
+      {
+        checkboxId: 'total-checkbox-4',
+        variable  : 'load',
+        alias     : 'Total',
+        color     : tsoColorMap['Total']
+      }
+    ],
+
+    pastDataSliderId: 'past-data-slider-4',
+    showIntervalId  : 'showci_checkbox-4',
+    errorElementId  : 'error-message4',
+    isDarkMode      : isDarkMode // or define it yourself
+  };
+};
+
+const chartConfigs = [
+  {
+    chartNum: 1,
+    descriptionToggleId: 'description1-toggle-checkbox',
+    descriptionContainerId: 'chart1-description-container',
+    descLoadedKey: 'chart1DescLoaded',
+    createdKey: 'chart1Created',
+    instanceKey: 'chartInstance1',
+    detailsSelector: 'details:nth-of-type(1)', 
+    filePrefix: 'wind_offshore_notes',
+    getConfigFunction: getChart1Config
+  },
+  {
+    chartNum: 2,
+    descriptionToggleId: 'description2-toggle-checkbox',
+    descriptionContainerId: 'chart2-description-container',
+    descLoadedKey: 'chart2DescLoaded',
+    createdKey: 'chart2Created',
+    instanceKey: 'chartInstance2',
+    detailsSelector: 'details:nth-of-type(1)',  
+    filePrefix: 'wind_onshore_notes',
+    getConfigFunction: getChart2Config
+  },
+  {
+    chartNum: 3,
+    descriptionToggleId: 'description3-toggle-checkbox',
+    descriptionContainerId: 'chart3-description-container',
+    descLoadedKey: 'chart3DescLoaded',
+    createdKey: 'chart3Created',
+    instanceKey: 'chartInstance3',
+    detailsSelector: 'details:nth-of-type(1)',  
+    filePrefix: 'solar_notes',
+    getConfigFunction: getChart3Config
+  },
+  {
+    chartNum: 4,
+    descriptionToggleId: 'description4-toggle-checkbox',
+    descriptionContainerId: 'chart4-description-container',
+    descLoadedKey: 'chart4DescLoaded',
+    createdKey: 'chart4Created',
+    instanceKey: 'chartInstance4',
+    detailsSelector: 'details:nth-of-type(1)',
+    filePrefix: 'load_notes',
+    getConfigFunction: getChart4Config
+  }
+];
+
+/************************************************************
+ * 6.1) The actual update function for “Offshore” Chart #1
+ *    (matching the onChange handlers in the HTML)
+ ************************************************************/
+
+
+function toggleDarkMode() {
+  document.body.classList.toggle('dark-mode');
+  isDarkMode = !isDarkMode;
+
+  // If charts exist, refresh them (loop over all instances)
+  // Example: any key named "chartInstanceX" in chartState
+  for (let key of Object.keys(chartState)) {
+    if (key.startsWith('chartInstance') && chartState[key]) {
+      // Extract the chart number from the key, e.g. "chartInstance1" -> "1"
+      const chartNum = key.replace('chartInstance', '');
+      // Call updateChart1(), updateChart2(), ...
+      window[`updateChart${chartNum}`]?.();
+    }
+  }
 }
+
+
+
+/************************************************************
+ * 6.2) Helper function to set up each chart’s event listeners
+ *    and “render/reload” + “update” functions.
+ ************************************************************/
+function setupChartEvents({
+  chartNum,
+  descriptionToggleId,
+  descriptionContainerId,
+  descLoadedKey,
+  createdKey,
+  instanceKey,
+  detailsSelector,
+  filePrefix,
+  getConfigFunction
+}) {
+  // 6.2a) Toggle the Markdown description
+  document
+    .getElementById(descriptionToggleId)
+    .addEventListener('click', async function () {
+      const content = document.getElementById(descriptionContainerId);
+
+      // Toggle visibility
+      const isVisible = (content.style.display === 'block');
+      content.style.display = isVisible ? 'none' : 'block';
+
+      // If opening it for the first time, load the Markdown
+      if (!isVisible && !chartState[descLoadedKey]) {
+        chartState[descLoadedKey] = true;
+
+        // Determine the language and load
+        const language = i18next.language; // e.g. 'en' or 'de'
+        const fileName = `${filePrefix}_${language}.md`;
+        await loadMarkdown(`data/forecasts/${fileName}`, descriptionContainerId);
+      }
+    });
+
+  // 6.2b) <details> toggle to create the chart only when opened
+  document
+    .querySelector(detailsSelector)
+    .addEventListener('toggle', async function(e) {
+      if (e.target.open && !chartState[createdKey]) {
+        await initializeI18n();   // loads i18n, sets default language
+        chartState[createdKey] = true;
+        chartState[instanceKey] = await createChart(`#chart${chartNum}`, getBaseChartOptions());
+        window[`updateChart${chartNum}`](); // first update
+      }
+    });
+
+  // 6.2c) Create a global function like “renderOrReloadChart1”
+  //     but parametric for each chartNum
+  window[`renderOrReloadChart${chartNum}`] = async function() {
+    // If the chart exists, destroy it
+    if (chartState[instanceKey]) {
+      chartState[instanceKey].destroy();
+      chartState[createdKey] = false;
+    }
+    // Recreate
+    await initializeI18n();
+    chartState[createdKey] = true;
+    chartState[instanceKey] = await createChart(`#chart${chartNum}`, getBaseChartOptions());
+    window[`updateChart${chartNum}`](); // first update
+  };
+
+  // 6.2d) Create a global function like “updateChart1” for each chartNum
+  window[`updateChart${chartNum}`] = async function() {
+    const config = getConfigFunction(); // e.g. getChart1Config()
+    await updateChartGeneric(config);
+  };
+}
+
+/************************************************************
+ * 6.3) Loop through our array and set everything up in one go
+ ************************************************************/
+chartConfigs.forEach(cfg => setupChartEvents(cfg));

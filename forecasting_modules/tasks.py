@@ -206,6 +206,42 @@ def get_ensemble_name_and_model_names(model_name:str):
 
     return meta_model, model_names
 
+def analyze_model_performance(data: pd.DataFrame, n_folds: int, metric: str)->tuple[pd.DataFrame, pd.DataFrame]:
+    # Validate inputs
+    if metric not in ['mse', 'rmse', 'mae', 'mape']:
+        raise ValueError(f"Invalid metric '{metric}'. Choose from 'mse', 'rmse', 'mae', 'mape'.")
+
+    # Filter data by the number of folds
+    data['horizon'] = pd.to_datetime(data['horizon'])
+    data = data.sort_values(by=['method', 'model_label', 'horizon'], ascending=[True, True, False])
+    recent_data = data.groupby(['method', 'model_label']).head(n_folds)
+
+    # Compute the average error for each model and method
+    avg_errors = (recent_data
+                  .groupby(['method', 'model_label'])[metric]
+                  .mean()
+                  .reset_index()
+                  .rename(columns={metric: f'avg_{metric}'}))
+
+    # Determine the best model for each method (trained and forecast)
+    best_models = avg_errors.loc[avg_errors.groupby('method')[f'avg_{metric}'].idxmin()]
+
+    # Check for model drift (forecast errors systematically larger than trained errors)
+    trained_errors = avg_errors[avg_errors['method'] == 'trained']
+    forecast_errors = avg_errors[avg_errors['method'] == 'forecast']
+
+    drift_data = pd.merge(trained_errors, forecast_errors, on='model_label', suffixes=('_trained', '_forecast'))
+    drift_data['error_difference'] = drift_data[f'avg_{metric}_forecast'] - drift_data[f'avg_{metric}_trained']
+    drift_data['drift_detected'] = drift_data['error_difference'] > 0
+
+    # Summarize drift detection
+    drift_summary = drift_data[['model_label', 'error_difference', 'drift_detected']]
+
+    return best_models, drift_summary
+
+
+
+
 def write_summary(summary: dict):
     # Collect datagrams
     datagram = []
@@ -609,12 +645,19 @@ class BaseModelTasks(TaskPaths):
             )
             # 'result' has f'{target}_actual' and f'{target}_fitted' columns with N=horizon number of timesteps
             result[f'{target}_actual'] = y_for_model.loc[test_idx] # add actual target values to result for error estimation
-            if not validate_dataframe_simple(result.apply(ds.inv_transform_target_series)):
+            result_detransformed = result.apply(ds.inv_transform_target_series)
+            if not validate_dataframe_simple(result_detransformed):
+                if self.verbose:
+                    print(f"Error! Nans in the forecasted dataframe for "
+                          f"model={self.model_label} target={target} features={len(X_for_model.columns)} "
+                          f"idx={idx} lags={ds.lags_target} Number of nans={len(result_detransformed.isna().sum())} ")
                 raise ValueError(f"Forecasting result contains nans. Fitted={result[f'{target}_fitted']}")
+                # result_detransformed.interpolate(method='time', inplace=True)
+                # result = result_detransformed.apply(ds.transform_target_series)
             # collect results (Dataframe with actual, fitted, lower and upper) for each fold (still transformed!)
             self.results[c] = result
             # compute error metrics (RMSE, sMAPE...) over the entire forecasted window
-            self.metrics[c] = compute_error_metrics(target, result.apply(ds.inv_transform_target_series))
+            self.metrics[c] = compute_error_metrics(target, result_detransformed)
             # print error metrics
             if self.verbose:
                 self.print_average_metrics(
@@ -1100,9 +1143,11 @@ class EnsembleModelTasks(BaseModelTasks):
             raise ReferenceError("Dataset class is not initialized")
 
         self.meta_ds.reset_engineered()
-        ds_config = suggest_values_for_ds_pars_optuna(self.target, trial, fixed=self.meta_ds.init_pars)
+        ds_config = suggest_values_for_ds_pars_optuna(
+            self.meta_ds.init_pars['feature_engineer'], trial=trial, fixed = self.meta_ds.init_pars
+        )
         ds_config.update(self.meta_ds.init_pars)
-        self.meta_ds.run_preprocess_pipeline(ds_config)
+        self.meta_ds.run_preprocess_pipeline(config=ds_config)
 
 
         self.forecaster = None
@@ -1595,6 +1640,8 @@ class ForecastingTaskSingleTarget:
     def process_task_determine_the_best_model(self, task:dict, outdir:str):
         train_forecast:list[str] = TaskPaths.train_forecast # ['train', 'forecast']
         metrics = {}
+
+        # save the metrics for each forecasted horizon during (i) initial train run (ii) latest forecast run
         for method in train_forecast:
             metrics[method] = {}
             for t_task in task['task_summarize']:
@@ -1610,6 +1657,18 @@ class ForecastingTaskSingleTarget:
         datagram = write_summary(metrics)
         df = pd.DataFrame(datagram)
         df.to_csv(outdir + "summary_metrics.csv", index=False)
+
+
+        # determine the best model in train run (over the last n_folds_best forecasts)
+        task_ = task['task_summarize'][0] # same for all
+        df = pd.read_csv( outdir + "summary_metrics.csv" )
+        res_models, res_drifts = analyze_model_performance(
+            data=df, n_folds=task_['n_folds_best'], metric=task_['summary_metric']
+        )
+        res_models = res_models[res_models['method'] == task_['method_for_best']] # train or forecast
+        best_model:str = str(res_models['model_label'].values[0]) # the best performing model
+        with open(outdir + "best_model.txt", 'w') as file:
+            file.write(best_model)
 
         # plot_metric_evolution(file_path=outdir+"summary_metrics.csv",metric='rmse')
 

@@ -31,9 +31,11 @@
         <p class="project-author">
             <small>
                 <span data-i18n="personal-project">Personal project by</span>
-                <a href="https://www.linkedin.com/in/vsevolodnedora/" target="_blank" rel="noopener noreferrer">
-                    <strong>Vsevolod Nedora, PhD</strong>
-                </a>
+                <strong>Vsevolod Nedora, PhD</strong>:
+                <a href="https://github.com/vsevolodnedora/energy_market_analysis" target="_blank" rel="noopener noreferrer">👨‍💻 GitHub</a> |
+                <a href="https://www.linkedin.com/in/vsevolodnedora/" target="_blank" rel="noopener noreferrer">💼 LinkedIn</a> |
+                <a href="https://vsevolodnedora.github.io/" target="_blank" rel="noopener noreferrer">🌐 WebPage</a> |
+                <a href="https://vsevolodnedora.substack.com/" target="_blank" rel="noopener noreferrer">✍️ SubStack</a>
             </small>
         </p>
     </div>
@@ -120,6 +122,7 @@
             </summary>
             <!-- The chart container -->
             <div class="chart-container" id="chart1"></div>
+
             <!-- Show any error messages -->
             <div id="error-message1" class="error-message"></div>
 
@@ -152,8 +155,13 @@
 
                     <input type="checkbox" id="description1-toggle-checkbox" class="description1-toggle-checkbox" onchange="toggleDescription()">
                     <label for="description1-toggle-checkbox" class="description-button" data-i18n="details-label">Details</label>
+
+                    <label for="reloadChart1" class="btn-purple">RESET</label>
+                    <input type="checkbox" id="reloadChart1" style="display: none;" onchange="renderOrReloadChart1()">
+
                 </div>
             </div>
+
             <!-- Chart description -->
             <div id="chart1-description-container" class="dropdown-content">
                 <!-- Markdown content will be dynamically loaded here -->
@@ -207,6 +215,10 @@
 
                         <input type="checkbox" id="description2-toggle-checkbox" class="description-toggle-checkbox" onchange="toggleDescription()">
                         <label for="description2-toggle-checkbox" class="description-button" data-i18n="details-label">Details</label>
+
+                        <label for="reloadChart2" class="btn-purple">RESET</label>
+                        <input type="checkbox" id="reloadChart2" style="display: none;" onchange="renderOrReloadChart2()">
+
                     </div>
                 </div>
             </div>
@@ -263,6 +275,11 @@
 
                         <input type="checkbox" id="description3-toggle-checkbox" class="description-toggle-checkbox" onchange="toggleDescription()">
                         <label for="description3-toggle-checkbox" class="description-button" data-i18n="details-label">Details</label>
+
+                        <label for="reloadChart3" class="btn-purple">RESET</label>
+                        <input type="checkbox" id="reloadChart3" style="display: none;" onchange="renderOrReloadChart3()">
+
+
                     </div>
                 </div>
             </div>

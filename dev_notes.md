@@ -1,6 +1,6 @@
 ## Data Preprocessing
 - Add pre-stage of data cleaning using a proper anomaly detection model
-
+- Add check on multicoliniarity in the feature engineering step and drop features that are too correlated with each other
 
 ## Models
 - FIX: remove test data from training scalers for features 

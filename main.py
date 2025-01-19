@@ -70,6 +70,11 @@ if __name__ == '__main__':
             variables = (OpenMeteo.vars_basic + OpenMeteo.vars_radiation),
             locations = loc_solarfarms, start_date = start_date, verbose = verbose
         )
+        create_openmeteo_from_api(
+            fpath=db_path + 'openmeteo/cities_history.parquet',
+            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind + OpenMeteo.vars_radiation),
+            locations = loc_cities, start_date = start_date, verbose = verbose
+        )
 
 
     elif task == 'create_entsoe':
@@ -98,6 +103,11 @@ if __name__ == '__main__':
             variables = (OpenMeteo.vars_basic + OpenMeteo.vars_radiation),
             locations = loc_solarfarms, verbose = verbose
         )
+        update_openmeteo_from_api(
+            fpath=db_path + 'openmeteo/cities_history.parquet',
+            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind + OpenMeteo.vars_radiation),
+            locations = loc_cities, verbose = verbose
+        )
 
         update_epexspot_from_files(today=today, data_dir=db_path + 'epexspot/', verbose=verbose)
 
@@ -114,10 +124,11 @@ if __name__ == '__main__':
         update_forecast_production(
             database=db_path, variable='solar', outdir='./output/forecasts/', verbose=verbose
         )
+        update_forecast_production(
+            database=db_path, variable='load', outdir='./output/forecasts/', verbose=verbose
+        )
 
         # --- serve forecasts ---
-
-
 
         publish_generation(
             target='wind_offshore',
@@ -149,5 +160,14 @@ if __name__ == '__main__':
             database_dir = db_path,
             output_dir = './deploy/data/forecasts/'
         )
-
-        print(f"All tasks in update are completed successfully!")
+        publish_generation(
+            target='load',
+            avail_regions=('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'),
+            n_folds = 3,
+            metric = 'rmse',
+            method_type = 'trained', # 'trained'
+            results_root_dir = './output/forecasts/',
+            database_dir = db_path,
+            output_dir = './deploy/data/forecasts/'
+        )
+        # print(f"All tasks in update are completed successfully!")

@@ -161,14 +161,14 @@ body.dark-mode .header-updates {
 
 /* Right Section */
 .header-right {
-    display: flex;
+    display: right;
     flex-direction: column; /* Stacks items vertically */
     align-items: flex-end; /* Aligns items to the right */
-    gap: 0.75rem; /* Adds slightly more spacing between items */
+    gap: 0.35rem; /* Adds slightly more spacing between items */
     min-width: 140px; /* Ensures enough width for professional spacing */
 
-    padding: 0.5rem; /* Adds spacing inside the frame */
-    border: 1px solid rgba(0, 0, 0, 0.1); /* Subtle gray border for a clean appearance */
+    padding: 0.2rem; /* Adds spacing inside the frame */
+    border: 0px solid rgba(0, 0, 0, 0.1); /* Subtle gray border for a clean appearance */
     border-radius: 0px; /* Slightly rounded corners for a modern touch */
     background-color: #ffffff; /* Neutral background for a professional look */
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08); /* Soft shadow for depth */
@@ -293,7 +293,28 @@ body.dark-mode .cta-link:hover {
   background-color: #303f9f;
 }
 
+.project-author {
+    font-size: 0.9em;
+    color: #6c757d; /* Subtle grey for text */
+    margin-top: 20px;
+    line-height: 1.5; /* Improves readability */
+}
 
+.project-author a {
+    text-decoration: none;
+    color: #0073b1; /* Professional blue color */
+    margin: 0 5px; /* Add slight spacing between links */
+    transition: color 0.3s ease;
+}
+
+.project-author a:hover {
+    color: #005582; /* Slightly darker blue on hover */
+    text-decoration: underline;
+}
+
+.project-author strong {
+    color: #000; /* Black to emphasize your name */
+}
 
 /********************************************
   BUTTONS AREA

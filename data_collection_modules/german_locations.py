@@ -1,8 +1,9 @@
 """
-WARNING
-information profided here may be inaccurate as open source data for all the installations is not readily available.
-Moreover it is often not clear which TSO is responsible for which wind or solar farm. In several cases I had
-to make and educated guess.
+WARNING!
+Information given here may be inaccurate as open source data for all the installations and cities is not readily
+available.
+Moreover, it is often not clear which TSO is responsible for which wind or solar farm or even city.
+In several cases I had to make and educated guess.
 
 I had to collect the data from various sources to get a complete list.
 
@@ -14,25 +15,630 @@ Sources:
 Locations and coordiantes: ChatGPT
 Roughness length: https://www.wind101.net/wind-height/index.htm
 Roughness factor: https://eurocodes-tools.com/en/roughness-factor-crz/
+
+MAP energy companies: https://www.enet-navigator.de/aktuelles/uebertragungsnetzentgelte-preisentwicklungen-durchwachsen#&gid=2&pid=1
 """
 
+# loc_cities = [
+#     {"name": "Berlin", "type": "city", "suffix":"_ber",
+#      "lat": 52.520007, "lon": 13.404954,
+#      "om_api_pars":{"cell_selection":"land"}},
+#     {"name": "Munchen", "type": "city", "suffix":"_mun",
+#      "lat": 48.1351, "lon": 11.5820,
+#      "om_api_pars":{"cell_selection":"land"}},
+#     {"name": "Stuttgart", "type": "city", "suffix":"_stut",
+#      "lat": 48.7791, "lon": 9.1801,
+#      "om_api_pars":{"cell_selection":"land"}},
+#     {"name": "Frankfurt", "type": "city", "suffix":"_fran",
+#      "lat": 50.1109, "lon": 8.6821,
+#      "om_api_pars":{"cell_selection":"land"}},
+#     {"name": "Hamburg", "type": "city", "suffix":"_ham",
+#      "lat": 53.5488, "lon": 9.9872,
+#      "om_api_pars":{"cell_selection":"land"}}
+# ]
+
 loc_cities = [
-    {"name": "Berlin", "type": "city", "suffix":"_ber",
-     "lat": 52.520007, "lon": 13.404954,
-     "om_api_pars":{"cell_selection":"land"}},
-    {"name": "Munchen", "type": "city", "suffix":"_mun",
-     "lat": 48.1351, "lon": 11.5820,
-     "om_api_pars":{"cell_selection":"land"}},
-    {"name": "Stuttgart", "type": "city", "suffix":"_stut",
-     "lat": 48.7791, "lon": 9.1801,
-     "om_api_pars":{"cell_selection":"land"}},
-    {"name": "Frankfurt", "type": "city", "suffix":"_fran",
-     "lat": 50.1109, "lon": 8.6821,
-     "om_api_pars":{"cell_selection":"land"}},
-    {"name": "Hamburg", "type": "city", "suffix":"_ham",
-     "lat": 53.5488, "lon": 9.9872,
-     "om_api_pars":{"cell_selection":"land"}}
+    # {
+    #     "name": "Leipzig",
+    #     "type": "city",
+    #     "lat": None, # float; decimal latitude
+    #     "lon": None, # gloat;  decimal longitude
+    #     "population": None,  # int; Total population
+    #     "population_density": None, # float; Persons per square kilometer (approx.)
+    #     "area": None,  # float; Square kilometers
+    #     "industrial_activity_fraction": None,  # float; Fraction of energy consumed by industry
+    #     "renewable_energy_fraction": {
+    #         "solar": None,  # float; Fraction of total energy from solar
+    #         "wind": None,   # float; Fraction of total energy from wind
+    #         "others": None  # float; Fraction of other renewable sources
+    #     },
+    #     "non_renewable_energy_fraction": None,  # float; Fraction of energy from non-renewables
+    #     "total_energy_consumption": None,  # float; Annual energy consumption in GWh
+    #     "peak_demand": None,  # float; Peak energy demand in MW
+    #     "heating_degree_days": None,  # float; HDD (indicative of heating demand)
+    #     "cooling_degree_days": None,   # float;  CDD (indicative of cooling demand)
+    #     "installed_renewable_capacity": {
+    #         "solar": None,  # float; Installed solar capacity in MW
+    #         "wind": None    # float; Installed wind capacity in MW
+    #     },
+    #     "electric_vehicle_count": None,  # int; Number of EVs in the city
+    #     "daylight_savings": True  # bool; Whether the city observes daylight savings
+    # },
+
+    # 50Hertz: Berlin, Rostok, Leipzig, Dresden (Hambug (partly))
+    {
+        "name": "Berlin",
+        "type": "city",
+        "suffix":"_city_berlin",
+        "TSO": "50Hertz",
+        "lat": 52.520007,
+        "lon": 13.404954,
+        "population": 3576873,  # Total population
+        "population_density": 4000,  # Persons per square kilometer (approx.)
+        "area": 891.8,  # Square kilometers
+        "industrial_activity_fraction": 0.25,  # Fraction of energy consumed by industry
+        "renewable_energy_fraction": {
+            "solar": 0.12,  # Fraction of total energy from solar
+            "wind": 0.18,   # Fraction of total energy from wind
+            "others": 0.05  # Fraction of other renewable sources
+        },
+        "non_renewable_energy_fraction": 0.65,  # Fraction of energy from non-renewables
+        "total_energy_consumption": 13500,  # Annual energy consumption in GWh
+        "peak_demand": 1100,  # Peak energy demand in MW
+        "avg_temperature": 9.8,  # Annual average temperature in °C
+        "heating_degree_days": 2500,  # HDD (indicative of heating demand)
+        "cooling_degree_days": 200,   # CDD (indicative of cooling demand)
+        "avg_humidity": 75,  # Annual average relative humidity in %
+        "avg_wind_speed": 13,  # Average wind speed in km/h
+        "installed_renewable_capacity": {
+            "solar": 500,  # Installed solar capacity in MW
+            "wind": 750    # Installed wind capacity in MW
+        },
+        "electric_vehicle_count": 100000,  # Number of EVs in the city
+        "timezone": "CET",
+        "daylight_savings": True  # Whether the city observes daylight savings
+    },
+    {
+        "name": "Hamburg",
+        "type": "city",
+        "suffix":"_city_hamburg",
+        "TSO": "50Hertz", # NOTE that it is only partly in 50Hertz area
+        "lat": 53.5506,  # decimal latitude
+        "lon": 9.9933,   # decimal longitude
+        "population": 1808846,  # Total population as of May 15, 2022
+        "population_density": 2395,  # Persons per square kilometer
+        "area": 755.22,  # Square kilometers
+        "industrial_activity_fraction": 0.30,  # Approximate fraction of energy consumed by industry
+        "renewable_energy_fraction": {
+            "solar": 0.02,  # Fraction of total energy from solar
+            "wind": 0.10,   # Fraction of total energy from wind
+            "others": 0.05  # Fraction of other renewable sources
+        },
+        "non_renewable_energy_fraction": 0.83,  # Fraction of energy from non-renewables
+        "total_energy_consumption": 12_000,  # Annual energy consumption in GWh
+        "peak_demand": 2_500,  # Peak energy demand in MW
+        "heating_degree_days": 3000,  # HDD (indicative of heating demand)
+        "cooling_degree_days": 100,   # CDD (indicative of cooling demand)
+        "installed_renewable_capacity": {
+            "solar": 100,  # Installed solar capacity in MW
+            "wind": 500    # Installed wind capacity in MW
+        },
+        "electric_vehicle_count": 10_000,  # Number of EVs in the city
+        "daylight_savings": True  # Whether the city observes daylight savings
+    },
+    {
+        "name": "Leipzig",
+        "type": "city",
+        "suffix":"_city_leipzig",
+        "TSO": "50Hertz",
+        "lat": 51.3400,  # Latitude of Leipzig
+        "lon": 12.3750,  # Longitude of Leipzig
+        "population": 628718,  # Population as of 2023
+        "population_density": 2100,  # Persons per square kilometer
+        "area": 297.36,  # Square kilometers
+        "industrial_activity_fraction": 0.25,  # Estimated based on regional data
+        "renewable_energy_fraction": {
+            "solar": 0.10,  # Estimated based on regional data
+            "wind": 0.15,   # Estimated based on regional data
+            "others": 0.05  # Estimated based on regional data
+        },
+        "non_renewable_energy_fraction": 0.70,  # Estimated based on regional data
+        "total_energy_consumption": 12.5,  # Estimated in TWh/year
+        "peak_demand": 2.5,  # Estimated in GW
+        "heating_degree_days": 3000,  # Estimated based on regional data
+        "cooling_degree_days": 100,  # Estimated based on regional data
+        "installed_renewable_capacity": {
+            "solar": 150,  # Estimated in MW
+            "wind": 200    # Estimated in MW
+        },
+        "electric_vehicle_count": 5000,  # Estimated based on regional data
+        "daylight_savings": True  # Leipzig observes daylight savings
+    },
+    {
+        "name": "Dresden",
+        "type": "city",
+        "suffix":"_city_dresden",
+        "TSO": "50Hertz",
+        "lat": 51.0504,  # Corrected latitude for Dresden
+        "lon": 13.7373,  # Corrected longitude for Dresden
+        "population": 556780,  # Population as of 2023
+        "population_density": 1872,  # Persons per square kilometer
+        "area": 297.36,  # Square kilometers
+        "industrial_activity_fraction": 0.25,  # Estimated based on regional data
+        "renewable_energy_fraction": {
+            "solar": 0.12,  # Estimated based on regional data
+            "wind": 0.15,   # Estimated based on regional data
+            "others": 0.08  # Estimated based on regional data
+        },
+        "non_renewable_energy_fraction": 0.65,  # Estimated based on regional data
+        "total_energy_consumption": 7500,  # Estimated in GWh/year
+        "peak_demand": 1200,  # Estimated in MW
+        "heating_degree_days": 3400,  # Estimated based on regional climate data
+        "cooling_degree_days": 150,  # Estimated based on regional climate data
+        "installed_renewable_capacity": {
+            "solar": 150,  # Estimated in MW
+            "wind": 180    # Estimated in MW
+        },
+        "electric_vehicle_count": 5000,  # Estimated based on regional trends
+        "daylight_savings": True  # Dresden observes daylight savings
+    },
+    {
+        "name": "Magdeburg",
+        "type": "city",
+        "suffix":"_city_magdeburg",
+        "TSO": "50Hertz",
+        "lat": 52.1316,  # Corrected latitude for Magdeburg
+        "lon": 11.6398,  # Corrected longitude for Magdeburg
+        "population": 235723,  # Population as of 2023
+        "population_density": 792,  # Persons per square kilometer
+        "area": 297.36,  # Square kilometers
+        "industrial_activity_fraction": 0.25,  # Estimated fraction of industrial activity
+        "renewable_energy_fraction": {
+            "solar": 0.10,  # Estimated fraction of energy from solar
+            "wind": 0.25,   # Estimated fraction of energy from wind
+            "others": 0.05  # Estimated fraction of energy from other renewable sources
+        },
+        "non_renewable_energy_fraction": 0.60,  # Estimated fraction of non-renewable energy
+        "total_energy_consumption": 3500,  # Estimated total energy consumption in GWh
+        "peak_demand": 500,  # Estimated peak demand in MW
+        "heating_degree_days": 3000,  # Estimated heating degree days
+        "cooling_degree_days": 100,  # Estimated cooling degree days
+        "installed_renewable_capacity": {
+            "solar": 50,  # Estimated installed solar capacity in MW
+            "wind": 120   # Estimated installed wind capacity in MW
+        },
+        "electric_vehicle_count": 1500,  # Estimated number of electric vehicles
+        "daylight_savings": True  # Magdeburg observes daylight savings
+    },
+
+    # Tennet: Munich, Bremen, Kiel, Kassel, Bremerhaven, Emden
+    {
+        "name": "Munich",
+        "type": "city",
+        "suffix":"_city_munich",
+        "TSO": "TenneT",
+        "lat": 48.1351,  # Corrected latitude for Munich
+        "lon": 11.5820,  # Corrected longitude for Munich
+        "population": 1487708,  # Population as of 2023
+        "population_density": 4800,  # Persons per square kilometer
+        "area": 310.7,  # Square kilometers
+        "industrial_activity_fraction": 0.20,  # Estimated fraction of industrial activity
+        "renewable_energy_fraction": {
+            "solar": 0.10,  # Estimated fraction of solar energy
+            "wind": 0.05,   # Estimated fraction of wind energy
+            "others": 0.15  # Estimated fraction of other renewable energies
+        },
+        "non_renewable_energy_fraction": 0.70,  # Estimated fraction of non-renewable energy
+        "total_energy_consumption": 12200,  # GWh per year
+        "peak_demand": 2_500,  # MW
+        "heating_degree_days": 3_000,  # Degree days per year
+        "cooling_degree_days": 100,  # Degree days per year
+        "installed_renewable_capacity": {
+            "solar": 150,  # MW
+            "wind": 50     # MW
+        },
+        "electric_vehicle_count": 15000,  # Number of electric vehicles
+        "daylight_savings": True  # Munich observes daylight savings
+    },
+    {
+        "name": "Bremen",
+        "type": "city",
+        "suffix":"_city_bremen",
+        "TSO": "TenneT",
+        "lat": 53.0793,  # Corrected latitude for Bremen
+        "lon": 8.8017,   # Corrected longitude for Bremen
+        "population": 569352,  # Population as of 2023
+        "population_density": 1914,  # Persons per square kilometer
+        "area": 297.36,  # Square kilometers
+        "industrial_activity_fraction": 0.25,  # Estimated based on regional economic data
+        "renewable_energy_fraction": {
+            "solar": 0.05,  # Estimated based on regional renewable energy data
+            "wind": 0.15,   # Estimated based on regional renewable energy data
+            "others": 0.05  # Estimated based on regional renewable energy data
+        },
+        "non_renewable_energy_fraction": 0.75,  # Estimated based on national energy consumption data
+        "total_energy_consumption": 15_000_000,  # Estimated in megawatt-hours (MWh)
+        "peak_demand": 2_500,  # Estimated in megawatts (MW)
+        "heating_degree_days": 3_000,  # Estimated based on regional climate data
+        "cooling_degree_days": 100,  # Estimated based on regional climate data
+        "installed_renewable_capacity": {
+            "solar": 50,  # Estimated in megawatts (MW)
+            "wind": 150   # Estimated in megawatts (MW)
+        },
+        "electric_vehicle_count": 5_000,  # Estimated based on national trends and city size
+        "daylight_savings": True  # Bremen observes daylight savings
+    },
+    {
+        "name": "Kiel",
+        "type": "city",
+        "suffix":"_city_kiel",
+        "TSO": "TenneT",
+        "lat": 54.3233,  # Corrected latitude for Kiel
+        "lon": 10.1228,  # Corrected longitude for Kiel
+        "population": 246243,  # Population as of 2023
+        "population_density": 1300,  # Persons per square kilometer
+        "area": 118.65,  # Square kilometers
+        "industrial_activity_fraction": 0.25,  # Estimated based on regional data
+        "renewable_energy_fraction": {
+            "solar": 0.10,  # Estimated based on regional data
+            "wind": 0.30,   # Estimated based on regional data
+            "others": 0.05  # Estimated based on regional data
+        },
+        "non_renewable_energy_fraction": 0.55,  # Estimated based on regional data
+        "total_energy_consumption": 3000,  # Estimated in GWh/year
+        "peak_demand": 500,  # Estimated in MW
+        "heating_degree_days": 3000,  # Estimated based on regional climate data
+        "cooling_degree_days": 100,  # Estimated based on regional climate data
+        "installed_renewable_capacity": {
+            "solar": 50,  # Estimated in MW
+            "wind": 150   # Estimated in MW
+        },
+        "electric_vehicle_count": 2000,  # Estimated number of EVs
+        "daylight_savings": True  # Kiel observes daylight savings
+},
+    {
+        "name": "Kassel",
+        "type": "city",
+        "suffix":"_city_kassel",
+        "TSO": "TenneT",
+        "lat": 51.3127,  # decimal latitude
+        "lon": 9.4797,   # decimal longitude
+        "population": 201048,  # Total population as of December 2020
+        "population_density": 1884,  # Persons per square kilometer
+        "area": 106.8,  # Square kilometers
+        "industrial_activity_fraction": 0.35,  # Estimated fraction of energy consumed by industry
+        "renewable_energy_fraction": {
+            "solar": 0.05,  # Estimated fraction of total energy from solar
+            "wind": 0.10,   # Estimated fraction of total energy from wind
+            "others": 0.15  # Estimated fraction from other renewable sources
+        },
+        "non_renewable_energy_fraction": 0.70,  # Estimated fraction of energy from non-renewables
+        "total_energy_consumption": 3500,  # Estimated annual energy consumption in GWh
+        "peak_demand": 600,  # Estimated peak energy demand in MW
+        "heating_degree_days": 3000,  # Estimated HDD
+        "cooling_degree_days": 100,   # Estimated CDD
+        "installed_renewable_capacity": {
+            "solar": 50,  # Estimated installed solar capacity in MW
+            "wind": 100   # Estimated installed wind capacity in MW
+        },
+        "electric_vehicle_count": 2000,  # Estimated number of EVs in the city
+        "daylight_savings": True  # Kassel observes daylight savings
+    },
+    {
+        "name": "Bremerhaven",
+        "type": "city",
+        "suffix":"_city_bremerhaven",
+        "TSO": "TenneT",
+        "lat": 53.5396,  # decimal latitude
+        "lon": 8.5809,  # decimal longitude
+        "population": 113643,  # Total population
+        "population_density": 1400,  # Persons per square kilometer (approx.)
+        "area": 78.87,  # Square kilometers
+        "industrial_activity_fraction": 0.35,  # Fraction of energy consumed by industry (estimated)
+        "renewable_energy_fraction": {
+            "solar": 0.05,  # Fraction of total energy from solar (estimated)
+            "wind": 0.25,   # Fraction of total energy from wind (estimated)
+            "others": 0.10  # Fraction of other renewable sources (estimated)
+        },
+        "non_renewable_energy_fraction": 0.60,  # Fraction of energy from non-renewables (estimated)
+        "total_energy_consumption": 1200,  # Annual energy consumption in GWh (estimated)
+        "peak_demand": 200,  # Peak energy demand in MW (estimated)
+        "heating_degree_days": 3199,  # HDD (indicative of heating demand)
+        "cooling_degree_days": 0,   # CDD (indicative of cooling demand)
+        "installed_renewable_capacity": {
+            "solar": 10,  # Installed solar capacity in MW (estimated)
+            "wind": 50    # Installed wind capacity in MW (estimated)
+        },
+        "electric_vehicle_count": 500,  # Number of EVs in the city (estimated)
+        "daylight_savings": True  # Whether the city observes daylight savings
+    },
+
+    # TransnetBW: Stuttgard, Karlsruhe, Mannheim, Freiburg im Breisgau, Heidelberg
+    {
+        "name": "Stuttgart",
+        "type": "city",
+        "suffix":"_city_stuttgart",
+        "TSO": "TransnetBW",
+        "lat": 48.7758,  # Decimal latitude
+        "lon": 9.1829,   # Decimal longitude
+        "population": 610458,  # Total population as of May 15, 2022
+        "population_density": 2939,  # Persons per square kilometer
+        "area": 207.36,  # Square kilometers
+        "industrial_activity_fraction": 0.35,  # Estimated fraction of energy consumed by industry
+        "renewable_energy_fraction": {
+            "solar": 0.05,  # Estimated fraction of total energy from solar
+            "wind": 0.02,   # Estimated fraction of total energy from wind
+            "others": 0.08  # Estimated fraction from other renewable sources
+        },
+        "non_renewable_energy_fraction": 0.85,  # Estimated fraction of energy from non-renewables
+        "total_energy_consumption": 12000,  # Estimated annual energy consumption in GWh
+        "peak_demand": 2000,  # Estimated peak energy demand in MW
+        "heating_degree_days": 3400,  # HDD indicative of heating demand
+        "cooling_degree_days": 450,   # CDD indicative of cooling demand
+        "installed_renewable_capacity": {
+            "solar": 150,  # Installed solar capacity in MW
+            "wind": 50     # Installed wind capacity in MW
+        },
+        "electric_vehicle_count": 5000,  # Estimated number of EVs in the city
+        "daylight_savings": True  # Stuttgart observes daylight savings
+    },
+    {
+        "name": "Karlsruhe",
+        "type": "city",
+        "suffix":"_city_karlsruhe",
+        "TSO": "TransnetBW",
+        "lat": 49.0069,  # decimal latitude
+        "lon": 8.4037,   # decimal longitude
+        "population": 305408,  # Total population as of May 15, 2022
+        "population_density": 1800,  # Persons per square kilometer (approximation)
+        "area": 173.5,  # Square kilometers
+        "industrial_activity_fraction": 0.30,  # Fraction of energy consumed by industry (estimated)
+        "renewable_energy_fraction": {
+            "solar": 0.10,  # Fraction of total energy from solar (estimated)
+            "wind": 0.05,   # Fraction of total energy from wind (estimated)
+            "others": 0.15  # Fraction of other renewable sources (estimated)
+        },
+        "non_renewable_energy_fraction": 0.70,  # Fraction of energy from non-renewables (estimated)
+        "total_energy_consumption": 2500,  # Annual energy consumption in GWh (estimated)
+        "peak_demand": 450,  # Peak energy demand in MW (estimated)
+        "heating_degree_days": 3000,  # HDD (indicative of heating demand, estimated)
+        "cooling_degree_days": 100,    # CDD (indicative of cooling demand, estimated)
+        "installed_renewable_capacity": {
+            "solar": 50,  # Installed solar capacity in MW (estimated)
+            "wind": 20    # Installed wind capacity in MW (estimated)
+        },
+        "electric_vehicle_count": 5000,  # Number of EVs in the city (estimated)
+        "daylight_savings": True  # Whether the city observes daylight savings
+    },
+    {
+        "name": "Mannheim",
+        "type": "city",
+        "suffix":"_city_mannheim",
+        "TSO": "TransnetBW",
+        "lat": 49.4875,  # float; decimal latitude
+        "lon": 8.4660,  # float; decimal longitude
+        "population": 313693,  # int; Total population
+        "population_density": 2165.5,  # float; Persons per square kilometer (approx.)
+        "area": 144.96,  # float; Square kilometers
+        "industrial_activity_fraction": 0.35,  # float; Fraction of energy consumed by industry
+        "renewable_energy_fraction": {
+            "solar": 0.14,  # float; Fraction of total energy from solar
+            "wind": 0.32,  # float; Fraction of total energy from wind
+            "others": 0.14  # float; Fraction of other renewable sources
+        },
+        "non_renewable_energy_fraction": 0.4,  # float; Fraction of energy from non-renewables
+        "total_energy_consumption": 5000,  # float; Annual energy consumption in GWh
+        "peak_demand": 800,  # float; Peak energy demand in MW
+        "heating_degree_days": 3199,  # float; HDD (indicative of heating demand)
+        "cooling_degree_days": 100,  # float; CDD (indicative of cooling demand)
+        "installed_renewable_capacity": {
+            "solar": 50,  # float; Installed solar capacity in MW
+            "wind": 100  # float; Installed wind capacity in MW
+        },
+        "electric_vehicle_count": 5000,  # int; Number of EVs in the city
+        "daylight_savings": True  # bool; Whether the city observes daylight savings
+    },
+    {
+        "name": "Freiburg im Breisgau",
+        "type": "city",
+        "suffix":"_city_freiburg",
+        "TSO": "TransnetBW",
+        "lat": 47.999,  # decimal latitude
+        "lon": 7.842,  # decimal longitude
+        "population": 231195,  # Total population
+        "population_density": 1509.8,  # Persons per square kilometer
+        "area": 153.07,  # Square kilometers
+        "industrial_activity_fraction": 0.25,  # Fraction of energy consumed by industry
+        "renewable_energy_fraction": {
+            "solar": 0.10,  # Fraction of total energy from solar
+            "wind": 0.05,   # Fraction of total energy from wind
+            "others": 0.15  # Fraction of other renewable sources
+        },
+        "non_renewable_energy_fraction": 0.70,  # Fraction of energy from non-renewables
+        "total_energy_consumption": 2500,  # Annual energy consumption in GWh
+        "peak_demand": 450,  # Peak energy demand in MW
+        "heating_degree_days": 3000,  # HDD (indicative of heating demand)
+        "cooling_degree_days": 450,   # CDD (indicative of cooling demand)
+        "installed_renewable_capacity": {
+            "solar": 50,  # Installed solar capacity in MW
+            "wind": 20    # Installed wind capacity in MW
+        },
+        "electric_vehicle_count": 1500,  # Number of EVs in the city
+        "daylight_savings": True  # Whether the city observes daylight savings
+    },
+    {
+        "name": "Heidelberg",
+        "type": "city",
+        "suffix":"_city_heidelberg",
+        "TSO": "TransnetBW",
+        "lat": 49.3988,  # Latitude for Heidelberg, Germany
+        "lon": 8.6724,   # Longitude for Heidelberg, Germany
+        "population": 160000,  # Population as of 2019
+        "population_density": 1470,  # Approximate population density (persons per square kilometer)
+        "area": 108.8,  # Area in square kilometers
+        "industrial_activity_fraction": 0.12,  # Estimated fraction of energy consumed by industry
+        "renewable_energy_fraction": {
+            "solar": 0.05,  # Estimated fraction of total energy from solar
+            "wind": 0.02,   # Estimated fraction of total energy from wind
+            "others": 0.08  # Estimated fraction from other renewable sources
+        },
+        "non_renewable_energy_fraction": 0.85,  # Estimated fraction of energy from non-renewables
+        "total_energy_consumption": 1200,  # Estimated annual energy consumption in GWh
+        "peak_demand": 250,  # Estimated peak energy demand in MW
+        "heating_degree_days": 3000,  # Estimated HDD for Heidelberg
+        "cooling_degree_days": 100,   # Estimated CDD for Heidelberg
+        "installed_renewable_capacity": {
+            "solar": 15,  # Estimated installed solar capacity in MW
+            "wind": 5     # Estimated installed wind capacity in MW
+        },
+        "electric_vehicle_count": 2000,  # Estimated number of EVs in the city
+        "daylight_savings": True  # Heidelberg observes daylight savings
+    },
+
+    # Amprion: Frankfurt am Main, Cologne, Düsseldorf, Essen, Dortmund
+    {
+        "name": "Frankfurt am Main",
+        "type": "city",
+        "suffix":"_city_frankfurt",
+        "TSO": "Amprion",
+        "lat": 50.1109,  # Decimal latitude
+        "lon": 8.6821,   # Decimal longitude
+        "population": 753056,  # Total population as of 2019
+        "population_density": 3033.3,  # Persons per square kilometer
+        "area": 248.31,  # Square kilometers
+        "industrial_activity_fraction": 0.30,  # Fraction of energy consumed by industry
+        "renewable_energy_fraction": {
+            "solar": 0.05,  # Fraction of total energy from solar
+            "wind": 0.10,   # Fraction of total energy from wind
+            "others": 0.20  # Fraction of other renewable sources
+        },
+        "non_renewable_energy_fraction": 0.65,  # Fraction of energy from non-renewables
+        "total_energy_consumption": 22600,  # Annual energy consumption in GWh as of 2010
+        "peak_demand": 1500,  # Peak energy demand in MW
+        "heating_degree_days": 3000,  # HDD (indicative of heating demand)
+        "cooling_degree_days": 450,   # CDD (indicative of cooling demand)
+        "installed_renewable_capacity": {
+            "solar": 50,  # Installed solar capacity in MW
+            "wind": 85    # Installed wind capacity in MW
+        },
+        "electric_vehicle_count": 5000,  # Number of EVs in the city
+        "daylight_savings": True  # Whether the city observes daylight savings
+    },
+    {
+        "name": "Cologne",
+        "type": "city",
+        "suffix":"_city_cologne",
+        "TSO": "Amprion",
+        "lat": 50.9423,  # Decimal latitude
+        "lon": 6.9570,   # Decimal longitude
+        "population": 1149010,  # Total population
+        "population_density": 2835,  # Persons per square kilometer
+        "area": 405.15,  # Square kilometers
+        "industrial_activity_fraction": 0.29,  # Fraction of energy consumed by industry
+        "renewable_energy_fraction": {
+            "solar": 0.05,  # Fraction of total energy from solar
+            "wind": 0.02,   # Fraction of total energy from wind
+            "others": 0.08  # Fraction of other renewable sources
+        },
+        "non_renewable_energy_fraction": 0.85,  # Fraction of energy from non-renewables
+        "total_energy_consumption": 18500,  # Annual energy consumption in GWh
+        "peak_demand": 2500,  # Peak energy demand in MW
+        "heating_degree_days": 2908,  # HDD (indicative of heating demand)
+        "cooling_degree_days": 140,    # CDD (indicative of cooling demand)
+        "installed_renewable_capacity": {
+            "solar": 150,  # Installed solar capacity in MW
+            "wind": 50     # Installed wind capacity in MW
+        },
+        "electric_vehicle_count": 5000,  # Number of EVs in the city
+        "daylight_savings": True  # Whether the city observes daylight savings
+    },
+    {
+        "name": "Düsseldorf",
+        "type": "city",
+        "suffix":"_city_duesseldorf",
+        "TSO": "Amprion",
+        "lat": 51.2277,  # Decimal latitude
+        "lon": 6.7735,  # Decimal longitude
+        "population": 646000,  # Total population
+        "population_density": 2860,  # Persons per square kilometer
+        "area": 217,  # Square kilometers
+        "industrial_activity_fraction": 0.30,  # Fraction of energy consumed by industry
+        "renewable_energy_fraction": {
+            "solar": 0.07,  # Fraction of total energy from solar
+            "wind": 0.23,   # Fraction of total energy from wind
+            "others": 0.25  # Fraction of other renewable sources
+        },
+        "non_renewable_energy_fraction": 0.45,  # Fraction of energy from non-renewables
+        "total_energy_consumption": 12000,  # Annual energy consumption in GWh
+        "peak_demand": 1500,  # Peak energy demand in MW
+        "heating_degree_days": 2800,  # HDD (indicative of heating demand)
+        "cooling_degree_days": 350,   # CDD (indicative of cooling demand)
+        "installed_renewable_capacity": {
+            "solar": 150,  # Installed solar capacity in MW
+            "wind": 200    # Installed wind capacity in MW
+        },
+        "electric_vehicle_count": 5000,  # Number of EVs in the city
+        "daylight_savings": True  # Whether the city observes daylight savings
+    },
+    {
+        "name": "Essen",
+        "type": "city",
+        "suffix":"_city_essen",
+        "TSO": "Amprion",
+        "lat": 51.4508,  # decimal latitude
+        "lon": 7.0131,  # decimal longitude
+        "population": 571039,  # Total population as of May 15, 2022
+        "population_density": 2714,  # Persons per square kilometer
+        "area": 210.34,  # Square kilometers
+        "industrial_activity_fraction": 0.30,  # Estimated fraction of energy consumed by industry
+        "renewable_energy_fraction": {
+            "solar": 0.05,  # Estimated fraction of total energy from solar
+            "wind": 0.10,   # Estimated fraction of total energy from wind
+            "others": 0.15  # Estimated fraction from other renewable sources
+        },
+        "non_renewable_energy_fraction": 0.70,  # Estimated fraction of energy from non-renewables
+        "total_energy_consumption": 5000,  # Estimated annual energy consumption in GWh
+        "peak_demand": 1000,  # Estimated peak energy demand in MW
+        "heating_degree_days": 3000,  # HDD indicative of heating demand
+        "cooling_degree_days": 100,   # CDD indicative of cooling demand
+        "installed_renewable_capacity": {
+            "solar": 50,  # Installed solar capacity in MW
+            "wind": 100   # Installed wind capacity in MW
+        },
+        "electric_vehicle_count": 5000,  # Estimated number of EVs in the city
+        "daylight_savings": True  # Essen observes daylight savings
+    },
+    {
+        "name": "Dortmund",
+        "type": "city",
+        "suffix":"_city_dortmund",
+        "TSO": "Amprion",
+        "lat": 51.5136,  # decimal latitude
+        "lon": 7.4653,   # decimal longitude
+        "population": 598246,  # Total population as of May 15, 2022
+        "population_density": 2131.5,  # Persons per square kilometer
+        "area": 280.4,  # Square kilometers
+        "industrial_activity_fraction": 0.29,  # Fraction of energy consumed by industry
+        "renewable_energy_fraction": {
+            "solar": 0.10,  # Fraction of total energy from solar
+            "wind": 0.15,   # Fraction of total energy from wind
+            "others": 0.05  # Fraction of other renewable sources
+        },
+        "non_renewable_energy_fraction": 0.70,  # Fraction of energy from non-renewables
+        "total_energy_consumption": 5000,  # Annual energy consumption in GWh
+        "peak_demand": 800,  # Peak energy demand in MW
+        "heating_degree_days": 3000,  # HDD (indicative of heating demand)
+        "cooling_degree_days": 100,   # CDD (indicative of cooling demand)
+        "installed_renewable_capacity": {
+            "solar": 4.2,  # Installed solar capacity in MW
+            "wind": 10.0   # Installed wind capacity in MW
+        },
+        "electric_vehicle_count": 2000,  # Number of EVs in the city
+        "daylight_savings": True  # Whether the city observes daylight savings
+    }
 ]
+
+
 
 loc_onshore_windfarms = [
     # 50Hertz

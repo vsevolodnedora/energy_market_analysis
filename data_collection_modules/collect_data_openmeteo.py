@@ -1,6 +1,7 @@
 import pandas as pd
 from retry_requests import retry
 import time
+import os
 import requests
 import openmeteo_requests
 from datetime import datetime, timedelta
@@ -30,6 +31,7 @@ class OpenMeteo:
         "global_tilted_irradiance", # W/m^2
         "terrestrial_radiation", # W/m^2
     )
+    vars = vars_basic + vars_wind + vars_radiation
 
     phys_limits = {
         "temperature_2m": (-45., 50.),  # Extreme global temperature range; robust for outliers.
@@ -144,8 +146,22 @@ class OpenMeteo:
 
         return df
 
-    def collect(self) -> pd.DataFrame:
-        ''' Returns time-series dataframe '''
+    def collect(self, data_dir:str) -> pd.DataFrame:
+        '''
+            Openmeteo data is available as follows:
+            - Historic data is up to the end of the previous day.
+            - Forecast data is available from the start of the next day
+            - Historic forecast is available from the past till future dates.
+
+            We collect them all to create continuous and accurate time-series data as follows:
+            [start_date, ... end_of_yersteday][start_of_today ... end_of_today][start_of_tomorrow ... end_date]
+            [      historic actual data      ][   historic forecasted data    ][  actual forecasted data      ]
+
+            We acknoledge that using historic forecast is not optimal.
+            Thus, when we update the data next day we replace the previously saved historic forecast with
+            actual histroic data as it becomes available. This assures that we always have actual observed and
+            actual forecasted data. Historic forecast is only used to bridge this gap today.
+        '''
 
         # collect historic data
         start_date = self.start_date
@@ -160,14 +176,27 @@ class OpenMeteo:
             "end_date": end_date.strftime('%Y-%m-%d'),
             "hourly": ''.join([var + ',' for var in self.variable_list])[:-1],
         }
-        hist_data = self.make_request(url, params)
+        # making heavy-duty API call (it might overload API so we need to be able to fail and load)
+        fname = data_dir  + '/' + "tmp_hist.parquet"
+        if os.path.exists(fname):
+            if self.verbose: print(f"Loading temporary file: {fname}")
+            hist_data = pd.read_parquet(fname)
+        else:
+            hist_data = self.make_request(url, params)
+            time.sleep(30)
 
 
         # collect historic forecast (to bridge the data till forecasts starts)
         params['start_date'] = self.day_before_yesterday.strftime('%Y-%m-%d')
         params['end_date'] = self.today.strftime('%Y-%m-%d')
         url = "https://historical-forecast-api.open-meteo.com/v1/forecast"
-        hist_forecast_data = self.make_request(url, params)
+        fname = data_dir  + '/' + "tmp_hist_forecast.parquet"
+        if os.path.exists(fname):
+            if self.verbose: print(f"Loading temporary file: {fname}")
+            hist_forecast_data = pd.read_parquet(fname)
+        else:
+            hist_forecast_data = self.make_request(url, params)
+            time.sleep(30)
 
 
         # collect forecast
@@ -175,8 +204,15 @@ class OpenMeteo:
         params['forecast_days'] = 14
         del params['start_date']
         del params['end_date']
-        forecast_data = self.make_request(url, params)
+        fname = data_dir  + '/' + "tmp_forecast.parquet"
+        if os.path.exists(fname):
+            if self.verbose: print(f"Loading temporary file: {fname}")
+            forecast_data = pd.read_parquet(fname)
+        else:
+            forecast_data = self.make_request(url, params)
+            time.sleep(30)
 
+        # combine all data to form a continuous dataset
         df = hist_data.combine_first(hist_forecast_data)
         df = forecast_data.combine_first(df)
 
@@ -184,17 +220,20 @@ class OpenMeteo:
         if not pd.infer_freq(df.index) == 'h':
             raise ValueError("Dataframe must have 'h' frequency for openmeteo")
 
-        return df
+        # delete temporary files if present
+        if self.verbose:
+            print(f"Openmeteo data from {start_date} to {end_date} is collected successfully (df={df.shape})."
+                  f"Removing temporary files...")
+            tmp_files = [
+                data_dir  + '/' + "tmp_hist.parquet",
+                data_dir  + '/' + "tmp_hist_forecast.parquet",
+                data_dir  + '/' + "tmp_forecast.parquet"
+            ]
+            for tmp_file in tmp_files:
+                if os.path.exists(tmp_file):
+                    os.remove(tmp_file)
 
-# def check_phys_limits_in_data(df: pd.DataFrame) -> pd.DataFrame:
-#
-#     for key, lim in OpenMeteo.phys_limits.items():
-#         for loc in locations:
-#             kkey = key+loc['suffix']
-#             if kkey in df:
-#                 df[kkey].where(df[kkey] < lim[0], None)
-#                 df[kkey].where(df[kkey] > lim[1], None)
-#     return df
+        return df
 
 
 def add_solar_elevation_and_azimuth(df: pd.DataFrame, locations, verbose=False):
@@ -224,7 +263,7 @@ def create_openmeteo_from_api(fpath:str, locations:list, variables:list, start_d
                      f"{[loc['name'] for loc in locations]} locations")
 
     om = OpenMeteo(start_date, locations, variables, verbose=verbose)
-    df_hist = om.collect()
+    df_hist = om.collect(data_dir=os.path.dirname(fpath))
     if 'solar' in fpath:
         df_hist = add_solar_elevation_and_azimuth(df_hist, locations, verbose=verbose)
 
@@ -245,7 +284,7 @@ def update_openmeteo_from_api(fpath:str, verbose:bool, locations:list, variables
                       f"Current data has shape {df_hist.shape}")
 
     om = OpenMeteo(start_date, locations, variables, verbose=verbose)
-    df_om = om.collect()
+    df_om = om.collect(data_dir=os.path.dirname(fpath))
 
     if 'solar' in fpath:
         df_om = add_solar_elevation_and_azimuth(df_om, locations, verbose=verbose)
@@ -267,6 +306,7 @@ def update_openmeteo_from_api(fpath:str, verbose:bool, locations:list, variables
 
     if verbose: print(f"OpenMeteo file {fpath} updated with {len(variables)} variables.\n"
                       f"Collected df_hist={df_om[:idx].shape} and df_forecast={df_om[idx+timedelta(hours=1):].shape}. ")
+
 
 if __name__ == '__main__':
     # todo add tests
