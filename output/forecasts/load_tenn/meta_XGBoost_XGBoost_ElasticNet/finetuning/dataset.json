@@ -1,0 +1,18 @@
+{
+    "log_target": true,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "add_cyclical_time_features": true,
+    "locations": [
+        "Munich",
+        "Bremen",
+        "Kiel",
+        "Kassel",
+        "Bremerhaven"
+    ],
+    "feature_engineer": "WeatherLoadFE",
+    "lags_target": null,
+    "copy_input": true,
+    "target": "load_tenn"
+}

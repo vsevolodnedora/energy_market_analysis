@@ -1,0 +1,17 @@
+{
+    "log_target": true,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "copy_input": true,
+    "locations": [
+        "Frankfurt am Main",
+        "Cologne",
+        "D\u00fcsseldorf",
+        "Essen",
+        "Dortmund"
+    ],
+    "add_cyclical_time_features": true,
+    "feature_engineer": "WeatherLoadFE",
+    "target": "load_ampr"
+}

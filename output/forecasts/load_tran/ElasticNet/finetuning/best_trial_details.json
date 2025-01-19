@@ -1,0 +1,31 @@
+{
+    "trial_id": 4,
+    "best_value": 962.6332274882183,
+    "params": {
+        "compute_heating_degree_hours": true,
+        "compute_cooling_degree_hours": false,
+        "compute_dew_point_spread": false,
+        "compute_temp_gradient": false,
+        "compute_wind_chill": false,
+        "compute_humidex": true,
+        "compute_wind_components": true,
+        "compute_wind_power_density": false,
+        "compute_pressure_trend": true,
+        "compute_wind_speed_gradient": false,
+        "compute_air_density": false,
+        "compute_rain_indicator": true,
+        "compute_cloud_cover_fraction": false,
+        "compute_effective_solar": true,
+        "temp_lags_option": "none",
+        "precip_lags_option": "none",
+        "cloud_lags_option": "small",
+        "rolling_temp_option": "short",
+        "drop_basic_meteo_features": false,
+        "drop_wind_meteo_features": true,
+        "drop_rad_meteo_features": true,
+        "spatial_agg_method": "idw",
+        "lags_target": null,
+        "l1_ratio": 0.4105783113040641,
+        "alpha": 0.09719498308965585
+    }
+}

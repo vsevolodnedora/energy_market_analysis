@@ -1,0 +1,6 @@
+number,value,params_alpha,params_compute_air_density,params_compute_air_density_moiust_air_correction,params_compute_wind_power_density,params_compute_wind_ramp,params_compute_wind_shear,params_dew_point_temperature,params_drop_raw_main_features,params_drop_raw_wind_features,params_encode_wind_direction,params_gust_factor,params_l1_ratio,params_lags_choice,params_lags_target,params_precip_lags_choice,params_spatial_agg_method,params_turbulence_window,params_vapor_pressure,state
+0,536.6399072469305,0.8465754310372898,False,True,False,False,False,False,True,False,True,True,0.11564700372268427,small,1,large,idw,6,False,COMPLETE
+1,186.10340823373372,0.07278131304797658,True,False,True,True,False,False,False,True,False,False,0.5926028631755708,large,12,small,distance_capacity,2,False,COMPLETE
+2,534.7498101923433,0.9660590989401573,False,True,False,False,False,False,False,True,False,True,0.292396525262662,small,1,none,capacity,6,True,COMPLETE
+3,550.7170135458097,0.2399753893542608,False,False,True,True,False,True,False,True,True,True,0.23171478496032996,large,1,small,capacity,2,False,COMPLETE
+4,202.0772597776763,0.3748035109884167,True,True,False,False,True,True,False,True,False,False,0.488271378769906,small,12,none,distance_n_turbines,2,False,COMPLETE

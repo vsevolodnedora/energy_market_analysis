@@ -1,0 +1,31 @@
+{
+    "trial_id": 8,
+    "best_value": 1797.7167115082202,
+    "params": {
+        "compute_air_density": true,
+        "compute_wind_power_density": true,
+        "encode_wind_direction": true,
+        "compute_wind_shear": true,
+        "compute_wind_ramp": true,
+        "compute_air_density_moiust_air_correction": true,
+        "dew_point_temperature": true,
+        "vapor_pressure": true,
+        "gust_factor": false,
+        "turbulence_window": 2,
+        "lags_choice": "none",
+        "precip_lags_choice": "small",
+        "drop_raw_main_features": false,
+        "drop_raw_wind_features": false,
+        "spatial_agg_method": "distance_capacity",
+        "n_estimators": 843,
+        "learning_rate": 0.04506594486923427,
+        "max_depth": 9,
+        "min_child_weight": 9,
+        "subsample": 0.9848752844577251,
+        "colsample_bytree": 0.5282319735307296,
+        "reg_alpha": 0.6608446219932562,
+        "reg_lambda": 1.137294276521314e-06,
+        "use_base_models_pred_intervals": false,
+        "cv_folds_base": 35
+    }
+}
