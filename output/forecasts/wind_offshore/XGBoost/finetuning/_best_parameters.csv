@@ -1,9 +1,0 @@
-Parameter,Value
-n_estimators,762
-learning_rate,0.10077842317738182
-max_depth,4
-min_child_weight,5
-subsample,0.8116885677143932
-colsample_bytree,0.7053491601446378
-reg_alpha,0.005909806357329477
-reg_lambda,5.231527754226274e-05
