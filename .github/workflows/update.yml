@@ -5,41 +5,29 @@ on:
     branches: [ "main" ]
     paths:
       - 'data/**'
-
 jobs:
   update_data:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' # Conditionally run this job only on push events
     permissions:
       contents: write
     env:
       ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.11.5'
           cache: 'pipenv'
-
       - name: Install pipenv
-        run: pip install pipenv
-
-      - name: Install dependencies
-        run: pipenv install --deploy --dev
-
-      - name: Collect data
-        run: pipenv run python main.py
-
+        run: curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
+      - name: collect
+        run: pipenv install && pipenv run python main.py
       - name: Commit updated data
         run: |
           git config --global user.name 'Collect Bot'
           git config --global user.email 'noreply@nedora.digital'
           git add .
-          if ! git diff --quiet; then
-            git commit -m "Add data for today"
-            git pull --rebase
-            git push
-          fi
+          git commit -m "Add data for today"
+          git pull -r
+          git push
