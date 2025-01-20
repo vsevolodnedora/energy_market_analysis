@@ -1,0 +1,25 @@
+name: Update Forecasts
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - 'database/**'
+
+jobs:
+  update_forecasts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11.5'
+          cache: 'pipenv'
+      - name: Install pipenv
+        run: curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
+      - name: Update Forecasts
+        run: pipenv install && pipenv run python update_forecasts.py

@@ -1,10 +1,11 @@
-name: Update
+name: Collect Data
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
       - 'data/**'
+
 jobs:
   update_data:
     runs-on: ubuntu-latest
@@ -21,13 +22,13 @@ jobs:
           cache: 'pipenv'
       - name: Install pipenv
         run: curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
-      - name: collect
-        run: pipenv install && pipenv run python main.py
-      - name: Commit updated data
+      - name: Collect Data
+        run: pipenv install && pipenv run python update_database.py
+      - name: Commit Updated Data
         run: |
           git config --global user.name 'Collect Bot'
           git config --global user.email 'noreply@nedora.digital'
-          git add .
+          git add database/
           git commit -m "Add data for today"
           git pull -r
           git push
