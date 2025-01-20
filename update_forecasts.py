@@ -27,22 +27,25 @@ from publish_data import (
 )
 
 if __name__ == '__main__':
+
+    print("launching update_forecasts.py")
+
     db_path = './database/'
     verbose = True
-
-    # --- update forecasts ---
-    update_forecast_production(
-        database=db_path, variable='wind_offshore', outdir='./output/forecasts/', verbose=verbose
-    )
-    update_forecast_production(
-        database=db_path, variable='wind_onshore', outdir='./output/forecasts/', verbose=verbose
-    )
-    update_forecast_production(
-        database=db_path, variable='solar', outdir='./output/forecasts/', verbose=verbose
-    )
-    update_forecast_production(
-        database=db_path, variable='load', outdir='./output/forecasts/', verbose=verbose
-    )
+    #
+    # # --- update forecasts ---
+    # update_forecast_production(
+    #     database=db_path, variable='wind_offshore', outdir='./output/forecasts/', verbose=verbose
+    # )
+    # update_forecast_production(
+    #     database=db_path, variable='wind_onshore', outdir='./output/forecasts/', verbose=verbose
+    # )
+    # update_forecast_production(
+    #     database=db_path, variable='solar', outdir='./output/forecasts/', verbose=verbose
+    # )
+    # update_forecast_production(
+    #     database=db_path, variable='load', outdir='./output/forecasts/', verbose=verbose
+    # )
 
     # --- serve forecasts ---
     publish_generation(
@@ -85,4 +88,5 @@ if __name__ == '__main__':
         database_dir = db_path,
         output_dir = './deploy/data/forecasts/'
     )
+
     print(f"All tasks in update are completed successfully!")

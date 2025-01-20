@@ -20,6 +20,8 @@ from data_collection_modules import (
 
 if __name__ == '__main__':
 
+    print("launching update_database.py")
+
     # Load .env file
     load_dotenv()
 
@@ -37,6 +39,8 @@ if __name__ == '__main__':
     tasks = [
         'update', 'create_smard', 'create_openmeteo', 'create_entsoe',
     ]
+
+    print(f"Starting task {task}...")
 
     if task not in tasks:
         raise ValueError(f'Invalid task {task}')
