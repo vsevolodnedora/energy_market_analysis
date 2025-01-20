@@ -248,7 +248,9 @@ class WeatherWindPowerFE:
         combined_df = pd.concat(processed_dfs, axis=1)
 
         # Apply spatial aggregation if configured
-        if (not self.config.get("spatial_agg_method", None) is "None") and (len(self.locations) > 1):
+
+
+        if (len(self.locations) > 1) and (self.config["spatial_agg_method"] != "None"):
             combined_df = self._apply_spatial_aggregation(combined_df)
 
         if self.verbose:
@@ -612,7 +614,6 @@ class WeatherWindPowerFE:
         drop_raw_wind_features = trial.suggest_categorical("drop_raw_wind_features", [True, False])
 
 
-        # Spatial aggregation method
         if not "spatial_agg_method" in fixed:
             spatial_agg_method = trial.suggest_categorical(
                 "spatial_agg_method", [
@@ -720,7 +721,7 @@ class WeatherSolarPowerFE:
         combined_df = pd.concat(processed_dfs, axis=1)
 
         # Apply spatial aggregation if configured
-        if (self.config.get("spatial_agg_method", None) != "None") and (len(self.locations) > 1):
+        if (len(self.locations) > 1) and (self.config["spatial_agg_method"] != "None"):
             combined_df = self._apply_spatial_aggregation(combined_df)
 
         if self.verbose:
@@ -1282,7 +1283,7 @@ class WeatherLoadFE:
         combined_df = pd.concat(processed_dfs, axis=1)
 
         # Apply spatial aggregation if configured
-        if (self.config.get("spatial_agg_method", None) != "None") and (len(self.locations) > 1):
+        if (len(self.locations) > 1) and (self.config["spatial_agg_method"] != "None"):
             combined_df = self._apply_spatial_aggregation(combined_df)
 
         if self.verbose:
