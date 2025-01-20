@@ -86,88 +86,88 @@ if __name__ == '__main__':
 
         # --- update database ---
         update_smard_from_api(today=today, data_dir=db_path + 'smard/', verbose=verbose)
-
-        # due to file size limitations on GitHub we need to split the openmeteo data into different files
-        update_openmeteo_from_api(
-            fpath=db_path + 'openmeteo/offshore_history.parquet',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind),
-            locations = loc_offshore_windfarms, verbose = verbose
-        )
-        update_openmeteo_from_api(
-            fpath=db_path + 'openmeteo/onshore_history.parquet',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind),
-            locations = loc_onshore_windfarms, verbose = verbose
-        )
-        update_openmeteo_from_api(
-            fpath=db_path + 'openmeteo/solar_history.parquet',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_radiation),
-            locations = loc_solarfarms, verbose = verbose
-        )
-        update_openmeteo_from_api(
-            fpath=db_path + 'openmeteo/cities_history.parquet',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind + OpenMeteo.vars_radiation),
-            locations = loc_cities, verbose = verbose
-        )
-
-        update_epexspot_from_files(today=today, data_dir=db_path + 'epexspot/', verbose=verbose)
-
-        update_entsoe_from_api(today=today, data_dir=db_path + 'entsoe/', api_key=entsoe_api_key, verbose=verbose)
-
-
-        # --- update forecasts ---
-        update_forecast_production(
-            database=db_path, variable='wind_offshore', outdir='./output/forecasts/', verbose=verbose
-        )
-        update_forecast_production(
-            database=db_path, variable='wind_onshore', outdir='./output/forecasts/', verbose=verbose
-        )
-        update_forecast_production(
-            database=db_path, variable='solar', outdir='./output/forecasts/', verbose=verbose
-        )
-        update_forecast_production(
-            database=db_path, variable='load', outdir='./output/forecasts/', verbose=verbose
-        )
-
-        # --- serve forecasts ---
-
-        publish_generation(
-            target='wind_offshore',
-            avail_regions=('DE_50HZ', 'DE_TENNET'),
-            n_folds = 3,
-            metric = 'rmse',
-            method_type = 'trained', # 'trained'
-            results_root_dir = './output/forecasts/',
-            database_dir = db_path,
-            output_dir = './deploy/data/forecasts/'
-        )
-        publish_generation(
-            target='wind_onshore',
-            avail_regions=('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'),
-            n_folds = 3,
-            metric = 'rmse',
-            method_type = 'trained', # 'trained'
-            results_root_dir = './output/forecasts/',
-            database_dir = db_path,
-            output_dir = './deploy/data/forecasts/'
-        )
-        publish_generation(
-            target='solar',
-            avail_regions=('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'),
-            n_folds = 3,
-            metric = 'rmse',
-            method_type = 'trained', # 'trained'
-            results_root_dir = './output/forecasts/',
-            database_dir = db_path,
-            output_dir = './deploy/data/forecasts/'
-        )
-        publish_generation(
-            target='load',
-            avail_regions=('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'),
-            n_folds = 3,
-            metric = 'rmse',
-            method_type = 'trained', # 'trained'
-            results_root_dir = './output/forecasts/',
-            database_dir = db_path,
-            output_dir = './deploy/data/forecasts/'
-        )
-        # print(f"All tasks in update are completed successfully!")
+        #
+        # # due to file size limitations on GitHub we need to split the openmeteo data into different files
+        # update_openmeteo_from_api(
+        #     fpath=db_path + 'openmeteo/offshore_history.parquet',
+        #     variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind),
+        #     locations = loc_offshore_windfarms, verbose = verbose
+        # )
+        # update_openmeteo_from_api(
+        #     fpath=db_path + 'openmeteo/onshore_history.parquet',
+        #     variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind),
+        #     locations = loc_onshore_windfarms, verbose = verbose
+        # )
+        # update_openmeteo_from_api(
+        #     fpath=db_path + 'openmeteo/solar_history.parquet',
+        #     variables = (OpenMeteo.vars_basic + OpenMeteo.vars_radiation),
+        #     locations = loc_solarfarms, verbose = verbose
+        # )
+        # update_openmeteo_from_api(
+        #     fpath=db_path + 'openmeteo/cities_history.parquet',
+        #     variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind + OpenMeteo.vars_radiation),
+        #     locations = loc_cities, verbose = verbose
+        # )
+        #
+        # update_epexspot_from_files(today=today, data_dir=db_path + 'epexspot/', verbose=verbose)
+        #
+        # update_entsoe_from_api(today=today, data_dir=db_path + 'entsoe/', api_key=entsoe_api_key, verbose=verbose)
+        #
+        #
+        # # --- update forecasts ---
+        # update_forecast_production(
+        #     database=db_path, variable='wind_offshore', outdir='./output/forecasts/', verbose=verbose
+        # )
+        # update_forecast_production(
+        #     database=db_path, variable='wind_onshore', outdir='./output/forecasts/', verbose=verbose
+        # )
+        # update_forecast_production(
+        #     database=db_path, variable='solar', outdir='./output/forecasts/', verbose=verbose
+        # )
+        # update_forecast_production(
+        #     database=db_path, variable='load', outdir='./output/forecasts/', verbose=verbose
+        # )
+        #
+        # # --- serve forecasts ---
+        #
+        # publish_generation(
+        #     target='wind_offshore',
+        #     avail_regions=('DE_50HZ', 'DE_TENNET'),
+        #     n_folds = 3,
+        #     metric = 'rmse',
+        #     method_type = 'trained', # 'trained'
+        #     results_root_dir = './output/forecasts/',
+        #     database_dir = db_path,
+        #     output_dir = './deploy/data/forecasts/'
+        # )
+        # publish_generation(
+        #     target='wind_onshore',
+        #     avail_regions=('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'),
+        #     n_folds = 3,
+        #     metric = 'rmse',
+        #     method_type = 'trained', # 'trained'
+        #     results_root_dir = './output/forecasts/',
+        #     database_dir = db_path,
+        #     output_dir = './deploy/data/forecasts/'
+        # )
+        # publish_generation(
+        #     target='solar',
+        #     avail_regions=('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'),
+        #     n_folds = 3,
+        #     metric = 'rmse',
+        #     method_type = 'trained', # 'trained'
+        #     results_root_dir = './output/forecasts/',
+        #     database_dir = db_path,
+        #     output_dir = './deploy/data/forecasts/'
+        # )
+        # publish_generation(
+        #     target='load',
+        #     avail_regions=('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'),
+        #     n_folds = 3,
+        #     metric = 'rmse',
+        #     method_type = 'trained', # 'trained'
+        #     results_root_dir = './output/forecasts/',
+        #     database_dir = db_path,
+        #     output_dir = './deploy/data/forecasts/'
+        # )
+        # # print(f"All tasks in update are completed successfully!")
