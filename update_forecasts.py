@@ -48,6 +48,9 @@ if __name__ == '__main__':
     # )
 
     # --- serve forecasts ---
+    if not os.path.isdir("./deploy/data"):
+        os.mkdir("./deploy/data")
+
     publish_generation(
         target='wind_offshore',
         avail_regions=('DE_50HZ', 'DE_TENNET'),

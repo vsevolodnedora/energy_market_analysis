@@ -59,7 +59,8 @@ def publish_generation(
         method_type = 'trained', # 'trained'
         results_root_dir = 'forecasting_modules/output/',
         database_dir = 'database/',
-        output_dir = 'deploy/data/forecasts/'
+        output_dir = 'deploy/data/forecasts/',
+        verbose:bool = True,
 ):
 
     def retain_most_recent_entries(data:dict, N:int):
@@ -197,6 +198,7 @@ def publish_generation(
     possible_types = ['forecast.csv', 'result.csv']
 
     if not os.path.exists(output_dir):
+        if verbose: print(f'Creating output directory {output_dir}')
         os.makedirs(output_dir)
 
     # Convert .csv past and current forecasts into json files for each TSO
