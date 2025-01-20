@@ -85,33 +85,33 @@ if __name__ == '__main__':
     elif task == 'update':
 
         # --- update database ---
-        # update_smard_from_api(today=today, data_dir=db_path + 'smard/', verbose=verbose)
-        #
-        # # due to file size limitations on GitHub we need to split the openmeteo data into different files
-        # update_openmeteo_from_api(
-        #     fpath=db_path + 'openmeteo/offshore_history.parquet',
-        #     variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind),
-        #     locations = loc_offshore_windfarms, verbose = verbose
-        # )
-        # update_openmeteo_from_api(
-        #     fpath=db_path + 'openmeteo/onshore_history.parquet',
-        #     variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind),
-        #     locations = loc_onshore_windfarms, verbose = verbose
-        # )
-        # update_openmeteo_from_api(
-        #     fpath=db_path + 'openmeteo/solar_history.parquet',
-        #     variables = (OpenMeteo.vars_basic + OpenMeteo.vars_radiation),
-        #     locations = loc_solarfarms, verbose = verbose
-        # )
-        # update_openmeteo_from_api(
-        #     fpath=db_path + 'openmeteo/cities_history.parquet',
-        #     variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind + OpenMeteo.vars_radiation),
-        #     locations = loc_cities, verbose = verbose
-        # )
-        #
-        # update_epexspot_from_files(today=today, data_dir=db_path + 'epexspot/', verbose=verbose)
-        #
-        # update_entsoe_from_api(today=today, data_dir=db_path + 'entsoe/', api_key=entsoe_api_key, verbose=verbose)
+        update_smard_from_api(today=today, data_dir=db_path + 'smard/', verbose=verbose)
+
+        # due to file size limitations on GitHub we need to split the openmeteo data into different files
+        update_openmeteo_from_api(
+            fpath=db_path + 'openmeteo/offshore_history.parquet',
+            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind),
+            locations = loc_offshore_windfarms, verbose = verbose
+        )
+        update_openmeteo_from_api(
+            fpath=db_path + 'openmeteo/onshore_history.parquet',
+            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind),
+            locations = loc_onshore_windfarms, verbose = verbose
+        )
+        update_openmeteo_from_api(
+            fpath=db_path + 'openmeteo/solar_history.parquet',
+            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_radiation),
+            locations = loc_solarfarms, verbose = verbose
+        )
+        update_openmeteo_from_api(
+            fpath=db_path + 'openmeteo/cities_history.parquet',
+            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind + OpenMeteo.vars_radiation),
+            locations = loc_cities, verbose = verbose
+        )
+
+        update_epexspot_from_files(today=today, data_dir=db_path + 'epexspot/', verbose=verbose)
+
+        update_entsoe_from_api(today=today, data_dir=db_path + 'entsoe/', api_key=entsoe_api_key, verbose=verbose)
 
 
         # --- update forecasts ---
