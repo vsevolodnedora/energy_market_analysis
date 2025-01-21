@@ -44,17 +44,21 @@ jobs:
 
       - name: Remove existing files in deploy/data
         run: |
-          rm -rf deploy/data/
-          mkdir -p deploy/data/
+          rm -rf deploy/data
+          mkdir -p deploy/data
 
-      - name: Copy updated files from main branch
-        run: |
-          git checkout main -- deploy/data
-
-      - name: Commit and push changes
+      - name: Commit removal of old files
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
+          git add -u deploy/data
+          git commit -m "Remove old forecast files" || echo "No files to remove"
+
+      - name: Copy updated files from main branch
+        run: git checkout main -- deploy/data
+
+      - name: Commit and push changes
+        run: |
           git add deploy/data
           git commit -m "Update forecasts data"
           git push origin gh-pages
