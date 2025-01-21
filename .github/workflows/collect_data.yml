@@ -1,4 +1,4 @@
-name: Collect Data
+name: Update Database
 
 on:
   push:
@@ -9,24 +9,33 @@ on:
 jobs:
   update_data:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' # Conditionally run this job only on push events
+    if: github.event_name == 'push'
     permissions:
       contents: write
     env:
       ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.11.5'
           cache: 'pipenv'
+
       - name: Install pipenv
         run: curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
-      - name: Collect Data
-        run: pipenv install && pipenv run python update_database.py
+
+      - name: Install Dependencies
+        run: pipenv install
+
+      - name: Update Database
+        run: pipenv run python update_database.py
+
       - name: Commit Updated Data
         run: |
-          git config --global user.name 'Collect Bot'
+          git config --global user.name 'Collector'
           git config --global user.email 'noreply@nedora.digital'
           git add database/
           git commit -m "Add data for today"
