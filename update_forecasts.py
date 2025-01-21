@@ -32,24 +32,24 @@ if __name__ == '__main__':
 
     db_path = './database/'
     verbose = True
-    #
-    # # --- update forecasts ---
-    # update_forecast_production(
-    #     database=db_path, variable='wind_offshore', outdir='./output/forecasts/', verbose=verbose
-    # )
-    # update_forecast_production(
-    #     database=db_path, variable='wind_onshore', outdir='./output/forecasts/', verbose=verbose
-    # )
-    # update_forecast_production(
-    #     database=db_path, variable='solar', outdir='./output/forecasts/', verbose=verbose
-    # )
-    # update_forecast_production(
-    #     database=db_path, variable='load', outdir='./output/forecasts/', verbose=verbose
-    # )
+
+    # --- update forecasts ---
+    update_forecast_production(
+        database=db_path, variable='wind_offshore', outdir='./output/forecasts/', verbose=verbose
+    )
+    update_forecast_production(
+        database=db_path, variable='wind_onshore', outdir='./output/forecasts/', verbose=verbose
+    )
+    update_forecast_production(
+        database=db_path, variable='solar', outdir='./output/forecasts/', verbose=verbose
+    )
+    update_forecast_production(
+        database=db_path, variable='load', outdir='./output/forecasts/', verbose=verbose
+    )
 
     # --- serve forecasts ---
-    if not os.path.isdir("./deploy/data"):
-        os.mkdir("./deploy/data")
+    if not os.path.isdir("./deploy/data/"):
+        os.mkdir("./deploy/data/")
 
     publish_generation(
         target='wind_offshore',
