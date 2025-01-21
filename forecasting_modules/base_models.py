@@ -295,74 +295,6 @@ class BaseForecaster:
         del self.model; self.model = MapieRegressor()
         del  self.X_futures_df;  self.X_futures_df = pd.DataFrame()
 
-
-class ElasticNetMapieRegressor(BaseForecaster):
-
-    def __init__(self,
-                 target:str, model:MapieRegressor, alpha:float, verbose:bool # lags_target:int or None,
-                 ):
-        super().__init__(
-            target, alpha, verbose
-        )
-        self.name = "ElasticNetMapieRegressor"
-        self.base_model = model
-        self.features = None
-
-    def fit(self, X_scaled:pd.DataFrame, y_scaled) -> None:
-        # Check if base model is pre-fitted
-        if hasattr(self.model.estimator, "fit"):
-            if self.verbose: print(f"Base model {self.name} is not fitted. Fitting using X={X_scaled.shape}")
-            # print("Base model has a 'fit' method and is likely not pre-fitted.")
-            self.model.estimator.fit(X_scaled, y_scaled)
-
-        if len(X_scaled) == 0 or len(y_scaled) == 0:
-            raise ValueError(
-                f"Empty dataframe is passed for training: "
-                f"X_scaled={X_scaled.shape} and y_scaled={y_scaled.shape}"
-            )
-
-        # Fit mapieregressor model
-        self.model.fit(X_scaled, y_scaled)
-        # self.features = X_scaled.columns.tolist()
-        # self.lag_y_past = y_scaled.copy()
-
-    # def get_model_feature_importance(self)->pd.Series:
-    #     ''' get feature importance from MapieRegressor (of ElasticNet) '''
-    #
-    #     # Ensure the MapieRegressor model and its base estimator are fitted
-    #     if not hasattr(self.model, 'estimator_'):
-    #         raise AttributeError("The MapieRegressor model has not been fitted or is not accessible.")
-    #
-    #     # Access the underlying ensemble estimator
-    #     mapie_regressor = self.get_regressor()
-    #     ensemble_estimator = mapie_regressor.estimator_
-    #
-    #     # Check if the base estimator has an ensemble of models (e.g., in a bagging setup)
-    #     if hasattr(ensemble_estimator, 'estimators_'):
-    #         # Initialize a list to collect coefficients from each estimator
-    #         coef_list = []
-    #
-    #         # Iterate through each estimator to collect coefficients
-    #         for est in ensemble_estimator.estimators_:
-    #             if hasattr(est, 'coef_'):
-    #                 coef_list.append(est.coef_)
-    #             else:
-    #                 raise AttributeError("An estimator in the ensemble lacks `coef_` attributes.")
-    #
-    #         # Calculate the mean of the coefficients across estimators
-    #         avg_coefficients = np.mean(coef_list, axis=0)
-    #     elif hasattr(ensemble_estimator, 'coef_'):
-    #         # If there's only a single estimator, use its coefficients directly
-    #         avg_coefficients = ensemble_estimator.coef_
-    #     else:
-    #         raise AttributeError("No `coef_` attribute found in the ensemble or base model.")
-    #
-    #     # Create a Series of averaged coefficients for feature importance
-    #     feature_importance = pd.Series(avg_coefficients, index=self.features)
-    #     feature_importance = feature_importance.abs().sort_values(ascending=False)
-    #     return feature_importance
-
-
 class XGBoostMapieRegressor(BaseForecaster):
 
     def __init__(self,target:str,  model: MapieRegressor, alpha:float, verbose:bool): # lags_target:int or None,
@@ -406,7 +338,6 @@ class XGBoostMapieRegressor(BaseForecaster):
     #     feature_importance = pd.Series(importances, index=self.features)
     #     feature_importance = feature_importance.sort_values(ascending=False)
     #     return feature_importance
-
 
 class ProphetForecaster(BaseForecaster):
 
@@ -562,3 +493,69 @@ class ProphetForecaster(BaseForecaster):
         shap_like_values.index = shap_like_values.index.tz_localize(X_test.index.tzinfo)
         shap_like_values.index.name = 'date'
         return shap_like_values
+
+class ElasticNetMapieRegressor(BaseForecaster):
+
+    def __init__(self,
+                 target:str, model:MapieRegressor, alpha:float, verbose:bool # lags_target:int or None,
+                 ):
+        super().__init__(
+            target, alpha, verbose
+        )
+        self.name = "ElasticNetMapieRegressor"
+        self.base_model = model
+        self.features = None
+
+    def fit(self, X_scaled:pd.DataFrame, y_scaled) -> None:
+        # Check if base model is pre-fitted
+        if hasattr(self.model.estimator, "fit"):
+            if self.verbose: print(f"Base model {self.name} is not fitted. Fitting using X={X_scaled.shape}")
+            # print("Base model has a 'fit' method and is likely not pre-fitted.")
+            self.model.estimator.fit(X_scaled, y_scaled)
+
+        if len(X_scaled) == 0 or len(y_scaled) == 0:
+            raise ValueError(
+                f"Empty dataframe is passed for training: "
+                f"X_scaled={X_scaled.shape} and y_scaled={y_scaled.shape}"
+            )
+
+        # Fit mapieregressor model
+        self.model.fit(X_scaled, y_scaled)
+        # self.features = X_scaled.columns.tolist()
+        # self.lag_y_past = y_scaled.copy()
+
+    # def get_model_feature_importance(self)->pd.Series:
+    #     ''' get feature importance from MapieRegressor (of ElasticNet) '''
+    #
+    #     # Ensure the MapieRegressor model and its base estimator are fitted
+    #     if not hasattr(self.model, 'estimator_'):
+    #         raise AttributeError("The MapieRegressor model has not been fitted or is not accessible.")
+    #
+    #     # Access the underlying ensemble estimator
+    #     mapie_regressor = self.get_regressor()
+    #     ensemble_estimator = mapie_regressor.estimator_
+    #
+    #     # Check if the base estimator has an ensemble of models (e.g., in a bagging setup)
+    #     if hasattr(ensemble_estimator, 'estimators_'):
+    #         # Initialize a list to collect coefficients from each estimator
+    #         coef_list = []
+    #
+    #         # Iterate through each estimator to collect coefficients
+    #         for est in ensemble_estimator.estimators_:
+    #             if hasattr(est, 'coef_'):
+    #                 coef_list.append(est.coef_)
+    #             else:
+    #                 raise AttributeError("An estimator in the ensemble lacks `coef_` attributes.")
+    #
+    #         # Calculate the mean of the coefficients across estimators
+    #         avg_coefficients = np.mean(coef_list, axis=0)
+    #     elif hasattr(ensemble_estimator, 'coef_'):
+    #         # If there's only a single estimator, use its coefficients directly
+    #         avg_coefficients = ensemble_estimator.coef_
+    #     else:
+    #         raise AttributeError("No `coef_` attribute found in the ensemble or base model.")
+    #
+    #     # Create a Series of averaged coefficients for feature importance
+    #     feature_importance = pd.Series(avg_coefficients, index=self.features)
+    #     feature_importance = feature_importance.abs().sort_values(ascending=False)
+    #     return feature_importance

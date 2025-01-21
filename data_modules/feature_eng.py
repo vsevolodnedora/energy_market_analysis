@@ -25,13 +25,14 @@ def create_holiday_weekend_series(df_index):
     # Loop over each date in the index
     for date in date_series.index:
         # Check if the date is a holiday or a weekend (Saturday=5, Sunday=6)
-        if date in de_holidays or date.weekday() >= 5:
+        if date in de_holidays:
+            date_series[date] = 1
+        elif date.weekday() >= 5:
             date_series[date] = 1
         else:
             date_series[date] = 0
 
     return date_series
-
 
 def create_time_features(index)->pd.DataFrame:
     df_time_featues = pd.DataFrame(index=index)
@@ -59,6 +60,8 @@ def create_time_features(index)->pd.DataFrame:
 
     return df_time_featues
 
+
+# --- weather-related helper function ---
 
 def compute_air_density(pressure:pd.Series, temperature:pd.Series):
     R_d = 287.05  # J/(kg·K)
@@ -188,18 +191,133 @@ def compute_wind_power_density(wind_speed:pd.Series, air_density:pd.Series):
     return wind_power_density
 
 
-# def set_lags_for_col(setting:str,config_:dict = {"small":[1,6], "large":[1, 6, 12, 24]}):
-#     if not setting in config_:
-#         raise ValueError(f"{setting} is not a valid setting for config={config_}")
-#     lags = config_[setting]
-#
-#
-#     elif setting == "small":
-#     precip_lags = [1, 6]
-#     else:
-#     precip_lags = [1, 6, 12, 24]
+# --- spatial aggregation helper functions ---
 
-class WeatherWindPowerFE:
+def _haversine_distance(lat1: np.floating, lon1: np.floating, lat2: float, lon2: float) -> float:
+    """
+    Compute the Haversine distance (in km) between two lat/lon points.
+    """
+    rlat1, rlon1, rlat2, rlon2 = map(radians, [lat1, lon1, lat2, lon2])
+    dlat = rlat2 - rlat1
+    dlon = rlon2 - rlon1
+    a = sin(dlat / 2) ** 2 + cos(rlat1) * cos(rlat2) * sin(dlon / 2) ** 2
+    c = 2 * np.arcsin(np.sqrt(a))
+    r = 6371  # Earth radius in km
+    return r * c
+
+def _strip_suffix(col_name: str, suffixes: list[str]) -> str:
+    """
+    Remove the location suffix (e.g. '_F1') from the end of a column name.
+    If no suffix is matched, return the original column name.
+    """
+    for sfx in suffixes:
+        if col_name.endswith(sfx):
+            return col_name.replace(sfx, "")
+    return col_name
+
+def _weighted_average(sub_df: pd.DataFrame, weights: dict[str, float]) -> pd.Series:
+    """
+    Compute a weighted average across columns in sub_df using `weights` (suffix -> weight).
+    Falls back to simple mean if the sum of weights is 0.
+    """
+    sum_w = sum(weights.values())
+    if sum_w == 0:
+        # Fallback to mean across columns
+        return sub_df.mean(axis=1)
+    # Weighted sum
+    weighted_sum = pd.Series(0.0, index=sub_df.index)
+    for sfx in sub_df.columns:
+        weighted_sum += sub_df[sfx] * weights[sfx]
+    return weighted_sum / sum_w
+
+def _build_base_feature_map(
+        df: pd.DataFrame, suffixes: list[str]
+) -> dict[str, list[tuple[str, str]]]:
+    """
+    Build a mapping from base-feature-name -> list of (suffix, col_name).
+    E.g. "TMP" -> [("_F1", "TMP_F1"), ("_F2", "TMP_F2"), ... ]
+    """
+    all_cols = df.columns.tolist()
+    base_feature_map = {}
+    for sfx in suffixes:
+        # Columns that end with this suffix
+        cols_with_suffix = [c for c in all_cols if c.endswith(sfx)]
+        for col_name in cols_with_suffix:
+            base_feat = _strip_suffix(col_name, [sfx])
+            if base_feat not in base_feature_map:
+                base_feature_map[base_feat] = []
+            base_feature_map[base_feat].append((sfx, col_name))
+    return base_feature_map
+
+
+# --- weather feature engineering ---
+
+class WeatherBasedFE:
+
+    def __init__(self, config:dict, verbose:bool):
+        self.config = copy.deepcopy(config)
+        self.verbose = verbose
+
+        # get list of locations names (windfarms, solarfarms, citites etc)
+        self.loc_names = self.config.get("locations", [])
+        if len(self.loc_names) == 0:
+            raise ValueError("No locations configured.")
+        # get list of dict() for locations. Each dict has latitude, longitude, suffix, etc.
+        self.locations:list[dict] = [loc for loc in all_locations if loc['name'] in self.loc_names]
+        if len(self.locations) == 0:
+            raise ValueError("No locations configured.")
+
+    def __call__(self, df: pd.DataFrame) -> pd.DataFrame:
+        '''
+            Given dataframe with raw features 'df', preprocess the dataframe based on
+            config() (engineer features, drop features, add lags, aggregate based on suffix (location)
+            and return resulting dataframe
+        '''
+
+        # Process each location separately
+        processed_dfs = []
+        for loc in self.locations:
+            loc_df = self._preprocess_location(df.copy(), loc['suffix'])
+            processed_dfs.append(loc_df)
+
+        # Combine horizontally: each location df with engineered features
+        combined_df = pd.concat(processed_dfs, axis=1)
+
+        # Apply spatial aggregation if configured
+        if (len(self.locations) > 1) and (self.config["spatial_agg_method"] != "None"):
+            combined_df = self._apply_spatial_aggregation(combined_df)
+        else:
+            if self.verbose:
+                print("No spatial aggregation method specified.")
+
+        if self.verbose:
+            print(f"Preprocessing result Shapes {df.shape} -> {combined_df.shape}"
+                  f" Start {df.index[0]} -> {combined_df.index[0]}"
+                  f" End {df.index[-3]} -> {combined_df.index[-1]}")
+
+        expected_range = pd.date_range(
+            start=combined_df.index.min(), end=combined_df.index.max(), freq='h'
+        )
+
+        if not combined_df.index.equals(expected_range):
+            raise ValueError("combined_df must be continuous with hourly frequency.")
+
+        return combined_df
+
+    def _preprocess_location(self, df:pd.DataFrame, location_suffix:str) -> pd.DataFrame:
+        raise NotImplementedError("Preprocessing not implemented in base class.")
+
+    def _apply_spatial_aggregation(self, df:pd.DataFrame) -> pd.DataFrame:
+        raise NotImplementedError("Aggregation is not implemented in base class.")
+
+    @staticmethod
+    def selector_for_optuna(trial: optuna.Trial, fixed:dict)->dict:
+        raise NotImplementedError("Selector for optuna is not implemented in base class.")
+
+
+class WeatherWindPowerFE(WeatherBasedFE):
+
+    name = "Wind Power"
 
     options = [
         "compute_air_density",
@@ -221,48 +339,7 @@ class WeatherWindPowerFE:
         """
         Initialize with a configuration dictionary.
         """
-        self.config = copy.deepcopy(config)
-        self.verbose = verbose
-        # get list of locations names (windfarms, solarfarms, citites etc)
-        self.loc_names = self.config.get("locations", [])
-        if len(self.loc_names) == 0:
-            raise ValueError("No locations configured.")
-        # get list of dict() for locations. Each dict has latitude, longitude, suffix, etc.
-        self.locations:list[dict] = [loc for loc in all_locations if loc['name'] in self.loc_names]
-        if len(self.locations) == 0:
-            raise ValueError("No locations configured.")
-
-    def __call__(self, df: pd.DataFrame) -> pd.DataFrame:
-        '''
-            Given dataframe with raw features 'df', preprocess the dataframe based on
-            config() (engineer features, drop features, add lags, aggregate based on suffix (location)
-            and return resulting dataframe
-        '''
-        # Process each location separately
-        processed_dfs = []
-        for loc in self.locations:
-            loc_df = self._preprocess_location(df.copy(), loc['suffix'])
-            processed_dfs.append(loc_df)
-
-        # Combine horizontally: each location df with engineered features
-        combined_df = pd.concat(processed_dfs, axis=1)
-
-        # Apply spatial aggregation if configured
-
-
-        if (len(self.locations) > 1) and (self.config["spatial_agg_method"] != "None"):
-            combined_df = self._apply_spatial_aggregation(combined_df)
-
-        if self.verbose:
-            print(f"Preprocessing result Shapes {df.shape} -> {combined_df.shape}"
-                  f" Start {df.index[0]} -> {combined_df.index[0]}"
-                  f" End {df.index[-3]} -> {combined_df.index[-1]}")
-
-        expected_range = pd.date_range(start=combined_df.index.min(), end=combined_df.index.max(), freq='h')
-        if not combined_df.index.equals(expected_range):
-            raise ValueError("combined_df must be continuous with hourly frequency.")
-
-        return combined_df
+        super().__init__(config, verbose)
 
     def _preprocess_location(self, df: pd.DataFrame, location_suffix: str) -> pd.DataFrame:
         """
@@ -388,198 +465,108 @@ class WeatherWindPowerFE:
     def _apply_spatial_aggregation(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Aggregate features across multiple wind farms using a specified spatial method.
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            The input DataFrame. It contains columns for all wind farms,
-            each column having a unique suffix (e.g. '_F1', '_F2', etc.).
-
-        Returns
-        -------
-        pd.DataFrame
-            A DataFrame with aggregated features (one column per base feature).
+        (Refactored version preserving original logic.)
         """
-
         if len(self.locations) <= 1:
             raise ValueError("Cannot apply spatial aggregation on one location")
 
-        # Extract the aggregation method from config
-        method: str = self.config.get("spatial_agg_method")  # e.g. "mean", "max", "idw", "capacity", etc.
-        all_features = df.columns.tolist()
+        # Extract config
+        method: str = self.config.get("spatial_agg_method")
 
-        # 1. Group columns by the wind-farm suffix
-        # ------------------------------------------------
-        features_per_wind_farm = {}
-        suffixes = []
-        for loc in self.locations:
-            suffix = loc['suffix']  # e.g. '_F1'
-            suffixes.append(suffix)
-            cols_with_suffix = [c for c in all_features if c.endswith(suffix)]
-            features_per_wind_farm[suffix] = cols_with_suffix
+        # Collect suffixes from self.locations
+        suffixes = [loc["suffix"] for loc in self.locations]
 
-        # 2. Build a mapping from "base feature name" -> columns for each suffix
-        # ------------------------------------------------
-        def strip_suffix(col_name: str, available_suffixes) -> str:
-            for sfx in available_suffixes:
-                if col_name.endswith(sfx):
-                    return col_name.replace(sfx, "")
-            return col_name  # if no match, return as-is
+        # Build the base feature map
+        base_feature_map = _build_base_feature_map(df, suffixes)
 
-        base_feature_map = {}  # { base_feature: [ (suffix, col_name), ... ] }
-        for loc in self.locations:
-            suffix = loc['suffix']
-            for col_name in features_per_wind_farm[suffix]:
-                base_feat = strip_suffix(col_name, [suffix])
-                if base_feat not in base_feature_map:
-                    base_feature_map[base_feat] = []
-                base_feature_map[base_feat].append((suffix, col_name))
-
-        # 3. Prepare for more complex methods: compute distances, weights, etc.
-        # ------------------------------------------------
+        # Build location metadata for wind
         loc_meta = {}
         for loc in self.locations:
             sfx = loc['suffix']
             loc_meta[sfx] = {
-                "lat": loc['lat'],
-                "lon": loc['lon'],
+                "lat"   : loc['lat'],
+                "lon"   : loc['lon'],
                 "capacity": loc['capacity'],
                 "n_turbines": loc['n_turbines'],
-                "elevation": loc['elevation'] if 'elevation' in loc else 0.,
-                "z0": loc['z0'] if 'z0' in loc else 0.,
-                "terrain_category": loc['terrain_category'] if 'terrain_category' in loc else 'I',
+                # Additional wind-specific fields:
+                "elevation": loc.get('elevation', 0.0),
+                "z0": loc.get('z0', 0.0),
+                "terrain_category": loc.get('terrain_category', 'I'),
             }
 
-        def haversine_distance(lat1, lon1, lat2, lon2):
-            # lat/lon in degrees -> convert to radians
-            rlat1, rlon1, rlat2, rlon2 = map(radians, [lat1, lon1, lat2, lon2])
-            dlat = rlat2 - rlat1
-            dlon = rlon2 - rlon1
-            a = sin(dlat/2)**2 + cos(rlat1)*cos(rlat2)*sin(dlon/2)**2
-            c = 2 * np.asin(np.sqrt(a))
-            # Earth radius ~6371 km
-            r = 6371
-            return r * c
-
-        # For IDW or distance-based methods, define a reference point (e.g. centroid)
+        # Compute centroid lat/lon for distance-based weighting
         mean_lat = np.mean([loc_meta[sfx]["lat"] for sfx in suffixes])
         mean_lon = np.mean([loc_meta[sfx]["lon"] for sfx in suffixes])
 
-        # 4. Create a new DataFrame of aggregated features
+        # Create the aggregated DataFrame
         aggregated_df = pd.DataFrame(index=df.index)
 
-        # 5. Apply the chosen method for each base feature
-        # ------------------------------------------------
+        # Iterate over each base feature
         for base_feat, columns_with_suffixes in base_feature_map.items():
-            # Gather each suffix's time series into a small DataFrame
+            # Build a sub-DataFrame with the time series for each suffix
             sub_data = {}
             for (sfx, c_name) in columns_with_suffixes:
                 sub_data[sfx] = df[c_name]
-            sub_df = pd.DataFrame(sub_data, index=df.index)  # columns = suffixes
+            sub_df = pd.DataFrame(sub_data, index=df.index)
 
+            # Apply the method
             if method == "mean":
-                # Simple average across wind farms
                 aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
 
             elif method == "max":
-                # Max across wind farms
                 aggregated_df[base_feat + "_agg"] = sub_df.max(axis=1)
 
             elif method == "idw":
-                # Inverse Distance Weighting around (mean_lat, mean_lon)
+                # 1 / distance^2
                 weights = {}
                 for sfx in sub_df.columns:
                     lat_i = loc_meta[sfx]["lat"]
                     lon_i = loc_meta[sfx]["lon"]
-                    d_km = haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
-                    d_km = max(d_km, 0.001)  # avoid division by zero
-                    weights[sfx] = 1.0 / (d_km ** 2)
-
-                sum_weights = sum(weights.values())
-                if sum_weights == 0:
-                    aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
-                else:
-                    weighted_sum = pd.Series(0.0, index=df.index)
-                    for sfx in sub_df.columns:
-                        weighted_sum += sub_df[sfx] * weights[sfx]
-                    aggregated_df[base_feat + "_agg"] = weighted_sum / sum_weights
+                    d_km = _haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
+                    d_km = max(d_km, 0.001)
+                    weights[sfx] = 1.0 / (d_km**2)
+                aggregated_df[base_feat + "_agg"] = _weighted_average(sub_df, weights)
 
             elif method == "capacity":
-                # Weight by farm's capacity (no distance factor)
-                # aggregated_value(t) = sum( capacity_i * x_i(t) ) / sum(capacity_i)
+                # Weighted by capacity
                 weights = {}
                 for sfx in sub_df.columns:
                     weights[sfx] = loc_meta[sfx]["capacity"]
-
-                sum_weights = sum(weights.values())
-                if sum_weights == 0:
-                    aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
-                else:
-                    weighted_sum = pd.Series(0.0, index=df.index)
-                    for sfx in sub_df.columns:
-                        weighted_sum += sub_df[sfx] * weights[sfx]
-                    aggregated_df[base_feat + "_agg"] = weighted_sum / sum_weights
+                aggregated_df[base_feat + "_agg"] = _weighted_average(sub_df, weights)
 
             elif method == "n_turbines":
-                # Weight by farm's number of turbines (no distance factor)
+                # Weighted by number of turbines
                 weights = {}
                 for sfx in sub_df.columns:
                     weights[sfx] = loc_meta[sfx]["n_turbines"]
-
-                sum_weights = sum(weights.values())
-                if sum_weights == 0:
-                    aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
-                else:
-                    weighted_sum = pd.Series(0.0, index=df.index)
-                    for sfx in sub_df.columns:
-                        weighted_sum += sub_df[sfx] * weights[sfx]
-                    aggregated_df[base_feat + "_agg"] = weighted_sum / sum_weights
+                aggregated_df[base_feat + "_agg"] = _weighted_average(sub_df, weights)
 
             elif method == "distance_capacity":
-                # Combine distance-based weighting with capacity
-                # weight_i = capacity_i / distance_i^2
+                # capacity / distance^2
                 weights = {}
                 for sfx in sub_df.columns:
                     lat_i = loc_meta[sfx]["lat"]
                     lon_i = loc_meta[sfx]["lon"]
                     cap_i = loc_meta[sfx]["capacity"]
-                    d_km = haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
+                    d_km = _haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
                     d_km = max(d_km, 0.001)
-                    weights[sfx] = cap_i / (d_km ** 2)
-
-                sum_weights = sum(weights.values())
-                if sum_weights == 0:
-                    aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
-                else:
-                    weighted_sum = pd.Series(0.0, index=df.index)
-                    for sfx in sub_df.columns:
-                        weighted_sum += sub_df[sfx] * weights[sfx]
-                    aggregated_df[base_feat + "_agg"] = weighted_sum / sum_weights
+                    weights[sfx] = cap_i / (d_km**2)
+                aggregated_df[base_feat + "_agg"] = _weighted_average(sub_df, weights)
 
             elif method == "distance_n_turbines":
-                # Combine distance-based weighting with number of turbines
-                # weight_i = n_turbines_i / distance_i^2
+                # n_turbines / distance^2
                 weights = {}
                 for sfx in sub_df.columns:
                     lat_i = loc_meta[sfx]["lat"]
                     lon_i = loc_meta[sfx]["lon"]
-                    n_turb = loc_meta[sfx]["n_turbines"]
-                    d_km = haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
+                    tur_i = loc_meta[sfx]["n_turbines"]
+                    d_km = _haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
                     d_km = max(d_km, 0.001)
-                    weights[sfx] = n_turb / (d_km ** 2)
-
-                sum_weights = sum(weights.values())
-                if sum_weights == 0:
-                    aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
-                else:
-                    weighted_sum = pd.Series(0.0, index=df.index)
-                    for sfx in sub_df.columns:
-                        weighted_sum += sub_df[sfx] * weights[sfx]
-                    aggregated_df[base_feat + "_agg"] = weighted_sum / sum_weights
+                    weights[sfx] = tur_i / (d_km**2)
+                aggregated_df[base_feat + "_agg"] = _weighted_average(sub_df, weights)
 
             else:
-                # Fallback: if unknown method, just do mean
-                aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
+                raise KeyError(f"Spatial aggregation method {method} not recognized")
 
         return aggregated_df
 
@@ -628,9 +615,7 @@ class WeatherWindPowerFE:
             )
         else:
             spatial_agg_method = fixed["spatial_agg_method"]
-        sp_agg_config = {
-            "method": spatial_agg_method
-        }
+
 
         # Construct and return the config dictionary
         config = {
@@ -648,14 +633,14 @@ class WeatherWindPowerFE:
             "precip_lags_choice": precip_lags_choice,  # precipitation lags
             "drop_raw_main_features": drop_raw_main_features,
             "drop_raw_wind_features": drop_raw_wind_features,
-            "spatial_agg_config": sp_agg_config,
+            "spatial_agg_method": spatial_agg_method,
         }
 
 
         return config
 
 
-class WeatherSolarPowerFE:
+class WeatherSolarPowerFE(WeatherBasedFE):
 
     options = [
         "compute_cloud_cover_fraction",
@@ -687,58 +672,7 @@ class WeatherSolarPowerFE:
         verbose : bool
             Whether to print intermediate steps and debugging info.
         """
-        self.config = config
-        self.verbose = verbose
-
-        # Get list of location names (solar farms, cities, etc.)
-        self.loc_names = self.config.get("locations", [])
-        if len(self.loc_names) == 0:
-            raise ValueError("No locations configured.")
-
-        # Get list of dict() for locations. Each dict has latitude, longitude, suffix, etc.
-        self.locations: list[dict] = [loc for loc in all_locations if loc["name"] in self.loc_names]
-        if len(self.locations) == 0:
-            raise ValueError("No locations configured.")
-
-    def __call__(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Given a DataFrame with raw features `df`, preprocess per the config,
-        engineer features, drop features, apply aggregation, and return the result.
-
-        Returns
-        -------
-        pd.DataFrame
-            A DataFrame with solar-specific engineered features for each location.
-        """
-
-        # Process each location separately
-        processed_dfs = []
-        for loc in self.locations:
-            loc_df = self._preprocess_location(df.copy(), loc["suffix"])
-            processed_dfs.append(loc_df)
-
-        # Combine horizontally: each location's engineered features side by side
-        combined_df = pd.concat(processed_dfs, axis=1)
-
-        # Apply spatial aggregation if configured
-        if (len(self.locations) > 1) and (self.config["spatial_agg_method"] != "None"):
-            combined_df = self._apply_spatial_aggregation(combined_df)
-
-        if self.verbose:
-            print(
-                f"Preprocessing result: {df.shape} -> {combined_df.shape} | "
-                f"Start {df.index[0]} -> {combined_df.index[0]} | "
-                f"End {df.index[-1]} -> {combined_df.index[-1]}"
-            )
-
-        # Ensure continuous hourly frequency
-        expected_range = pd.date_range(
-            start=combined_df.index.min(), end=combined_df.index.max(), freq="h"
-        )
-        if not combined_df.index.equals(expected_range):
-            raise ValueError("combined_df must be continuous with hourly frequency.")
-
-        return combined_df
+        super().__init__(config, verbose)
 
     def _preprocess_location(self, df: pd.DataFrame, location_suffix: str) -> pd.DataFrame:
         """
@@ -885,51 +819,18 @@ class WeatherSolarPowerFE:
     def _apply_spatial_aggregation(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Aggregate features across multiple solar farms using a specified spatial method.
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            The input DataFrame. It contains columns for each solar farm,
-            each column having a unique suffix (e.g. '_S1', '_S2', etc.).
-
-        Returns
-        -------
-        pd.DataFrame
-            A DataFrame with aggregated features (one column per base feature).
+        (Refactored version preserving original logic.)
         """
-
         if len(self.locations) <= 1:
             raise ValueError("Cannot apply spatial aggregation on a single location")
 
-        method: str = self.config.get("spatial_agg_method")  # e.g. "mean", "max", "idw", "capacity", etc.
-        all_features = df.columns.tolist()
+        method: str = self.config.get("spatial_agg_method")
+        suffixes = [loc["suffix"] for loc in self.locations]
 
-        # 1. Group columns by the location suffix
-        features_per_site = {}
-        suffixes = []
-        for loc in self.locations:
-            suffix = loc["suffix"]
-            suffixes.append(suffix)
-            cols_with_suffix = [c for c in all_features if c.endswith(suffix)]
-            features_per_site[suffix] = cols_with_suffix
+        # Build the base feature map
+        base_feature_map = _build_base_feature_map(df, suffixes)
 
-        # 2. Build a mapping from "base feature name" -> columns for each suffix
-        def strip_suffix(col_name: str, available_suffixes) -> str:
-            for sfx in available_suffixes:
-                if col_name.endswith(sfx):
-                    return col_name.replace(sfx, "")
-            return col_name  # if no match, return as-is
-
-        base_feature_map = {}  # { base_feature: [ (suffix, col_name), ... ] }
-        for loc in self.locations:
-            suffix = loc["suffix"]
-            for col_name in features_per_site[suffix]:
-                base_feat = strip_suffix(col_name, [suffix])
-                if base_feat not in base_feature_map:
-                    base_feature_map[base_feat] = []
-                base_feature_map[base_feat].append((suffix, col_name))
-
-        # 3. Prepare location metadata
+        # Build location metadata
         loc_meta = {}
         for loc in self.locations:
             sfx = loc["suffix"]
@@ -941,26 +842,13 @@ class WeatherSolarPowerFE:
                 "elevation": loc.get("elevation", 0.0),
             }
 
-        # Haversine distance
-        def haversine_distance(lat1, lon1, lat2, lon2):
-            rlat1, rlon1, rlat2, rlon2 = map(radians, [lat1, lon1, lat2, lon2])
-            dlat = rlat2 - rlat1
-            dlon = rlon2 - rlon1
-            a = sin(dlat / 2) ** 2 + cos(rlat1) * cos(rlat2) * sin(dlon / 2) ** 2
-            c = 2 * np.arcsin(np.sqrt(a))
-            r = 6371  # Earth radius in km
-            return r * c
-
-        # Centroid coordinates for IDW or distance-based
+        # Centroid for distance-based
         mean_lat = np.mean([loc_meta[sfx]["lat"] for sfx in suffixes])
         mean_lon = np.mean([loc_meta[sfx]["lon"] for sfx in suffixes])
 
-        # 4. Create a new DataFrame for aggregated features
         aggregated_df = pd.DataFrame(index=df.index)
 
-        # 5. Apply the chosen aggregation method for each base feature
         for base_feat, columns_with_suffixes in base_feature_map.items():
-            # Gather each suffix's time series
             sub_data = {}
             for (sfx, c_name) in columns_with_suffixes:
                 sub_data[sfx] = df[c_name]
@@ -973,95 +861,56 @@ class WeatherSolarPowerFE:
                 aggregated_df[base_feat + "_agg"] = sub_df.max(axis=1)
 
             elif method == "idw":
-                # Inverse Distance Weighting around (mean_lat, mean_lon)
+                # 1 / distance^2
                 weights = {}
                 for sfx in sub_df.columns:
                     lat_i = loc_meta[sfx]["lat"]
                     lon_i = loc_meta[sfx]["lon"]
-                    d_km = haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
-                    d_km = max(d_km, 0.001)  # avoid division by zero
+                    d_km = _haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
+                    d_km = max(d_km, 0.001)
                     weights[sfx] = 1.0 / (d_km**2)
-
-                sum_weights = sum(weights.values())
-                if sum_weights == 0:
-                    aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
-                else:
-                    weighted_sum = pd.Series(0.0, index=df.index)
-                    for sfx in sub_df.columns:
-                        weighted_sum += sub_df[sfx] * weights[sfx]
-                    aggregated_df[base_feat + "_agg"] = weighted_sum / sum_weights
+                aggregated_df[base_feat + "_agg"] = _weighted_average(sub_df, weights)
 
             elif method == "capacity":
-                # Weight by farm's capacity
+                # Weighted by capacity
                 weights = {}
                 for sfx in sub_df.columns:
                     weights[sfx] = loc_meta[sfx]["capacity"]
-                sum_weights = sum(weights.values())
-                if sum_weights == 0:
-                    aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
-                else:
-                    weighted_sum = pd.Series(0.0, index=df.index)
-                    for sfx in sub_df.columns:
-                        weighted_sum += sub_df[sfx] * weights[sfx]
-                    aggregated_df[base_feat + "_agg"] = weighted_sum / sum_weights
+                aggregated_df[base_feat + "_agg"] = _weighted_average(sub_df, weights)
 
             elif method == "n_panels":
-                # Weight by the number of solar panels
+                # Weighted by number of panels
                 weights = {}
                 for sfx in sub_df.columns:
                     weights[sfx] = loc_meta[sfx]["n_panels"]
-                sum_weights = sum(weights.values())
-                if sum_weights == 0:
-                    aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
-                else:
-                    weighted_sum = pd.Series(0.0, index=df.index)
-                    for sfx in sub_df.columns:
-                        weighted_sum += sub_df[sfx] * weights[sfx]
-                    aggregated_df[base_feat + "_agg"] = weighted_sum / sum_weights
+                aggregated_df[base_feat + "_agg"] = _weighted_average(sub_df, weights)
 
             elif method == "distance_capacity":
-                # weight_i = capacity_i / distance_i^2
+                # capacity / distance^2
                 weights = {}
                 for sfx in sub_df.columns:
                     lat_i = loc_meta[sfx]["lat"]
                     lon_i = loc_meta[sfx]["lon"]
                     cap_i = loc_meta[sfx]["capacity"]
-                    d_km = haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
+                    d_km = _haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
                     d_km = max(d_km, 0.001)
                     weights[sfx] = cap_i / (d_km**2)
-
-                sum_weights = sum(weights.values())
-                if sum_weights == 0:
-                    aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
-                else:
-                    weighted_sum = pd.Series(0.0, index=df.index)
-                    for sfx in sub_df.columns:
-                        weighted_sum += sub_df[sfx] * weights[sfx]
-                    aggregated_df[base_feat + "_agg"] = weighted_sum / sum_weights
+                aggregated_df[base_feat + "_agg"] = _weighted_average(sub_df, weights)
 
             elif method == "distance_n_panels":
-                # weight_i = n_panels_i / distance_i^2
+                # n_panels / distance^2
                 weights = {}
                 for sfx in sub_df.columns:
                     lat_i = loc_meta[sfx]["lat"]
                     lon_i = loc_meta[sfx]["lon"]
                     n_pan = loc_meta[sfx]["n_panels"]
-                    d_km = haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
+                    d_km = _haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
                     d_km = max(d_km, 0.001)
                     weights[sfx] = n_pan / (d_km**2)
-
-                sum_weights = sum(weights.values())
-                if sum_weights == 0:
-                    aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
-                else:
-                    weighted_sum = pd.Series(0.0, index=df.index)
-                    for sfx in sub_df.columns:
-                        weighted_sum += sub_df[sfx] * weights[sfx]
-                    aggregated_df[base_feat + "_agg"] = weighted_sum / sum_weights
+                aggregated_df[base_feat + "_agg"] = _weighted_average(sub_df, weights)
 
             else:
-                # Fallback: if unknown method, just do mean
-                aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
+                raise KeyError(f"Aggregation method '{method}' not supported")
 
         return aggregated_df
 
@@ -1171,8 +1020,6 @@ class WeatherSolarPowerFE:
         else:
             spatial_agg_method = fixed["spatial_agg_method"]
 
-        sp_agg_config = {"method": spatial_agg_method}
-
         # ----- Construct and return the config dictionary -----
         config = {
             "locations": fixed.get("locations", []),
@@ -1205,14 +1052,13 @@ class WeatherSolarPowerFE:
             "drop_raw_features": drop_raw_features,
 
             # Spatial aggregation
-            "spatial_agg_method": spatial_agg_method,
-            "spatial_agg_config": sp_agg_config,
+            "spatial_agg_method": spatial_agg_method
         }
 
         return config
 
 
-class WeatherLoadFE:
+class WeatherLoadFE(WeatherBasedFE):
 
     options = [
         "compute_heating_degree_hours",
@@ -1249,58 +1095,7 @@ class WeatherLoadFE:
         verbose : bool
             Whether to print intermediate steps and debugging info.
         """
-        self.config = config
-        self.verbose = verbose
-
-        # Get list of location names (solar farms, cities, etc.)
-        self.loc_names = self.config.get("locations", [])
-        if len(self.loc_names) == 0:
-            raise ValueError("No locations configured.")
-
-        # Get list of dict() for locations. Each dict has latitude, longitude, suffix, etc.
-        self.locations: list[dict] = [loc for loc in all_locations if loc["name"] in self.loc_names]
-        if len(self.locations) == 0:
-            raise ValueError("No locations configured.")
-
-    def __call__(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Given a DataFrame with raw features `df`, preprocess per the config,
-        engineer features, drop features, apply aggregation, and return the result.
-
-        Returns
-        -------
-        pd.DataFrame
-            A DataFrame with solar-specific engineered features for each location.
-        """
-
-        # Process each location separately
-        processed_dfs = []
-        for loc in self.locations:
-            loc_df = self._preprocess_location(df.copy(), loc["suffix"])
-            processed_dfs.append(loc_df)
-
-        # Combine horizontally: each location's engineered features side by side
-        combined_df = pd.concat(processed_dfs, axis=1)
-
-        # Apply spatial aggregation if configured
-        if (len(self.locations) > 1) and (self.config["spatial_agg_method"] != "None"):
-            combined_df = self._apply_spatial_aggregation(combined_df)
-
-        if self.verbose:
-            print(
-                f"Preprocessing result: {df.shape} -> {combined_df.shape} | "
-                f"Start {df.index[0]} -> {combined_df.index[0]} | "
-                f"End {df.index[-1]} -> {combined_df.index[-1]}"
-            )
-
-        # Ensure continuous hourly frequency
-        expected_range = pd.date_range(
-            start=combined_df.index.min(), end=combined_df.index.max(), freq="h"
-        )
-        if not combined_df.index.equals(expected_range):
-            raise ValueError("combined_df must be continuous with hourly frequency.")
-
-        return combined_df
+        super().__init__(config, verbose)
 
 
     def _preprocess_location( self, df: pd.DataFrame, location_suffix: str ) -> pd.DataFrame:
@@ -1496,214 +1291,99 @@ class WeatherLoadFE:
     def _apply_spatial_aggregation(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Aggregate features across multiple locations (cities) using a specified spatial method.
-        In addition to lat/lon, each location metadata may include population, population_density,
-        area, industrial_activity_fraction, total_energy_consumption, etc.
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            The input DataFrame. It contains columns for each city,
-            each column having a unique suffix (e.g. '_C1', '_C2', etc.).
-
-        Returns
-        -------
-        pd.DataFrame
-            A DataFrame with aggregated features (one column per base feature).
+        (Refactored version preserving original logic.)
         """
-        # ------------------------------------------------------------------
-        # 1. Check that we actually have multiple locations
-        # ------------------------------------------------------------------
         if len(self.locations) <= 1:
             raise ValueError("Cannot apply spatial aggregation on a single location")
 
-        # 2. Read method from config (e.g. "mean", "idw", "population", "energy", etc.)
         method: str = self.config.get("spatial_agg_method", "mean")
+        suffixes = [loc["suffix"] for loc in self.locations]
 
-        # Gather all columns from the input DF
-        all_features = df.columns.tolist()
+        # Build the base feature map
+        base_feature_map = _build_base_feature_map(df, suffixes)
 
-        # ------------------------------------------------------------------
-        # 3. Group columns by the location suffix
-        # ------------------------------------------------------------------
-        features_per_site = {}
-        suffixes = []
-        for loc in self.locations:
-            suffix = loc["suffix"]
-            suffixes.append(suffix)
-            cols_with_suffix = [c for c in all_features if c.endswith(suffix)]
-            features_per_site[suffix] = cols_with_suffix
-
-        # Helper to strip suffix and return the base feature name
-        def strip_suffix(col_name: str, available_suffixes) -> str:
-            for sfx in available_suffixes:
-                if col_name.endswith(sfx):
-                    return col_name.replace(sfx, "")
-            return col_name  # if no match, return as-is
-
-        # ------------------------------------------------------------------
-        # 4. Build a mapping from "base feature name" -> [(suffix, col_name), ...]
-        # ------------------------------------------------------------------
-        base_feature_map = {}
-        for loc in self.locations:
-            suffix = loc["suffix"]
-            for col_name in features_per_site[suffix]:
-                base_feat = strip_suffix(col_name, [suffix])
-                if base_feat not in base_feature_map:
-                    base_feature_map[base_feat] = []
-                base_feature_map[base_feat].append((suffix, col_name))
-
-        # ------------------------------------------------------------------
-        # 5. Prepare location metadata with load-forecasting fields
-        # ------------------------------------------------------------------
-        # Example fields: population, total_energy_consumption
-        # (You can add population_density, industrial_activity_fraction, etc. if needed.)
+        # Prepare location metadata
         loc_meta = {}
         for loc in self.locations:
             sfx = loc["suffix"]
             loc_meta[sfx] = {
                 "lat": loc["lat"],
                 "lon": loc["lon"],
-                "population": loc.get("population", 1),  # fallback to 1 to avoid div-by-zero
+                # Distinct load-related fields:
+                "population": loc.get("population", 1),
                 "energy": loc.get("total_energy_consumption", 1.0),
             }
 
-        # Haversine distance calculation for IDW or distance-based weighting
-        def haversine_distance(lat1, lon1, lat2, lon2):
-            rlat1, rlon1, rlat2, rlon2 = map(radians, [lat1, lon1, lat2, lon2])
-            dlat = rlat2 - rlat1
-            dlon = rlon2 - rlon1
-            a = (sin(dlat / 2) ** 2) + cos(rlat1) * cos(rlat2) * (sin(dlon / 2) ** 2)
-            c = 2 * np.arcsin(np.sqrt(a))
-            r = 6371  # Earth radius in km
-            return r * c
-
-        # Compute the centroid of all locations (mean lat/lon)
         mean_lat = np.mean([loc_meta[sfx]["lat"] for sfx in suffixes])
         mean_lon = np.mean([loc_meta[sfx]["lon"] for sfx in suffixes])
 
-        # ------------------------------------------------------------------
-        # 6. Create a new DataFrame for the aggregated features
-        # ------------------------------------------------------------------
         aggregated_df = pd.DataFrame(index=df.index)
 
-        # ------------------------------------------------------------------
-        # 7. Apply the chosen aggregation method for each base feature
-        # ------------------------------------------------------------------
         for base_feat, columns_with_suffixes in base_feature_map.items():
-
-            # Gather each suffix's time series in a small sub-DataFrame
             sub_data = {}
             for (sfx, c_name) in columns_with_suffixes:
                 sub_data[sfx] = df[c_name]
             sub_df = pd.DataFrame(sub_data, index=df.index)
 
-            # ------------------------
-            # Handle different methods
-            # ------------------------
             if method == "mean":
-                # Simple arithmetic mean across all locations
                 aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
 
             elif method == "max":
-                # Maximum value across all locations
                 aggregated_df[base_feat + "_agg"] = sub_df.max(axis=1)
 
             elif method == "idw":
-                # Inverse Distance Weighting around (mean_lat, mean_lon)
+                # 1 / distance^2
                 weights = {}
                 for sfx in sub_df.columns:
                     lat_i = loc_meta[sfx]["lat"]
                     lon_i = loc_meta[sfx]["lon"]
-                    d_km = haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
-                    d_km = max(d_km, 0.001)  # avoid division by zero
+                    d_km = _haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
+                    d_km = max(d_km, 0.001)
                     weights[sfx] = 1.0 / (d_km**2)
-                sum_w = sum(weights.values())
-
-                if sum_w == 0:
-                    # Fallback to simple mean if distances are degenerate
-                    aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
-                else:
-                    weighted_sum = pd.Series(0.0, index=df.index)
-                    for sfx in sub_df.columns:
-                        weighted_sum += sub_df[sfx] * weights[sfx]
-                    aggregated_df[base_feat + "_agg"] = weighted_sum / sum_w
+                aggregated_df[base_feat + "_agg"] = _weighted_average(sub_df, weights)
 
             elif method == "population":
-                # Weight by each city's population
+                # Weighted by population
                 weights = {}
                 for sfx in sub_df.columns:
                     weights[sfx] = loc_meta[sfx]["population"]
-                sum_w = sum(weights.values())
-
-                if sum_w == 0:
-                    aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
-                else:
-                    weighted_sum = pd.Series(0.0, index=df.index)
-                    for sfx in sub_df.columns:
-                        weighted_sum += sub_df[sfx] * weights[sfx]
-                    aggregated_df[base_feat + "_agg"] = weighted_sum / sum_w
+                aggregated_df[base_feat + "_agg"] = _weighted_average(sub_df, weights)
 
             elif method == "energy":
-                # Weight by total energy consumption
+                # Weighted by total energy consumption
                 weights = {}
                 for sfx in sub_df.columns:
                     weights[sfx] = loc_meta[sfx]["energy"]
-                sum_w = sum(weights.values())
-
-                if sum_w == 0:
-                    aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
-                else:
-                    weighted_sum = pd.Series(0.0, index=df.index)
-                    for sfx in sub_df.columns:
-                        weighted_sum += sub_df[sfx] * weights[sfx]
-                    aggregated_df[base_feat + "_agg"] = weighted_sum / sum_w
+                aggregated_df[base_feat + "_agg"] = _weighted_average(sub_df, weights)
 
             elif method == "distance_population":
-                # weight_i = population_i / distance_i^2
+                # population / distance^2
                 weights = {}
                 for sfx in sub_df.columns:
                     lat_i = loc_meta[sfx]["lat"]
                     lon_i = loc_meta[sfx]["lon"]
                     pop_i = loc_meta[sfx]["population"]
-                    d_km = haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
+                    d_km = _haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
                     d_km = max(d_km, 0.001)
                     weights[sfx] = pop_i / (d_km**2)
-                sum_w = sum(weights.values())
-
-                if sum_w == 0:
-                    aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
-                else:
-                    weighted_sum = pd.Series(0.0, index=df.index)
-                    for sfx in sub_df.columns:
-                        weighted_sum += sub_df[sfx] * weights[sfx]
-                    aggregated_df[base_feat + "_agg"] = weighted_sum / sum_w
+                aggregated_df[base_feat + "_agg"] = _weighted_average(sub_df, weights)
 
             elif method == "distance_energy":
-                # weight_i = total_energy_i / distance_i^2
+                # total_energy_consumption / distance^2
                 weights = {}
                 for sfx in sub_df.columns:
                     lat_i = loc_meta[sfx]["lat"]
                     lon_i = loc_meta[sfx]["lon"]
-                    en_i  = loc_meta[sfx]["energy"]
-                    d_km = haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
+                    en_i = loc_meta[sfx]["energy"]
+                    d_km = _haversine_distance(mean_lat, mean_lon, lat_i, lon_i)
                     d_km = max(d_km, 0.001)
                     weights[sfx] = en_i / (d_km**2)
-                sum_w = sum(weights.values())
-
-                if sum_w == 0:
-                    aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
-                else:
-                    weighted_sum = pd.Series(0.0, index=df.index)
-                    for sfx in sub_df.columns:
-                        weighted_sum += sub_df[sfx] * weights[sfx]
-                    aggregated_df[base_feat + "_agg"] = weighted_sum / sum_w
+                aggregated_df[base_feat + "_agg"] = _weighted_average(sub_df, weights)
 
             else:
-                # Fallback: if unknown method, just do mean
-                aggregated_df[base_feat + "_agg"] = sub_df.mean(axis=1)
+                raise KeyError(f"Aggregation method {method} not recognized")
 
         return aggregated_df
-
 
     def selector_for_optuna(trial: optuna.Trial, fixed: dict) -> dict:
         """
@@ -1818,9 +1498,6 @@ class WeatherLoadFE:
         else:
             spatial_agg_method = fixed["spatial_agg_method"]
 
-        # Build a small config sub-dict if needed
-        sp_agg_config = {"method": spatial_agg_method}
-
         # 7. Construct and return the config dictionary
         config = {
             "locations": fixed.get("locations", []),
@@ -1858,7 +1535,6 @@ class WeatherLoadFE:
 
             # Spatial aggregation
             "spatial_agg_method": spatial_agg_method,
-            "spatial_agg_config": sp_agg_config,
         }
 
         return config
@@ -1875,7 +1551,9 @@ def physics_informed_feature_engineering(df_hist_:pd.DataFrame, df_forecast_:pd.
         else: raise NotImplementedError(f"Feature engineering method {config['feature_engineer']} is not implemented")
 
         # extract non-weather features that will not participate in feature engineering
-        non_weather_feat = [key for key in df_hist_.columns.tolist() if not any(key.startswith(var) for var in OpenMeteo.vars)]
+        non_weather_feat = [
+            key for key in df_hist_.columns.tolist() if not any(key.startswith(var) for var in OpenMeteo.vars)
+        ]
 
         # combine dataframes
         n_h, n_f = len(df_hist_), len(df_forecast_)
@@ -1884,7 +1562,7 @@ def physics_informed_feature_engineering(df_hist_:pd.DataFrame, df_forecast_:pd.
         assert len(df_tmp) == n_h + n_f
 
         # apply feature engineering
-        df_tmp = o_feat(df_tmp)
+        df_tmp:pd.DataFrame = o_feat(df_tmp)
 
         # split back into hist and forecast
         df_tmp = pd.merge(df_tmp, df_non_weather_tmp, left_index=True, right_index=True, how="left")

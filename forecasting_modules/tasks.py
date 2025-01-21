@@ -592,6 +592,11 @@ class BaseModelTasks(TaskPaths):
             print(f"Test: {ds.forecast_idx[0]} to {ds.forecast_idx[-1]}")
             raise ValueError("Train set size should be divisible by the test size")
 
+        # clean up (TODO: refactor the class to avoid this...)
+        del self.results; self.results = {}
+        del self.metrics; self.metrics = {}
+        del self.contributions; self.contributions = {}
+
         # cutoffs, splits = get_ts_cutoffs(ds, folds=folds) # last one is the latest one
         cutoffs, splits = compute_timeseries_split_cutoffs(
             # ds.hist_idx,
@@ -842,14 +847,17 @@ class BaseModelTasks(TaskPaths):
             model_pars=params, verbose=self.verbose
         )
 
-        self.train_evaluate_out_of_sample(folds = cv_metrics_folds, ds=None, X_train=None, y_train=None, do_fit=True)
+        try:
+            self.train_evaluate_out_of_sample(folds = cv_metrics_folds, ds=None, X_train=None, y_train=None, do_fit=True)
+        except ValueError as e:
+            if self.verbose: print(f"ERROR! Optimization iteration run failed! with \n{e}")
+            self.forecaster.reset_model()
+            gc.collect()
+            return np.inf
 
         average_metrics = get_average_metrics(self.metrics)
         res = float( average_metrics['rmse'] ) # Average over all CV folds
 
-        del self.results; self.results = {}
-        del self.metrics; self.metrics = {}
-        del self.contributions; self.contributions = {}
         self.forecaster.reset_model()
 
         gc.collect()

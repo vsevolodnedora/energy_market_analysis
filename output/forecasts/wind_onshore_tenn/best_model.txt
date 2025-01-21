@@ -1,1 +1,1 @@
-XGBoost
+ensemble[XGBoost](XGBoost,ElasticNet)

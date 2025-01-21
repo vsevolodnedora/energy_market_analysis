@@ -194,7 +194,7 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
     ''' -------------- ONSHORE WIND POWER GENERATION (4 TSOs) ------------- '''
 
     if variable == "wind_onshore":
-        avail_regions = ["DE_TENNET", "DE_50HZ", "DE_AMPRION", "DE_TRANSNET"]
+        avail_regions = ["DE_AMPRION","DE_TENNET", "DE_50HZ", "DE_TRANSNET"]
         for tso_reg in de_regions:
             if tso_reg['name'] in avail_regions:
                 task_list_ = copy.deepcopy(task_list)
