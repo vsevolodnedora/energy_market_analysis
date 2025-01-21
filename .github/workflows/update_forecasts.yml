@@ -1,11 +1,6 @@
 name: Update Forecasts
 
 on:
-  workflow_run:
-    workflows:
-      - Update Database
-    types:
-      - completed
   push:
     branches: ["main"]
     paths:
@@ -15,7 +10,7 @@ jobs:
   update_forecasts:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     env:
       ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
     steps:
@@ -36,29 +31,3 @@ jobs:
 
       - name: Update Forecasts
         run: pipenv run python update_forecasts.py
-
-      - name: Force switch to gh-pages branch
-        run: |
-          git fetch origin gh-pages
-          git checkout -B gh-pages origin/gh-pages
-
-      - name: Clear cached changes
-        run: |
-          git reset --hard
-          git clean -fdx  # Remove untracked files and directories
-
-      - name: Remove existing files in deploy/data
-        run: |
-          rm -rf deploy/data
-          mkdir -p deploy/data
-
-      - name: Copy updated files from main branch
-        run: git checkout main -- deploy/data
-
-      - name: Commit and push changes
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-          git add deploy/data
-          git commit -m "Update forecasts data"
-          git push origin gh-pages --force
