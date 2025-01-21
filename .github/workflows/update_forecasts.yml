@@ -15,7 +15,7 @@ jobs:
   update_forecasts:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Needed to push changes
+      contents: write
     env:
       ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
     steps:
@@ -39,18 +39,22 @@ jobs:
 
       - name: Switch to gh-pages branch
         run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
           git fetch origin gh-pages
           git checkout gh-pages
 
-      - name: Copy generated files to gh-pages
+      - name: Remove existing files in deploy/data
         run: |
-          mkdir -p deploy/data
-          cp -r ./deploy/data/* deploy/data/
+          rm -rf deploy/data/
+          mkdir -p deploy/data/
+
+      - name: Copy updated files from main branch
+        run: |
+          git checkout main -- deploy/data
 
       - name: Commit and push changes
         run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
           git add deploy/data
           git commit -m "Update forecasts data"
           git push origin gh-pages
