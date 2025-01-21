@@ -1,6 +1,11 @@
 name: Update Forecasts
 
 on:
+  workflow_run:
+    workflows:
+      - Update Database
+    types:
+      - completed
   push:
     branches: ["main"]
     paths:
