@@ -10,7 +10,7 @@ jobs:
   update_forecasts:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     env:
       ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
     steps:
