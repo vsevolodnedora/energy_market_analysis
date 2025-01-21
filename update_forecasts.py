@@ -1,22 +1,4 @@
-import pandas as pd
 import os
-from dotenv import load_dotenv
-
-from datetime import datetime, timedelta
-from data_collection_modules import (
-    create_openmeteo_from_api,
-    update_openmeteo_from_api,
-    update_smard_from_api,
-    create_smard_from_api,
-    update_epexspot_from_files,
-    create_entsoe_from_api,
-    update_entsoe_from_api,
-    loc_solarfarms,
-    loc_onshore_windfarms,
-    loc_offshore_windfarms,
-    loc_cities,
-    OpenMeteo
-)
 
 from forecasting_modules import (
     update_forecast_production
@@ -34,18 +16,18 @@ if __name__ == '__main__':
     verbose = True
 
     # --- update forecasts ---
-    update_forecast_production(
-        database=db_path, variable='wind_offshore', outdir='./output/forecasts/', verbose=verbose
-    )
-    update_forecast_production(
-        database=db_path, variable='wind_onshore', outdir='./output/forecasts/', verbose=verbose
-    )
-    update_forecast_production(
-        database=db_path, variable='solar', outdir='./output/forecasts/', verbose=verbose
-    )
-    update_forecast_production(
-        database=db_path, variable='load', outdir='./output/forecasts/', verbose=verbose
-    )
+    # update_forecast_production(
+    #     database=db_path, variable='wind_offshore', outdir='./output/forecasts/', verbose=verbose
+    # )
+    # update_forecast_production(
+    #     database=db_path, variable='wind_onshore', outdir='./output/forecasts/', verbose=verbose
+    # )
+    # update_forecast_production(
+    #     database=db_path, variable='solar', outdir='./output/forecasts/', verbose=verbose
+    # )
+    # update_forecast_production(
+    #     database=db_path, variable='load', outdir='./output/forecasts/', verbose=verbose
+    # )
 
     # --- serve forecasts ---
     if not os.path.isdir("./deploy/data/"):

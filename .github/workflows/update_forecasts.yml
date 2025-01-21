@@ -15,7 +15,7 @@ jobs:
   update_forecasts:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write  # Needed to push changes
     env:
       ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
     steps:
@@ -36,3 +36,21 @@ jobs:
 
       - name: Update Forecasts
         run: pipenv run python update_forecasts.py
+
+      - name: Switch to gh-pages branch
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git fetch origin gh-pages
+          git checkout gh-pages
+
+      - name: Copy generated files to gh-pages
+        run: |
+          mkdir -p deploy/data
+          cp -r ./deploy/data/* deploy/data/
+
+      - name: Commit and push changes
+        run: |
+          git add deploy/data
+          git commit -m "Update forecasts data"
+          git push origin gh-pages
