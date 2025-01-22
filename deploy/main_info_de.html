@@ -1,52 +1,85 @@
-<section id="project-details">
+<section id="project-details" style="line-height: 1.4; font-size: 14px;">
     <p>
-        Dieses Projekt nutzt fortschrittliche MLOps-Pipelines, um präzise Wochenprognosen für die Erzeugung erneuerbarer Energien, den Stromverbrauch und die Preise zu liefern. Durch die Kombination von robuster Datenverarbeitung, modernsten Machine-Learning-Modellen und skalierbarer Automatisierung ermöglicht es Stakeholdern, Betriebsabläufe zu optimieren, Handelsstrategien zu verbessern und die Integration nachhaltiger Energien in einem dynamischen Marktumfeld zu unterstützen.
+        Dieses Projekt verwendet fortschrittliche MLOps-Pipelines, um präzise Prognosen für eine Woche im Voraus für die Erzeugung erneuerbarer Energien, den Stromverbrauch und die Preise zu erstellen. Durch die Kombination robuster Datenverarbeitung, moderner maschineller Lernverfahren und automatisierter Workflows optimiert es die Abläufe, verbessert Handelsstrategien und fördert die Integration nachhaltiger Energien.
     </p>
-    <p>
-        <strong>Quellcode:</strong> <a href="https://github.com/vsevolodnedora/energy_market_analysis" target="_blank">Hier erkunden</a>
+    <p><strong>Quellcode:</strong>
+        <a href="https://github.com/vsevolodnedora/energy_market_analysis" target="_blank">GitHub Repository</a>
     </p>
 
-    <h3>Wertversprechen</h3>
-    <ul>
-        <li><strong>Optimierung von Betrieb und Wartung:</strong> Planen Sie Wartungs- und Betriebsänderungen effizient, um Unterbrechungen und Kosten zu minimieren.</li>
-        <li><strong>Verbesserung von Handel und Risikomanagement:</strong> Verbessern Sie Bietstrategien, reduzieren Sie finanzielle Risiken und passen Sie den Betrieb an Marktbedingungen an, um die Rentabilität zu steigern.</li>
-        <li><strong>Unterstützung der Netzstabilität und Integration erneuerbarer Energien:</strong> Balancieren Sie Angebot und Nachfrage effektiv, um eine nahtlose Integration variabler erneuerbarer Energiequellen zu ermöglichen.</li>
-        <li><strong>Förderung von Nachhaltigkeit und langfristiger Planung:</strong> Liefern Sie umsetzbare Erkenntnisse für Dekarbonisierungsziele, politische Gestaltung und Modernisierungsbemühungen des Netzes.</li>
+    <h3 style="margin: 10px 0;">Wertversprechen</h3>
+    <ul style="margin: 5px 0 10px 20px; padding: 0;">
+        <li><strong>Optimierung der Abläufe:</strong> Effiziente Wartungspläne minimieren Störungen und Kosten.</li>
+        <li><strong>Verbesserung des Handels:</strong> Verbesserte Gebotsstrategien und reduzierte finanzielle Risiken.</li>
+        <li><strong>Unterstützung der Netzstabilität:</strong> Effektives Gleichgewicht zwischen Angebot und Nachfrage für die Integration erneuerbarer Energien.</li>
+        <li><strong>Förderung der Nachhaltigkeit:</strong> Umsetzbare Erkenntnisse zur Dekarbonisierung und langfristigen Planung.</li>
     </ul>
-    <p>
-        Dieses Projekt liefert praktische Werkzeuge und Erkenntnisse für Versorgungsunternehmen, Netzbetreiber, Energiehändler und politische Entscheidungsträger, um ein effizienteres, zuverlässigeres und nachhaltigeres Energiesystem zu fördern.
-    </p>
 
-    <h3>Kernfunktionen und Arbeitsablauf</h3>
-    <ul>
-        <li><strong>Tägliche Datensammlung:</strong> Automatisierte Datenabfrage von öffentlichen APIs und Webseiten mit GitHub Actions.</li>
-        <li><strong>Datenquellen:</strong> Aggregierte Energiedaten von
+    <h3 style="margin: 10px 0;">Kernfunktionen & Arbeitsablauf</h3>
+    <ul style="margin: 5px 0 10px 20px; padding: 0;">
+        <li><strong>Tägliche Datenerfassung:</strong> Automatische Abrufe von APIs (
             <a href="https://transparency.entsoe.eu" target="_blank">ENTSO-E</a>,
             <a href="https://www.smard.de/home" target="_blank">SMARD</a>,
             <a href="https://open-meteo.com/" target="_blank">openmeteo</a>,
             <a href="https://www.epexspot.com/en" target="_blank">EPEXSPOT</a>
-            und <a href="https://www.eex.com/en/" target="_blank">EEX</a>.
+            und <a href="https://www.eex.com/en/" target="_blank">EEX</a>
+            ).
         </li>
-        <li><strong>Vorverarbeitung:</strong> Maßgeschneiderte Datenbereinigung für jeden Energietyp, wie Wind, Solar und fossile Brennstoffe.</li>
-        <li><strong>Prognosemodelle:</strong> Einsatz von Prophet-, XGBoost- und Elastic-Net-Modellen mit Ensemble-Methoden für höhere Genauigkeit.</li>
-        <li><strong>Hyperparameter-Optimierung:</strong> Automatisches Tuning zur Minimierung des Prognosefehlers.</li>
-        <li><strong>Pipeline-Automatisierung:</strong> Integrierte GitHub Actions für nahtlose Datenaktualisierungen und Bereitstellung von Prognosen.</li>
+        <li><strong>Vorverarbeitung:</strong> Maßgeschneiderte Datenbereinigung und Feature Engineering für Wind-, Solar- und Verbrauchsdaten.</li>
+        <li><strong>Prognosemodelle:</strong> Prophet, XGBoost und Elastic Net mit Ensemble-Methoden für höhere Genauigkeit.</li>
+        <li><strong>Hyperparameter-Optimierung:</strong> Automatisiertes Tuning (Optuna), um den Prognosefehler zu minimieren.</li>
+        <li><strong>Pipeline-Automatisierung:</strong> GitHub Actions für kontinuierliche Datenaktualisierungen und Bereitstellungen.</li>
     </ul>
 
-
-    <h3>Technische Highlights</h3>
-    <ul>
-        <li><strong>Dynamische Multi-Step-Prognosen:</strong> Wochenprognosen mit stündlicher Granularität.</li>
-        <li><strong>Feature Engineering:</strong> Erweiterte wetterbasierte Merkmale, einschließlich Windleistungsdichte und Solarstrahlungsmetriken.</li>
-        <li><strong>Web-Integration:</strong> Interaktive Visualisierungen mit <a href="https://apexcharts.com/" target="_blank">ApexCharts</a>.</li>
-        <li><strong>Erweiterbarkeit:</strong> Erklärbare Modelle mit SHAP-Werten und anpassbare Pipelines für verschiedene Energiemärkte.</li>
+    <h3 style="margin: 10px 0;">Technische Highlights</h3>
+    <ul style="margin: 5px 0 10px 20px; padding: 0;">
+        <li><strong>Mehrschrittige Prognose:</strong> Stündliche Prognosen für eine ganze Woche.</li>
+        <li><strong>Fortschrittliches Feature Engineering:</strong> Wetterabhängige Eingaben (Windkraftdichte, Solarstrahlung usw.).</li>
+        <li><strong>Interaktive Visualisierungen:</strong> Diagramme erstellt mit
+            <a href="https://apexcharts.com/" target="_blank">ApexCharts</a>.
+        </li>
+        <li><strong>Erweiterbarkeit:</strong> Erklärbare Modelle (SHAP) und anpassbare Pipelines.</li>
     </ul>
 
-    <h3>Kontakt und Beiträge</h3>
+    <h3 style="margin: 10px 0;">Projektfahrplan</h3>
+    <div style="border-left: 3px solid #007bff; padding-left: 10px; margin-bottom: 15px;">
+        <div style="position: relative; margin-bottom: 15px;">
+          <span style="font-weight: bold;">
+            1. <a href="https://vsevolodnedora.substack.com/p/mlops-driven-energy-forecasting-week" target="_blank">Offshore</a> und
+            <a href="https://vsevolodnedora.substack.com/p/from-offshore-to-onshore-scaling" target="_blank">Onshore</a> Windkrafterzeugung
+          </span>
+            <p style="margin: 0; color: gray;">Verwendung wetterbezogener Merkmale</p>
+        </div>
+        <div style="position: relative; margin-bottom: 15px;">
+          <span style="font-weight: bold;">
+            2. <a href="https://vsevolodnedora.substack.com/p/physics-informed-solar-generation" target="_blank">Solar</a>-Energieerzeugung
+          </span>
+            <p style="margin: 0; color: gray;">Verwendung wetterbezogener Merkmale</p>
+        </div>
+        <div style="position: relative; margin-bottom: 15px;">
+          <span style="font-weight: bold;">
+            3. <a href="https://vsevolodnedora.substack.com/p/load-forecasting-adding-another-piece" target="_blank">Last</a>- & Restlastprognose
+          </span>
+            <p style="margin: 0; color: gray;">Einbeziehung von Wind- und Solarenergieerzeugung</p>
+        </div>
+
+        <div style="position: relative; margin-bottom: 15px; color: #007bff;">
+            <span style="font-weight: bold;">4. Kohle-, Öl- und Gasprognose</span> <span style="font-size: smaller; font-style: italic;">[Aktuelle Phase]</span>
+            <p style="margin: 0;">Hinzufügen von fossilen Brennstofferzeugungstypen</p>
+        </div>
+        <div style="position: relative; margin-bottom: 15px;">
+            <span style="font-weight: bold;">5. Aggregierte grenzüberschreitende Ströme</span>
+            <p style="margin: 0; color: gray;">Gesamte Importe und Exporte</p>
+        </div>
+        <div style="position: relative; margin-bottom: 15px;">
+            <span style="font-weight: bold;">6. Preise & CO₂-Indikatoren</span>
+            <p style="margin: 0; color: gray;">Prognosen basierend auf allen Faktoren</p>
+        </div>
+    </div>
+
+    <h3 style="margin: 10px 0;">Kontakt & Beiträge</h3>
     <p>
-        Wir freuen uns über Feedback und Zusammenarbeit! Besuchen Sie das
+        Wir freuen uns über Feedback und Zusammenarbeit. Besuchen Sie das
         <a href="https://github.com/vsevolodnedora/energy_market_analysis" target="_blank">GitHub-Repository</a>,
-        um beizutragen oder mehr über das Projekt zu erfahren.
+        um beizutragen oder mehr zu erfahren.
     </p>
-
 </section>

@@ -427,6 +427,28 @@ body.dark-mode .toggle-button:hover {
 
 
 /* ============================================= */
+/* ========== PROJECT INFORMATION SECTION ========== */
+/* ============================================= */
+
+    #project-details {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    #project-details h3 {
+      color: #5e35b1;
+      margin-top: 40px;
+      margin-bottom: 20px;
+    }
+    #project-details p {
+      line-height: 1.6;
+    }
+
+
+/* ============================================= */
 /* ========== Pre-Renewables Forecast Intro ========== */
 /* ============================================= */
 
