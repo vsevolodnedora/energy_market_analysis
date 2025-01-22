@@ -47,7 +47,142 @@ def convert_csv_to_json(df, target, output_dir, prefix, cols):
         else:
             print(f"Column '{column}' not found in the CSV file. (columns={df.columns})")
 
+def save_to_json(df:pd.DataFrame, metadata:dict, fname_json:str, verbose:bool):
+    # Convert the index (timestamps) to ISO 8601 strings and reset the index
+    df_reset = df.reset_index()
+    df_reset['date'] = df_reset['date'].dt.strftime('%Y-%m-%dT%H:%M:%SZ')  # Format as ISO 8601 string
 
+    # Convert DataFrame to JSON serializable format
+    json_data = {
+        "metadata": metadata,
+        "data": df_reset.reset_index()
+            .rename(columns={'date': 'datetime'})
+            .to_dict(orient='records')
+    }
+    # Save as JSON file
+
+    with open(fname_json, 'w') as f:
+        json.dump(json_data, f, indent=4)
+    if verbose: print(f"Saved {fname_json}")
+
+def publish_to_api(
+        target='wind_offshore',
+        avail_regions=('DE_50HZ', 'DE_TENNET'),
+        method_type='forecast',  # 'trained'
+        results_root_dir='forecasting_modules/output/',
+        output_dir='deploy/data/api/',
+        verbose: bool = True
+):
+    """
+    Load model forecasts (previous and current) and combine them into a single time-series file and
+    save as a JSON file that can be requested via an API.
+    Each forecast file initially has 4 columns:
+        [f"{target}_actual", f"{target}_fitted", f"{target}_lower", f"{target}_upper"]
+
+    For the API, we only provide the last three, renaming them for simplicity to:
+        ["forecast", "ci_lower", "ci_upper"]
+
+    Dataframes have index as pd.Timestamp in UTC, and the same format is provided in the JSON.
+
+    :param target: The forecasting target.
+    :param avail_regions: Available regions for forecasting.
+    :param method_type: Type of method used (e.g., 'forecast', 'trained').
+    :param results_root_dir: Directory containing forecast results.
+    :param output_dir: Directory to store API-ready JSON files.
+    :param verbose: Whether to print progress information.
+    :return: None
+    """
+
+
+    if not os.path.isdir(output_dir):
+        if verbose: print(f"Creating directory '{output_dir}'")
+        os.makedirs(output_dir)
+
+    df_results = pd.DataFrame()
+    for de_reg in de_regions:
+        if de_reg['name'] in avail_regions:
+            key = de_reg['TSO']
+            suffix = de_reg['suffix']
+            var = target + suffix
+
+            # Load the best model name
+            best_model = None
+            with open(f"{results_root_dir}{var}/best_model.txt") as f:
+                best_model = str(f.read())
+            if 'ensemble' in best_model:
+                best_model = convert_ensemble_string(best_model)
+
+            # Load past forecasts
+            df_res = pd.read_csv(
+                f"{results_root_dir}{var}/{best_model}/{method_type}/result.csv",
+                index_col=0, parse_dates=True)
+            df_res.columns = [col.replace(suffix, '') for col in df_res.columns]  # remove TSO suffix
+
+            # Load current forecast
+            df_forecast = pd.read_csv(
+                f"{results_root_dir}{var}/{best_model}/{method_type}/result.csv",
+                index_col=0, parse_dates=True)
+            df_forecast.columns = [col.replace(suffix, '') for col in df_forecast.columns]  # remove TSO suffix
+
+            # load timestamp when the model was last trained
+            with open(f"{results_root_dir}{var}/{best_model}/{method_type}/datetime.json", "r") as file:
+                train_time = pd.to_datetime(json.load(file)['datetime'])
+
+            # Combine past and current forecasts
+            df = pd.concat([df_res, df_forecast], axis=0)  # stack dataframes along index
+            df.sort_index(inplace=True)  # Ensure the index is sorted
+            df = df[~df.index.duplicated(keep='first')]
+            df.drop(columns=[f"{target}_actual"], inplace=True)  # Drop the actual data column
+            df.rename(columns={
+                f"{target}_fitted": "forecast",
+                f"{target}_lower": "ci_lower",
+                f"{target}_upper": "ci_upper"
+            }, inplace=True)
+
+            # Convert the index (timestamps) to ISO 8601 strings and reset the index
+            fname = f"{target.lower()}_{key.lower()}.json"
+
+            # generate metadata
+            metadata = {
+                "file": fname,
+                "columns":list(df.columns.tolist()),
+                "target": target,
+                "region": de_reg['name'],
+                "model": best_model,
+                "last_updated": pd.Timestamp.now(tz='UTC').strftime('%Y-%m-%dT%H:%M:%SZ'),
+                "trained_on": train_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                "source": "https://vsevolodnedora.github.io/energy_market_analysis/",
+                "units": "MW",
+                "notes": "none"
+            }
+
+            save_to_json(df, metadata, f"{output_dir}{fname}", verbose)
+
+            # Aggregate for total results
+            if df_results.empty:
+                df_results = df.copy()
+            else:
+                df_results += df.copy()
+
+    # Save total combined data
+    fname = f"{target.lower()}_total.json"
+    fpath_total_json = f"{output_dir}{fname}"
+
+    # generate metadata
+    metadata = {
+        "file": fname,
+        "columns":list(df_results.columns.tolist()),
+        "target": target,
+        "region": 'DE',
+        "model": 'N/A',
+        "last_updated": pd.Timestamp.now(tz='UTC').strftime('%Y-%m-%dT%H:%M:%SZ'),
+        "trained_on": train_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+        "source": "https://vsevolodnedora.github.io/energy_market_analysis/",
+        "units": "MW",
+        "notes": "none"
+    }
+
+    save_to_json(df_results, metadata, fpath_total_json, verbose)
 
 
 
@@ -140,7 +275,7 @@ def publish_generation(
                 'TSO RMSE': float(ave_smard_metric),
             })
 
-            # compute total (for SMARD comparison)
+            # LOAD results file and compute total (for SMARD comparison)
             df_res = pd.read_csv(
                 f"{results_root_dir}{var}/{best_model}/{method_type}/result.csv",
                 index_col=0, parse_dates=True)
@@ -149,10 +284,6 @@ def publish_generation(
 
             if df_results.empty: df_results = df_res.copy()
             else: df_results += df_res.copy()
-
-
-
-
 
 
     # -------- FOR TOTAL COMPUTE ERROR OVER THE LAST N HORIZONS --------------- #
