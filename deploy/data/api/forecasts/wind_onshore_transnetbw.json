@@ -9,8 +9,8 @@
         "target": "wind_onshore",
         "region": "DE_TRANSNET",
         "model": "XGBoost",
-        "last_updated": "2025-01-22T16:03:31Z",
-        "trained_on": "2025-01-22T15:00:00Z",
+        "last_updated": "2025-01-22T16:37:38Z",
+        "trained_on": "2025-01-22T16:00:00Z",
         "source": "https://vsevolodnedora.github.io/energy_market_analysis/",
         "units": "MW",
         "notes": "none"
