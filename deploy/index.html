@@ -1,6 +1,3 @@
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -13,7 +10,6 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/showdown/dist/showdown.min.js"></script>
     <script src="https://unpkg.com/i18next/i18next.min.js"></script>
-    <!-- Add this in your HTML head -->
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
@@ -78,10 +74,10 @@
         <input type="checkbox" id="toggle-energy" onclick="toggleSubpage('energy-mix', this.checked)" />
         <label for="toggle-energy">Energy Mix</label>
 
-        <input type="checkbox" id="toggle-forecasts" onclick="toggleSubpage('individual-forecasts', this.checked)" />
+        <input type="checkbox" id="toggle-forecasts" checked onclick="toggleSubpage('individual-forecasts', this.checked)" />
         <label for="toggle-forecasts">Individual Forecasts</label>
 
-        <input type="checkbox" id="toggle-api_info" checked onclick="toggleSubpage('api-info', this.checked)" />
+        <input type="checkbox" id="toggle-api_info" onclick="toggleSubpage('api-info', this.checked)" />
         <label for="toggle-api_info">API</label>
     </div>
 </nav>
@@ -123,7 +119,7 @@
 
 
     <!-- ========== INDIVIDUAL FORECASTS (WITH DETAILS) ========== -->
-    <div id="individual-forecasts" class="subpage">
+    <div id="individual-forecasts" class="subpage active">
         <!-- INTRODUCTION TO RENEWABLE FORECSTING SECTION -->
         <section class="forecast-intro">
             <p data-i18n="forecast-intro"></p>
@@ -307,7 +303,7 @@
     <!-- End of #individual-forecasts -->
 
     <!-- ========== API PAGE ========== -->
-    <div id="api-info" class="subpage active">
+    <div id="api-info" class="subpage">
 
         <div id="api_info-content">
             <!-- Footer content will be dynamically loaded here -->
