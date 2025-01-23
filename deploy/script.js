@@ -405,15 +405,35 @@ async function addSeries({
     });
 
     // Annotation for the first forecast point
+    const lastForecastTime = currentData[0].x.getTime();
     annotations.push({
-      x: currentData[0].x.getTime(),
+      x: lastForecastTime,
       label: {
         text: i18next.t('last-forecast-label'),
         style: { color: '#FFFFFF', background: '#808080' }
       }
     });
+
+    // Add vertical lines going back until the beginning of prevFittedFile
+    if (pastFittedData && pastFittedData.length > 0) {
+      const forecastDuration = currentData[currentData.length - 1].x.getTime() - lastForecastTime;
+      let newAnnotationTime = lastForecastTime;
+
+      while (newAnnotationTime > pastFittedData[0].x.getTime()) {
+        newAnnotationTime -= forecastDuration;
+        annotations.push({
+          x: newAnnotationTime,
+          label: {
+//            text: i18next.t('new-vertical-line-label'),
+            style: { color: '#FFFFFF', background: '#FF0000' }
+          }
+        });
+      }
+    }
   }
 }
+
+
 /************************************************************
  * Function that adds confidence intervals (area regions) to the chart
  ************************************************************/
@@ -856,11 +876,9 @@ document.getElementById("individual-forecasts").innerHTML = forecastData
   .map(generateForecastSection)
   .join("");
 
-
 /************************************************************
  * 6.0) Define an array describing each chart
  ************************************************************/
-
 
 const getChart1Config = () => { 
   return {
