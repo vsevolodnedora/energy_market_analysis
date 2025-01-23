@@ -68,7 +68,7 @@ if __name__ == '__main__':
 
     targets = ['wind_offshore', 'wind_onshore', 'solar', 'load']
 
-    # update_forecasts(targets=targets, db_path=db_path, verbose=True)
+    update_forecasts(targets=targets, db_path=db_path, verbose=True)
 
     publish_forecasts(targets=targets, db_path=db_path, verbose=True)
 
