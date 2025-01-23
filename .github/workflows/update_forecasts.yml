@@ -6,7 +6,10 @@ on:
       - Update Database # The name of the first workflow
     types:
       - completed
-
+  push:
+    paths:
+      - database/**
+      
 jobs:
   update_forecasts:
     runs-on: ubuntu-latest
