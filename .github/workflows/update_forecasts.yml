@@ -1,10 +1,11 @@
 name: Update Forecasts
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - 'database/**'
+  workflow_run:
+    workflows:
+      - Update Database # The name of the first workflow
+    types:
+      - completed
 
 jobs:
   update_forecasts:
