@@ -1,19 +1,21 @@
 {
     "metadata": {
         "file": "load_amprion.json",
-        "columns": [
+        "data_keys": [
             "forecast",
             "ci_lower",
             "ci_upper"
         ],
-        "target": "load",
-        "region": "DE_AMPRION",
-        "model": "XGBoost",
-        "last_updated": "2025-01-23T14:45:00Z",
-        "trained_on": "2025-01-23T14:00:00Z",
+        "target_name": "load",
+        "tso_region": "DE_AMPRION",
+        "model_label": "XGBoost",
+        "finetune_datetime": "2025-01-21T18:00:00Z",
+        "train_datetime": "2025-01-21T18:00:00Z",
+        "forecast_datetime": "2025-01-23T16:00:00Z",
         "source": "https://vsevolodnedora.github.io/energy_market_analysis/",
+        "forecast_horizon_hours": 840,
         "units": "MW",
-        "notes": "none"
+        "notes": "None"
     },
     "data": [
         {
