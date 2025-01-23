@@ -69,7 +69,9 @@ def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_h
 
     # check that horizon is correct and that start/end hours are correct
     if horizon < len(df_om_offshore_f):
-        if verbose: print("Forecast dataframe has {} rows while {} rows are requested. Trimming...")
+        if verbose: print(
+            f"Forecast dataframe has {len(df_om_offshore_f)} rows while {horizon} rows are requested. Trimming..."
+        )
         df_om_offshore_f = df_om_offshore_f.iloc[:horizon]
         df_om_onshore_f = df_om_onshore_f.iloc[:horizon]
         df_om_solar_f = df_om_solar_f.iloc[:horizon]

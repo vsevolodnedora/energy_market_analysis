@@ -1,6 +1,8 @@
 // GLOBAL DEFINITIONS
 let baseUrl = "https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/";
 
+
+
 /**
  * Show only one content section and hide the others.
  * @param {string} sectionId - The ID of the section to display.
@@ -23,6 +25,9 @@ function toggleSubpage(subpageId, isChecked) {
   } else {
     subpage.classList.remove('active');
   }
+
+
+
 }
 /************************************************************
  * 0) Utils
@@ -163,6 +168,8 @@ async function loadHTML(filePath, containerId) {
         const container = document.getElementById(containerId);
         container.innerHTML = '<p>Error loading content. </p>';
     }
+
+    Prism.highlightAll(); // syntax highlighting
 }
 
 /************************************************************

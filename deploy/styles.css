@@ -447,6 +447,37 @@ body.dark-mode .toggle-button:hover {
       line-height: 1.6;
     }
 
+    #project-details {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    #project-details h3 {
+      color: #5e35b1;
+      margin-top: 40px;
+      margin-bottom: 20px;
+    }
+    #project-details p {
+      line-height: 1.6;
+    }
+
+    /* Dark mode styles */
+    body.dark-mode #project-details {
+      background: #333;
+      color: #ddd;
+      box-shadow: 0 4px 10px rgba(255, 255, 255, 0.1);
+    }
+    body.dark-mode #project-details h3 {
+      color: #bb86fc;
+    }
+    body.dark-mode #project-details p {
+      color: #ccc;
+    }
+
+
 /* ============================================= */
 /* ========== API INFORMATION SECTION ========== */
 /* ============================================= */
@@ -455,7 +486,7 @@ body.dark-mode .toggle-button:hover {
   font-family: Arial, sans-serif;
   line-height: 1.6;
   color: #333;
-  margin: 20px;
+  margin: 15px;
 }
 
 body.dark-mode #api-content {
@@ -471,50 +502,12 @@ body.dark-mode #api-content {
 
 #api-content h3 {
   font-size: 1.1em;
-  margin-top: 20px;
-  color: #004080;
+  margin-top: 10px;
+  color: #5e35b1;
 }
 
 body.dark-mode #api-content h3 {
-  color: #66b2ff;
-}
-
-/* List of API addresses */
-#api-content ul {
-  list-style: none;
-  padding: 0;
-  margin: 10px 0;
-}
-
-#api-content ul li {
-  margin-bottom: 8px;
-}
-
-#api-content ul li code {
-  background-color: #f4f4f4;
-  border: 1px solid #ddd;
-  padding: 3px 5px;
-  border-radius: 3px;
-  font-family: Consolas, "Courier New", monospace;
-}
-
-body.dark-mode #api-content ul li code {
-  background-color: #333;
-  border-color: #555;
-  color: #eee;
-}
-
-#api-content ul li a {
-  color: #004080;
-  text-decoration: none;
-}
-
-body.dark-mode #api-content ul li a {
-  color: #66b2ff;
-}
-
-#api-content ul li a:hover {
-  text-decoration: underline;
+  color: #bb86fc;
 }
 
 /* Syntax highlighting for Python code */
@@ -538,55 +531,52 @@ pre code {
   color: #333;
 }
 
-/* Dark mode specific adjustments for pre and code */
-body.dark-mode pre {
-  background-color: #1e1e1e; /* Dark background */
-  border-color: #3f8f8f2;
-}
-
-
-body.dark-mode pre code {
-  color: #ddd;
-}
-
-/* Syntax highlighting for Python keywords */
+/* Highlight keywords */
 .language-python .keyword {
-  color: #007bff;
+  color: #0070c1;
   font-weight: bold;
 }
 
-.language-python .string {
-  color: #6das96d;
-}
-
+/* Highlight comments */
 .language-python .comment {
-  color: #6c757d;
+  color: #6a9955;
   font-style: italic;
 }
 
-body.dark-mode .language-python .keyword {
-  color: #66b2ff;
+/* Highlight strings */
+.language-python .string {
+  color: #a31515;
 }
 
-body.dark-mode .language-python .string {
-  color: #85e085;
+/* Highlight numbers */
+.language-python .number {
+  color: #098658;
 }
 
-body.dark-mode .language-python .comment {
-  color: #aaa;
+/* Highlight built-in functions */
+.language-python .builtin {
+  color: #795e26;
+  font-style: italic;
 }
 
-body.dark-mode .language-python .function {
-  color: #e6db74; /* Yellow functions */
+/* Highlight function names */
+.language-python .function {
+  color: #267f99;
 }
 
-body.dark-mode .language-python .constant,
-body.dark-mode .language-python .number {
-  color: #ae81ff; /* Purple numbers */
+/* Highlight variables */
+.language-python .variable {
+  color: #001080;
 }
 
-body.dark-mode .language-python .operator {
-  color: #f92672; /* Red operators */
+/* Highlight operators */
+.language-python .operator {
+  color: #d4a60f;
+}
+
+/* Highlight punctuation */
+.language-python .punctuation {
+  color: #808080;
 }
 
 
@@ -632,7 +622,7 @@ body.dark-mode .forecast-intro {
 }
 */
 
-/* Hover effect 
+/* Hover effect
 .forecast-section:hover {
   background-color: #fff;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
@@ -662,7 +652,7 @@ body.dark-mode .forecast-section:hover {
   padding: 5px;
   background: #f6f6f6;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-  border-radius: 8px; 
+  border-radius: 8px;
   border: 0px solid #ccc;
 }
 body.dark-mode .control-area {
@@ -1204,9 +1194,9 @@ table {
   width: 100%;
   border-collapse: collapse;
   margin: 20px 0;
-  border-radius: 8px; 
+  border-radius: 8px;
   overflow: hidden;
-  background-color: #fff; 
+  background-color: #fff;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -1378,4 +1368,3 @@ body.dark-mode .toggle-button {
 body.dark-mode .toggle-button:hover {
   background-color: #1c163d;
 }
-

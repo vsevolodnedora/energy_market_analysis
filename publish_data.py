@@ -125,8 +125,15 @@ def publish_to_api(
             df_forecast.columns = [col.replace(suffix, '') for col in df_forecast.columns]  # remove TSO suffix
 
             # load timestamp when the model was last trained
-            with open(f"{results_root_dir}{var}/{best_model}/{method_type}/datetime.json", "r") as file:
+
+            with open(f"{results_root_dir}{var}/{best_model}/{'finetuning'}/datetime.json", "r") as file:
+                finetune_time = pd.to_datetime(json.load(file)['datetime'])
+
+            with open(f"{results_root_dir}{var}/{best_model}/{'trained'}/datetime.json", "r") as file:
                 train_time = pd.to_datetime(json.load(file)['datetime'])
+
+            with open(f"{results_root_dir}{var}/{best_model}/{'forecast'}/datetime.json", "r") as file:
+                forecast_time = pd.to_datetime(json.load(file)['datetime'])
 
             # Combine past and current forecasts
             df = pd.concat([df_res, df_forecast], axis=0)  # stack dataframes along index
@@ -145,15 +152,17 @@ def publish_to_api(
             # generate metadata
             metadata = {
                 "file": fname,
-                "columns":list(df.columns.tolist()),
-                "target": target,
-                "region": de_reg['name'],
-                "model": best_model,
-                "last_updated": pd.Timestamp.now(tz='UTC').strftime('%Y-%m-%dT%H:%M:%SZ'),
-                "trained_on": train_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                "data_keys":list(df.columns.tolist()),
+                "target_name": target,
+                "tso_region": de_reg['name'],
+                "model_label": best_model,
+                "finetune_datetime":finetune_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                "train_datetime": train_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                "forecast_datetime": forecast_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
                 "source": "https://vsevolodnedora.github.io/energy_market_analysis/",
+                "forecast_horizon_hours":len(df_forecast),
                 "units": "MW",
-                "notes": "none"
+                "notes": "None"
             }
 
             save_to_json(df, metadata, f"{output_dir}{fname}", verbose)
@@ -171,15 +180,17 @@ def publish_to_api(
     # generate metadata
     metadata = {
         "file": fname,
-        "columns":list(df_results.columns.tolist()),
-        "target": target,
-        "region": 'DE',
-        "model": 'N/A',
-        "last_updated": pd.Timestamp.now(tz='UTC').strftime('%Y-%m-%dT%H:%M:%SZ'),
-        "trained_on": train_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+        "data_keys":list(df_results.columns.tolist()),
+        "target_name": target,
+        "tso_region": 'DE',
+        "model_label": "N/A",
+        "finetune_datetime":finetune_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+        "train_datetime": train_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+        "forecast_datetime": forecast_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
         "source": "https://vsevolodnedora.github.io/energy_market_analysis/",
+        "forecast_horizon_hours":len(df_forecast),
         "units": "MW",
-        "notes": "none"
+        "notes": "Aggregated over all regions."
     }
 
     save_to_json(df_results, metadata, fpath_total_json, verbose)
