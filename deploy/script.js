@@ -113,6 +113,10 @@ async function toggleLanguage() {
     const mainInfoFileName = (newLang === 'en') ? 'main_info_en.html' : 'main_info_de.html';
     await loadHTML(`${mainInfoFileName}`, 'main_info-content');
 
+    // Reload HTML files with different languages (1/3)
+    const apiInfoFileName = (newLang === 'en') ? 'api_info_en.html' : 'api_info_de.html';
+    await loadHTML(`${apiInfoFileName}`, 'api_info-content');
+
     // Update the text of the language toggle button
     const languageToggleButton = document.getElementById('language-toggle');
     languageToggleButton.textContent = (newLang === 'en') ? '🌍 DE' : '🌍 EN'; // Show the other language
@@ -134,6 +138,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Error initializing i18next or loading mainFile content:', error);
     }
 });
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Load the default apiFile content based on the initial language
+        const initialLanguage = i18next.language || 'en'; // Use 'en' if not set
+        const apiFileFileName = (initialLanguage === 'en') ? 'api_info_en.html' : 'api_info_de.html';
+        await loadHTML(`${apiFileFileName}`, 'api_info-content');
+    } catch (error) {
+        console.error('Error initializing i18next or loading apiFile content:', error);
+    }
+});
+
 
 // Function to dynamically load HTML content into a target container
 async function loadHTML(filePath, containerId) {

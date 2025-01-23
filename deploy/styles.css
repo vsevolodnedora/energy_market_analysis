@@ -447,6 +447,149 @@ body.dark-mode .toggle-button:hover {
       line-height: 1.6;
     }
 
+/* ============================================= */
+/* ========== API INFORMATION SECTION ========== */
+/* ============================================= */
+/* General styles for the API section */
+#api-content {
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  color: #333;
+  margin: 20px;
+}
+
+body.dark-mode #api-content {
+  color: #ddd;
+}
+
+/* Summary and headers */
+#api-content summary {
+  font-weight: bold;
+  font-size: 1.2em;
+  margin-bottom: 10px;
+}
+
+#api-content h3 {
+  font-size: 1.1em;
+  margin-top: 20px;
+  color: #004080;
+}
+
+body.dark-mode #api-content h3 {
+  color: #66b2ff;
+}
+
+/* List of API addresses */
+#api-content ul {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0;
+}
+
+#api-content ul li {
+  margin-bottom: 8px;
+}
+
+#api-content ul li code {
+  background-color: #f4f4f4;
+  border: 1px solid #ddd;
+  padding: 3px 5px;
+  border-radius: 3px;
+  font-family: Consolas, "Courier New", monospace;
+}
+
+body.dark-mode #api-content ul li code {
+  background-color: #333;
+  border-color: #555;
+  color: #eee;
+}
+
+#api-content ul li a {
+  color: #004080;
+  text-decoration: none;
+}
+
+body.dark-mode #api-content ul li a {
+  color: #66b2ff;
+}
+
+#api-content ul li a:hover {
+  text-decoration: underline;
+}
+
+/* Syntax highlighting for Python code */
+pre {
+  background-color: #f4f4f4;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 5px;
+  overflow-x: auto;
+  font-family: Consolas, "Courier New", monospace;
+}
+
+body.dark-mode pre {
+  background-color: #2d2d2d;
+  border-color: #555;
+  color: #ddd;
+}
+
+pre code {
+  font-size: 0.95em;
+  color: #333;
+}
+
+/* Dark mode specific adjustments for pre and code */
+body.dark-mode pre {
+  background-color: #1e1e1e; /* Dark background */
+  border-color: #3f8f8f2;
+}
+
+
+body.dark-mode pre code {
+  color: #ddd;
+}
+
+/* Syntax highlighting for Python keywords */
+.language-python .keyword {
+  color: #007bff;
+  font-weight: bold;
+}
+
+.language-python .string {
+  color: #6das96d;
+}
+
+.language-python .comment {
+  color: #6c757d;
+  font-style: italic;
+}
+
+body.dark-mode .language-python .keyword {
+  color: #66b2ff;
+}
+
+body.dark-mode .language-python .string {
+  color: #85e085;
+}
+
+body.dark-mode .language-python .comment {
+  color: #aaa;
+}
+
+body.dark-mode .language-python .function {
+  color: #e6db74; /* Yellow functions */
+}
+
+body.dark-mode .language-python .constant,
+body.dark-mode .language-python .number {
+  color: #ae81ff; /* Purple numbers */
+}
+
+body.dark-mode .language-python .operator {
+  color: #f92672; /* Red operators */
+}
+
+
 
 /* ============================================= */
 /* ========== Pre-Renewables Forecast Intro ========== */

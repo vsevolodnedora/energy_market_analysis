@@ -12,7 +12,6 @@ jobs:
     if: github.event_name == 'push'
     permissions:
       contents: write
-      workflows: write
     env:
       ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
     steps:

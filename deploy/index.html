@@ -10,6 +10,8 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/showdown/dist/showdown.min.js"></script>
     <script src="https://unpkg.com/i18next/i18next.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
     <link rel="stylesheet" href="styles.css"> <!-- Link to external CSS file -->
 </head>
 
@@ -71,6 +73,9 @@
 
         <input type="checkbox" id="toggle-forecasts" checked onclick="toggleSubpage('individual-forecasts', this.checked)" />
         <label for="toggle-forecasts">Individual Forecasts</label>
+
+        <input type="checkbox" id="toggle-api_info" onclick="toggleSubpage('api-info', this.checked)" />
+        <label for="toggle-api_info">API</label>
     </div>
 </nav>
 
@@ -291,6 +296,71 @@
     </div>
     <!-- End of #individual-forecasts -->
 
+    <!-- ========== ENERGY MIX (EMPTY SHELL) ========== -->
+    <!-- ========== API PAGE ========== -->
+    <div id="api-info" class="subpage">
+        <details id="project-api_in" open>
+            <summary>API Information</summary>
+            <div id="api-content">
+                <p>
+                    This is a static webpage providing access to JSON files that were used to produce plots shown in the "Individual Forecast" section of this website. The API allows users to download forecast data programmatically.
+                </p>
+                <h3>Python Example</h3>
+                <p>The following Python example demonstrates how to fetch a file and load it into a pandas DataFrame:</p>
+
+
+                <pre><code class="language-python">
+import requests, json, pandas as pd, matplotlib.pyplot as plt
+# construct base URL
+base_url = (
+    "https://raw.githubusercontent.com/"
+    "vsevolodnedora/energy_market_analysis/"
+    "main/deploy/data/api/forecasts/"
+)
+# Specify the file to fetch ({variable}_{TSO})
+file_name = "load_50hertz.json"
+# Construct the full URL
+url = f"{base_url}{file_name}"
+# request data
+response = requests.get(url)
+response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
+json_data = response.json()
+metadata:dict = json_data['metadata']
+# extract data
+df = pd.DataFrame.from_records(json_data['data'],index=['index'])
+df.set_index('datetime', inplace=True) # set time-series index
+df.index = pd.to_datetime(df.index, utc=True) # UTC datetime
+print(df.head()) # print some rows
+                </code></pre>
+            </div>
+        </details>
+
+        <details>
+            <summary>Available Files via API</summary>
+            <ul>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/load_50hertz.json">load_50hertz.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/load_amprion.json">load_amprion.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/load_tennet.json">load_tennet.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/load_total.json">load_total.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/load_transnetbw.json">load_transnetbw.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/solar_50hertz.json">solar_50hertz.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/solar_amprion.json">solar_amprion.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/solar_tennet.json">solar_tennet.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/solar_total.json">solar_total.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/solar_transnetbw.json">solar_transnetbw.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/wind_offshore_50hertz.json">wind_offshore_50hertz.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/wind_offshore_tennet.json">wind_offshore_tennet.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/wind_offshore_total.json">wind_offshore_total.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/wind_onshore_50hertz.json">wind_onshore_50hertz.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/wind_onshore_amprion.json">wind_onshore_amprion.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/wind_onshore_tennet.json">wind_onshore_tennet.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/wind_onshore_total.json">wind_onshore_total.json</a></code></li>
+                <li><code><a href="https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/data/api/forecasts/wind_onshore_transnetbw.json">wind_onshore_transnetbw.json</a></code></li>
+            </ul>
+        </details>
+
+    </div>
+
 </div> <!-- End of .subpages-container -->
 
 
@@ -314,6 +384,19 @@
       } else {
         subpage.classList.remove('active');
       }
+    }
+</script>
+
+<script>
+    function showFileURL() {
+        const dropdown = document.getElementById('file-dropdown');
+        const url = dropdown.value;
+        const display = document.getElementById('file-url');
+        if (url) {
+            display.innerHTML = `Selected file URL: <a href="${url}" target="_blank">${url}</a>`;
+        } else {
+            display.innerHTML = '';
+        }
     }
 </script>
 
