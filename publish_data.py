@@ -120,7 +120,7 @@ def publish_to_api(
 
             # Load current forecast
             df_forecast = pd.read_csv(
-                f"{results_root_dir}{var}/{best_model}/{method_type}/result.csv",
+                f"{results_root_dir}{var}/{best_model}/{method_type}/forecast.csv",
                 index_col=0, parse_dates=True)
             df_forecast.columns = [col.replace(suffix, '') for col in df_forecast.columns]  # remove TSO suffix
 
