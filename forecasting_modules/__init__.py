@@ -3,9 +3,6 @@ from .base_models import (
     ElasticNetMapieRegressor,
     ProphetForecaster
 )
-from .ensemble_model import (
-    EnsembleForecaster
-)
 from .utils import (
     compute_error_metrics,
     compute_error_metrics_aggregate_over_horizon,

@@ -1,14 +1,14 @@
 import copy
 import pandas as pd
 
-from .utils import (
+from forecasting_modules.utils import (
     compute_timeseries_split_cutoffs,
     compute_error_metrics
 )
 from data_modules import (
     HistForecastDataset
 )
-from .base_models import (
+from forecasting_modules.base_models import (
     BaseForecaster,XGBoostMapieRegressor,ElasticNetMapieRegressor,ProphetForecaster
 )
 
