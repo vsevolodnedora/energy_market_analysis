@@ -14,29 +14,24 @@ def preprocess_generation(df_gen:pd.DataFrame, drop_consumption:bool, verbose:bo
 
     generation_type_mapping = {
         "actual_load": ["Actual Load"],
+        # non-renewables
         "hard_coal": ["Fossil Hard coal Actual Aggregated"],
         "lignite": ["Fossil Brown coal/Lignite Actual Aggregated"],
         "gas": ["Fossil Gas Actual Aggregated"],
-        "other_fossil": [
-            "Fossil Coal-derived gas Actual Aggregated",
-            "Fossil Oil Actual Aggregated",
-            "Other Actual Aggregated",
-        ],
+        "coal_derived_gas": ["Fossil Coal Derived Actual Aggregated"],
+        "oil": ["Fossil Oil Actual Aggregated"],
+        "other_fossil" : ["Other Actual Aggregated"],
         "nuclear": ["Nuclear Actual Aggregated"],
+        # renewables (stable)
         "biomass": ["Biomass Actual Aggregated"],
         "waste": ["Waste Actual Aggregated"],
-        "other_renewable": [
-            "Geothermal Actual Aggregated",
-            "Other renewable Actual Aggregated",
-        ],
-        "hydro": [
-            "Hydro Pumped Storage Actual Aggregated",
-            "Hydro Run-of-river and poundage Actual Aggregated",
-            "Hydro Water Reservoir Actual Aggregated",
-        ],
-        "solar": [
-            "Solar Actual Aggregated",
-        ],
+        "geothermal": ["Geothermal Actual Aggregated"],
+        "other_geothermal": ["Other Geothermal Actual Aggregated"],
+        "pumped_storage": ["Hydro Pumped Storage Actual Aggregated"],
+        "run_of_river": ["Hydro Run-of-river and poundage Actual Aggregated"],
+        "water_reservoir": ["Hydro Water Reservoir Actual Aggregated"],
+        # renewables (highly volatile)
+        "solar": ["Solar Actual Aggregated"],
         "wind_onshore": ["Wind Onshore Actual Aggregated"],
         "wind_offshore": ["Wind Offshore Actual Aggregated"],
     }
