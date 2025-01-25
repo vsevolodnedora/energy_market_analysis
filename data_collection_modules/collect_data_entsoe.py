@@ -113,6 +113,7 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
                     df_gen_f = df_gen_f.rename(
                         f"generation_forecast{region['suffix']}",
                     )
+                    df_gen_f = pd.DataFrame(df_gen_f)
                     df_gen_f.index = pd.to_datetime(df_gen_f.index, utc=True).tz_convert(tz="UTC")
                     df_gen_f.index.name = 'date'
                     df_gen_f.interpolate(method="time", axis=0, inplace=True)
