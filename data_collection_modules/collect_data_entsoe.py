@@ -18,15 +18,15 @@ def preprocess_generation(df_gen:pd.DataFrame, drop_consumption:bool, verbose:bo
         "hard_coal": ["Fossil Hard coal Actual Aggregated"],
         "lignite": ["Fossil Brown coal/Lignite Actual Aggregated"],
         "gas": ["Fossil Gas Actual Aggregated"],
-        "coal_derived_gas": ["Fossil Coal Derived Actual Aggregated"],
+        "coal_derived_gas": ["Fossil Coal-derived gas Actual Aggregated"], # Fossil Coal-derived gas Actual Aggregated
         "oil": ["Fossil Oil Actual Aggregated"],
-        "other_fossil" : ["Other Actual Aggregated"],
+        "other_fossil" : ["Other Actual Aggregated"], # Other renewable Actual Aggregated
         "nuclear": ["Nuclear Actual Aggregated"],
         # renewables (stable)
         "biomass": ["Biomass Actual Aggregated"],
         "waste": ["Waste Actual Aggregated"],
         "geothermal": ["Geothermal Actual Aggregated"],
-        "other_geothermal": ["Other Geothermal Actual Aggregated"],
+        "other_renewables": ["Other renewable Actual Aggregated"],
         "pumped_storage": ["Hydro Pumped Storage Actual Aggregated"],
         "run_of_river": ["Hydro Run-of-river and poundage Actual Aggregated"],
         "water_reservoir": ["Hydro Water Reservoir Actual Aggregated"],

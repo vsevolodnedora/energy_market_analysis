@@ -18,6 +18,7 @@ torch
 joblib
 future
 xgboost
+lightgbm
 shap
 prophet
 optuna

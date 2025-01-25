@@ -15,25 +15,8 @@ from data_modules.utils import (
 )
 from forecasting_modules.utils import convert_ensemble_string
 
-def load_prepared_data(target:str,datapath:str, verbose:bool)  ->tuple[pd.DataFrame, pd.DataFrame]:
 
-    df_history = pd.read_parquet(f"{datapath}history.parquet")
-    df_forecast = pd.read_parquet(f"{datapath}forecast.parquet")
-
-    # for brevity and due to evolving market conditions we focus here only on 1 year of data
-    # df_history = df_history[pd.Timestamp(df_history.dropna(how='any', inplace=False).last_valid_index()) - limit_train_to:]
-
-    # assure that the columns in both dataframes match
-    df_features = df_history[[col for col in list(df_history.columns) if col != target]]
-    if not df_features.columns.equals(df_forecast.columns):
-        raise IOError("The DataFrames have different columns.")
-
-    if verbose:
-        print(f"History: {df_history.shape} from {df_history.index[0]} to {df_history.index[-1]} ({len(df_history.index)/7/24} weeks)")
-        print(f"Forecast: {df_forecast.shape} from {df_forecast.index[0]} to {df_forecast.index[-1]} ({len(df_forecast.index)/24} days)")
-
-    return df_history, df_forecast
-
+# TODO: USE SQL HERE!!!
 def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_horizons:int, horizon:int, verbose:bool)\
         -> tuple[pd.DataFrame, pd.DataFrame]:
 
@@ -83,7 +66,7 @@ def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_h
 
     target_notso = ''
     tso_dict = {}
-    if (('wind_offshore' in target) or ('wind_onshore' in target) or ('solar' in target) or ('load' in target)):
+    if (('wind_offshore' in target) or ('wind_onshore' in target) or ('solar' in target) or ('load' in target) or ('energy_mix' in target)):
 
         for de_reg in de_regions:
             if target.__contains__(de_reg['suffix']) and tso_name != de_reg['name']:
@@ -127,6 +110,8 @@ def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_h
             left=dataframe[feature_col_names], right=target_col, left_index=True, right_index=True, how='left'
         )
         df_forecast = dataframe_f[feature_col_names]
+
+
     else:
         raise NotImplementedError(f"target={target} is not yet supported")
 
