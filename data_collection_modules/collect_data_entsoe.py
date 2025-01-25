@@ -64,12 +64,11 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
 
     client = EntsoePandasClient(api_key=api_key)
 
-    # collect solar and wind generation per TSO controlled region
     df = pd.DataFrame()
     for i, region in enumerate(de_regions):
         if verbose: print(f"Requesting ENTSO-E data for region {region['name']} from {start_date} till {today}")
 
-        # Heavy-duty API calling (large files may fail due to connection/limits/traffic... to retry)
+        ''' ------------ GENERATION ENERGY MIX ---------------- '''
         df_gen = None
         fname = f"tmp_gen{region['suffix']}_hist.parquet"
         if os.path.isfile(working_dir + fname):
@@ -96,7 +95,42 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
             if verbose: print(f"Saving temporary file: {working_dir + fname}")
             df_gen.to_parquet(working_dir + fname)
 
-        # Heavy-duty API calling (large files may fail due to connection/limits/traffic... to retry)
+        ''' ------------- TOTAL GENERATION FORECAST ------------------ '''
+        df_gen_f = None
+        fname = f"tmp_gen{region['suffix']}_total_forecast.parquet"
+        if os.path.isfile(working_dir + fname):
+            if verbose: print(f"Loading temporary file: {working_dir + fname}")
+            df_gen_f = pd.read_parquet(working_dir + fname)
+        else:
+            # query generation
+            for i in range(5):
+                try:
+                    # --- generation forecast aggregated
+                    if verbose: print(f"Collecting generation forecast for {region['name']} from {start_date} to {today}")
+                    df_gen_f = client.query_generation_forecast(
+                        country_code=region['name'], start=start_date, end=today
+                    )
+                    df_gen_f = df_gen_f.rename(
+                        f"generation_forecast{region['suffix']}",
+                    )
+                    df_gen_f.index = pd.to_datetime(df_gen_f.index, utc=True).tz_convert(tz="UTC")
+                    df_gen_f.index.name = 'date'
+                    df_gen_f.interpolate(method="time", axis=0, inplace=True)
+                    df_gen_f = df_gen_f.resample('h').mean()
+                    time.sleep(5) # not to trigger ENTSO-E API abort
+                except Exception as e:
+                    print(f"Failed to fetch generation forecast from ENTSOE API ({i}/{5}) for region "
+                          f"{region['name']} from {start_date} till {today}: \n\t{e}")
+                    time.sleep(5)
+                    continue
+                break
+            if df_gen_f is None:
+                raise ConnectionAbortedError(f"Failed to fetch generation forecast from ENTSOE API for region "
+                                             f"{region['name']} from {start_date} till {today}.")
+            if verbose: print(f"Saving temporary file: {working_dir + fname}")
+            df_gen_f.to_parquet(working_dir + fname)
+
+        ''' ------------- SOLAR & WIND GENERATION FORECAST ------------- '''
         df_gen_sw_f = None
         fname = f"tmp_gen{region['suffix']}_solarwind_forecast.parquet"
         if os.path.isfile(working_dir + fname):
@@ -107,7 +141,9 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
             for i in range(5):
                 try:
                     # --- REALIZED GENERATION ---
-                    if verbose: print(f"Collecting generation forecast for {region['name']} from {start_date} to {today}")
+                    if verbose: print(
+                        f"Collecting solar & wind generation forecast for {region['name']} from {start_date} to {today}"
+                    )
                     df_gen_sw_f = client.query_wind_and_solar_forecast(
                         country_code=region['name'], start=start_date, end=today
                     )
@@ -122,18 +158,20 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
                     df_gen_sw_f = df_gen_sw_f.resample('h').mean()
                     time.sleep(5) # not to trigger ENTSO-E API abort
                 except Exception as e:
-                    print(f"Failed to fetch generation forecast from ENTSOE API ({i}/{5}) for region "
+                    print(f"Failed to fetch solar & wind generation forecast from ENTSOE API ({i}/{5}) for region "
                           f"{region['name']} from {start_date} till {today}: \n\t{e}")
                     time.sleep(5)
                     continue
                 break
             if df_gen_sw_f is None:
-                raise ConnectionAbortedError(f"Failed to fetch generation forecast from ENTSOE API for region "
-                                             f"{region['name']} from {start_date} till {today}.")
+                raise ConnectionAbortedError(
+                    f"Failed to fetch solar & wind generation forecast from ENTSOE API for region "
+                    f"{region['name']} from {start_date} till {today}."
+                )
             if verbose: print(f"Saving temporary file: {working_dir + fname}")
             df_gen_sw_f.to_parquet(working_dir + fname)
 
-        # Heavy-duty API calling (large files may fail due to connection/limits/traffic... to retry)
+        ''' ---------- LOAD ------------ '''
         df_load = None
         fname = f"tmp_load{region['suffix']}_forecast.parquet"
         if os.path.isfile(working_dir + fname):
@@ -169,6 +207,7 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
 
         # --- Combine dataframes (assume indexes match)
         df_tot = pd.merge(df_gen, df_gen_sw_f, left_index=True, right_index=True, how="left")
+        df_tot = pd.merge(df_tot, df_gen_f, left_index=True, right_index=True, how="left")
         df_tot = pd.merge(df_tot, df_load, left_index=True, right_index=True, how="left")
 
         # adding suffixes (TSO-specific)
@@ -184,6 +223,7 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
     for i, region in enumerate(de_regions):
         fnames = [
             f"tmp_gen{region['suffix']}_hist.parquet",
+            f"tmp_gen{region['suffix']}_total_forecast.parquet",
             f"tmp_gen{region['suffix']}_solarwind_forecast.parquet",
             f"tmp_load{region['suffix']}_forecast.parquet"
         ]
