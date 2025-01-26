@@ -40,46 +40,47 @@ def main(task:str, verbose:bool = True):
         'update_openmeteo_solarfarms',
         'update_openmeteo_cities',
     ]
+    if task not in tasks:
+        raise Exception(f"task {task} is not supported. Supported tasks are: {tasks}")
 
     # split tasks for lighter workflows
     if task == "update_entsoe" or task == "all":
         update_entsoe_from_api(today=today, data_dir=db_path + 'entsoe/', api_key=entsoe_api_key, verbose=verbose)
 
-    elif task == "update_smard" or task == "all":
+    if task == "update_smard" or task == "all":
         update_smard_from_api(today=today, data_dir=db_path + 'smard/', verbose=verbose)
 
-    elif task == "update_epexspot" or task == "all":
+    if task == "update_epexspot" or task == "all":
         update_epexspot_from_files(today=today, data_dir=db_path + 'epexspot/', verbose=verbose)
 
-    elif task == "update_openmeteo_windfarms_offshore" or task == "all":
+    if task == "update_openmeteo_windfarms_offshore" or task == "all":
         update_openmeteo_from_api(
             fpath=db_path + 'openmeteo/offshore_history.parquet',
             variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind),
             locations = loc_offshore_windfarms, verbose = verbose
         )
 
-    elif task == "update_openmeteo_windfarms_onshore" or task == "all":
+    if task == "update_openmeteo_windfarms_onshore" or task == "all":
         update_openmeteo_from_api(
             fpath=db_path + 'openmeteo/onshore_history.parquet',
             variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind),
             locations = loc_onshore_windfarms, verbose = verbose
         )
 
-    elif task == "update_openmeteo_solarfarms" or task == "all":
+    if task == "update_openmeteo_solarfarms" or task == "all":
         update_openmeteo_from_api(
             fpath=db_path + 'openmeteo/solar_history.parquet',
             variables = (OpenMeteo.vars_basic + OpenMeteo.vars_radiation),
             locations = loc_solarfarms, verbose = verbose
         )
 
-    elif task == "update_openmeteo_cities" or task == "all":
+    if task == "update_openmeteo_cities" or task == "all":
         update_openmeteo_from_api(
             fpath=db_path + 'openmeteo/cities_history.parquet',
             variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind + OpenMeteo.vars_radiation),
             locations = loc_cities, verbose = verbose
         )
-    else:
-        raise Exception(f"task {task} is not supported. Supported tasks are: {tasks}")
+
 
     print(f"Task '{task}' completed successfully today={today}")
 
