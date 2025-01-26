@@ -16,6 +16,13 @@ from data_modules.utils import (
 from forecasting_modules.utils import convert_ensemble_string
 
 
+energy_mix_config = {
+    'targets' : ["hard_coal", "lignite", "coal_derived_gas", "oil", "other_fossil", "gas", "renewables"],
+    "aggregations": {"renewables": [
+        "biomass","waste","geothermal","pumped_storage","run_of_river","water_reservoir","other_renewables"
+    ]}
+}
+
 # TODO: USE SQL HERE!!!
 def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_horizons:int, horizon:int, verbose:bool)\
         -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -32,7 +39,7 @@ def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_h
     df_om_cities_f = pd.read_parquet(db_path + 'openmeteo/' + 'cities_forecast.parquet')
     df_es = pd.read_parquet(db_path + 'epexspot/' + 'history.parquet')
     df_entsoe = pd.read_parquet(db_path + 'entsoe/' + 'history.parquet')
-
+    df_entsoe = df_entsoe.apply(pd.to_numeric, errors='coerce')
     # ----- CHECKS AND NOTES ----
     if verbose:
         print("---------- LOADING DATABASE DATA ----------")
@@ -78,8 +85,35 @@ def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_h
         if target_notso == '':
             raise ValueError(f"target={target} does not contain {[de_reg['suffix'] for de_reg in de_regions]}")
 
+        suffix = tso_dict['suffix']
+
         # get target column
-        target_col = df_entsoe[target_notso + tso_dict['suffix']]
+        if target_notso == 'energy_mix':
+            target_cols =  df_entsoe[
+                [target_ + suffix for target_ in energy_mix_config['targets']
+                    if not target_ in list(energy_mix_config['aggregations'].keys())]
+            ]
+            for key in energy_mix_config['targets']:
+                if key in list(energy_mix_config['aggregations'].keys()):
+                    keys_to_agg = [
+                        col + suffix for col in energy_mix_config['aggregations'][key]
+                            if col + suffix in list(df_entsoe.keys())
+                    ]
+                    if len(keys_to_agg) != len(energy_mix_config['aggregations'][key]):
+                        print(f"Warning! Not all keys for aggregating {key} are found in entsoe dataframe. "
+                              f"{len(keys_to_agg)} out of {len(energy_mix_config['aggregations'][key])} will be used ")
+                    # aggregate for the required column
+                    df_entsoe[key + suffix] = df_entsoe[keys_to_agg].sum(axis=1)
+                    target_cols = pd.merge(
+                        target_cols, df_entsoe[key + suffix], left_index=True, right_index=True, how='left'
+                    )
+        else:
+            target_cols = df_entsoe[target_notso + suffix]
+
+        target_cols.replace(['NaN', 'None', '', ' '], np.nan, inplace=True)
+        if target_cols.isna().any().any():
+            print("Warning! Nans in the target columns! Filling with 0")
+        target_cols.fillna(0, inplace=True) #
 
         # get feature dataframe
         dataframe, dataframe_f = None, None
@@ -87,6 +121,7 @@ def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_h
         elif 'wind_onshore' in target: dataframe, dataframe_f = df_om_onshore, df_om_onshore_f
         elif 'solar' in target: dataframe, dataframe_f = df_om_solar, df_om_solar_f
         elif 'load' in target: dataframe, dataframe_f = df_om_cities, df_om_cities_f
+        elif 'energy_mix' in target: dataframe, dataframe_f = df_om_cities, df_om_cities_f
         else: raise NotImplementedError(f"No dataframe selection for target={target} tso_name={tso_name}")
 
         # get features specific to this location (TSO)
@@ -95,6 +130,7 @@ def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_h
         elif 'wind_onshore' in target: locations = loc_onshore_windfarms
         elif 'solar' in target: locations = loc_solarfarms
         elif 'load' in target: locations = loc_cities
+        elif 'energy_mix' in target: locations = loc_cities
         else: raise NotImplementedError(f"Locations are not available for target={target} tso_name={tso_name}")
 
         om_suffixes = [loc['suffix'] for loc in locations if loc['TSO'] == tso_dict['TSO']]
@@ -107,7 +143,7 @@ def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_h
             print(f"Suffixes {om_suffixes}")
         # combine weather data and target column (by convention)
         df_hist = pd.merge(
-            left=dataframe[feature_col_names], right=target_col, left_index=True, right_index=True, how='left'
+            left=dataframe[feature_col_names], right=target_cols, left_index=True, right_index=True, how='left'
         )
         df_forecast = dataframe_f[feature_col_names]
 
@@ -116,9 +152,13 @@ def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_h
         raise NotImplementedError(f"target={target} is not yet supported")
 
     # add additional quantities
-    if ('load' in target):
+    add_exog = []
+    if 'load' in target: add_exog = ["wind_offshore", "wind_onshore", "solar"]
+    elif 'energy_mix' in target: add_exog = ["wind_offshore", "wind_onshore", "solar", 'load', 'residual_load']
+
+    if len(add_exog) > 0:
         if len(tso_dict.keys()) == 0: raise NotImplementedError(f"No TSO dict available for target={target}")
-        for exog in ["wind_offshore", "wind_onshore", "solar"]:
+        for exog in add_exog:
             # load historic data
             exog_tso = exog + tso_dict['suffix']
             if not exog_tso in df_entsoe.columns.tolist():
@@ -170,9 +210,10 @@ def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_h
               f"From {len(dataframe)} entries do {len(df_hist)} ({len(df_hist)/len(dataframe)*100:.1f} %)")
 
     # check again the dataframe validity
-    if not len(df_hist.columns) == len(df_forecast.columns)+1:
-        raise ValueError(f'The DataFrames have different columns. '
-                         f'hist={df_hist.shape} forecast={df_forecast.shape}')
+    if not 'energy_mix' in target:
+        if not len(df_hist.columns) == len(df_forecast.columns)+1:
+            raise ValueError(f'The DataFrames have different columns. '
+                             f'hist={df_hist.shape} forecast={df_forecast.shape}')
 
     if len(df_hist) <= 1 or len(df_forecast) <= 1:
         raise ValueError(f'The DataFrames must have >1 rows '
