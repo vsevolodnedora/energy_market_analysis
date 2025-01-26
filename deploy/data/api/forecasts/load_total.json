@@ -11,7 +11,7 @@
         "model_label": "N/A",
         "finetune_datetime": "2025-01-21T18:00:00Z",
         "train_datetime": "2025-01-21T18:00:00Z",
-        "forecast_datetime": "2025-01-26T12:00:00Z",
+        "forecast_datetime": "2025-01-26T18:00:00Z",
         "source": "https://vsevolodnedora.github.io/energy_market_analysis/",
         "forecast_horizon_hours": 168,
         "units": "MW",
