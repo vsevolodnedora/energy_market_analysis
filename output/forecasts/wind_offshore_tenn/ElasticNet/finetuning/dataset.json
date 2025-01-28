@@ -1,5 +1,5 @@
 {
-    "log_target": true,
+    "log_target": false,
     "forecast_horizon": null,
     "target_scaler": "StandardScaler",
     "feature_scaler": "StandardScaler",
@@ -13,5 +13,8 @@
     ],
     "add_cyclical_time_features": true,
     "feature_engineer": "WeatherWindPowerFE",
-    "target": "wind_offshore_tenn"
+    "targets": [
+        "wind_offshore_tenn"
+    ],
+    "label": "wind_offshore_tenn"
 }

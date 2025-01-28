@@ -11,5 +11,8 @@
     ],
     "add_cyclical_time_features": true,
     "feature_engineer": "WeatherSolarPowerFE",
-    "target": "solar_ampr"
+    "targets": [
+        "solar_ampr"
+    ],
+    "label": "solar_ampr"
 }

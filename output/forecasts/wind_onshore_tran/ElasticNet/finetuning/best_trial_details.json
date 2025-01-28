@@ -1,24 +1,24 @@
 {
-    "trial_id": 19,
-    "best_value": 189.5998032285057,
+    "trial_id": 14,
+    "best_value": 160.38769664515902,
     "params": {
-        "compute_air_density": true,
-        "compute_wind_power_density": false,
-        "encode_wind_direction": false,
+        "compute_air_density": false,
+        "compute_wind_power_density": true,
+        "encode_wind_direction": true,
         "compute_wind_shear": true,
         "compute_wind_ramp": false,
-        "compute_air_density_moiust_air_correction": false,
-        "dew_point_temperature": false,
+        "compute_air_density_moiust_air_correction": true,
+        "dew_point_temperature": true,
         "vapor_pressure": true,
         "gust_factor": false,
-        "turbulence_window": 0,
+        "turbulence_window": 6,
         "lags_choice": "small",
         "precip_lags_choice": "small",
-        "drop_raw_main_features": true,
+        "drop_raw_main_features": false,
         "drop_raw_wind_features": false,
-        "spatial_agg_method": "mean",
-        "lags_target": 6,
-        "l1_ratio": 0.474649770585964,
-        "alpha": 0.3904124280388232
+        "spatial_agg_method": "None",
+        "lags_target": null,
+        "l1_ratio": 0.7775629695613403,
+        "alpha": 0.27743050155983257
     }
 }

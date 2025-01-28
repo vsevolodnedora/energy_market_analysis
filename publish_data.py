@@ -66,6 +66,7 @@ def save_to_json(df:pd.DataFrame, metadata:dict, fname_json:str, verbose:bool):
     if verbose: print(f"Saved {fname_json}")
 
 def publish_to_api(
+        run_label:str='wind_offshore',
         target='wind_offshore',
         avail_regions=('DE_50HZ', 'DE_TENNET'),
         method_type='forecast',  # 'trained'
@@ -93,6 +94,8 @@ def publish_to_api(
     :return: None
     """
 
+    if target != run_label:
+        raise NotImplementedError(f"Target '{target}' for run_label '{run_label}' not implemented.")
 
     if not os.path.isdir(output_dir):
         if verbose: print(f"Creating directory '{output_dir}'")
@@ -196,6 +199,7 @@ def publish_to_api(
     save_to_json(df_results, metadata, fpath_total_json, verbose)
 
 def publish_generation(
+        run_label:str='wind_offshore',
         target='wind_offshore',
         avail_regions=('DE_50HZ', 'DE_TENNET'),
         n_folds = 3,
@@ -233,7 +237,7 @@ def publish_generation(
                 f'{target}_lower': np.zeros_like(actual.values),
                 f'{target}_upper': np.zeros_like(actual.values)
             }, index=actual.index)
-            smard_metrics[cutoff] = compute_error_metrics(target, df)
+            smard_metrics[cutoff] = compute_error_metrics([target], df)
         return smard_metrics
 
     table = [] # to be shown in 'description'
@@ -272,6 +276,8 @@ def publish_generation(
                 df_=df_entsoe,  cutoffs=cutoffs, horizon=horizon, target=var,
                 key_actual=var, key_fitted=f"{target}_forecast{suffix}"
             )
+            entsoe_metrics = {date:metric[var] for date, metric in entsoe_metrics.items()}
+
             smard_metrics = retain_most_recent_entries(entsoe_metrics, n_folds)
             ave_smard_metric = np.average([smard_metrics[time_s][metric] for time_s in smard_metrics.keys()])
 
@@ -307,6 +313,8 @@ def publish_generation(
         df_=df_results, cutoffs=cutoffs, horizon=horizon, target=target,
         key_actual=f'{target}_actual', key_fitted=f'{target}_fitted'
     )
+    total_metrics = {date:metric[target] for date, metric in total_metrics.items()}
+
     total_metrics = retain_most_recent_entries(total_metrics, N=horizon)
     ave_total_metric = np.average([total_metrics[time_s][metric] for time_s in total_metrics.keys()])
 
@@ -325,7 +333,7 @@ def publish_generation(
         df_=df_smard,  cutoffs=cutoffs, horizon=horizon, target=target,
         key_actual=target, key_fitted=f"{target}_forecasted"
     )
-
+    smard_metrics = {date:metric[target] for date, metric in smard_metrics.items()}
     smard_metrics = retain_most_recent_entries(smard_metrics, n_folds)
     ave_smard_metric = np.average([smard_metrics[time_s][metric] for time_s in smard_metrics.keys()])
 
@@ -452,7 +460,7 @@ Die SMARD __Tagesprognose__ weist eine durchschnittliche Genauigkeit von __{ave_
     with open(summary_fpath, "w") as file:
         file.write(updated_markdown_content)
 
-def publish_forecasts(db_path:str, targets:list, verbose:bool):
+def publish_forecasts(db_path:str, target_settings:list[dict], verbose:bool):
 
     # check if output directory set up or set them up
     data_dir = "./deploy/data/"
@@ -470,14 +478,13 @@ def publish_forecasts(db_path:str, targets:list, verbose:bool):
         if verbose: print(f"Creating {data_dir_api}")
         os.mkdir(data_dir_api)
 
-    for target in targets:
-        if target == 'wind_offshore': regions = ('DE_50HZ', 'DE_TENNET')
-        else: regions = ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')
+    for target_dict in target_settings:
 
         # publish data to webpage
         publish_generation(
-            target=target,
-            avail_regions=regions,
+            run_label=target_dict['label'],
+            target=target_dict['target'],
+            avail_regions=target_dict['regions'],
             n_folds = 3,
             metric = 'rmse',
             method_type = 'trained', # 'trained'
@@ -488,8 +495,9 @@ def publish_forecasts(db_path:str, targets:list, verbose:bool):
 
         # publish to API folder
         publish_to_api(
-            target=target,
-            avail_regions=regions,
+            run_label=target_dict['label'],
+            target=target_dict['target'],
+            avail_regions=target_dict['regions'],
             method_type = 'forecast', # 'trained'
             results_root_dir = './output/forecasts/',
             output_dir = f'{data_dir_api}forecasts/'
@@ -498,8 +506,14 @@ def publish_forecasts(db_path:str, targets:list, verbose:bool):
 if __name__ == '__main__':
     db_path = './database/'
 
-    targets = ['wind_offshore', 'wind_onshore', 'solar', 'load']
 
-    publish_forecasts(targets=targets, db_path=db_path, verbose=True)
+    target_settings = [
+        {'label' : 'wind_offshore', 'target' : 'wind_offshore', "regions" : ('DE_50HZ', 'DE_TENNET')},
+        {'label' : 'wind_onshore', 'target' : 'wind_onshore', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')},
+        {'label' : 'solar', 'target' : 'solar', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')},
+        {'label' : 'load', 'target' : 'load', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')}
+    ]
+
+    publish_forecasts(target_settings=target_settings, db_path=db_path, verbose=True)
 
     print(f"All tasks in update are completed successfully!")

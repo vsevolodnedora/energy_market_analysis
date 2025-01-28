@@ -15,17 +15,32 @@ from data_modules.utils import (
 )
 from forecasting_modules.utils import convert_ensemble_string
 
+# TODO: refacto this into a proper ETL pipeline
 
-energy_mix_config = {
-    'targets' : ["hard_coal", "lignite", "coal_derived_gas", "oil", "other_fossil", "gas", "renewables"],
-    "aggregations": {"renewables": [
-        "biomass","waste","geothermal","pumped_storage","run_of_river","water_reservoir","other_renewables"
-    ]}
-}
+# energy_mix_config = {
+#     'targets' : ["hard_coal", "lignite", "coal_derived_gas", "oil", "other_fossil", "gas", "renewables"],
+#     "aggregations": {"renewables": [
+#         "biomass","waste","geothermal","pumped_storage","run_of_river","water_reservoir","other_renewables"
+#     ]}
+# }
+
+def compute_residual_load(df:pd.DataFrame, suffix:str):
+    load = copy.deepcopy(df['load{}'.format(suffix)])
+    if f'wind_offshore{suffix}' in df.columns:
+        load -= df['wind_offshore{}'.format(suffix)]
+    if f'wind_onshore{suffix}' in df.columns:
+        load -= df['wind_onshore{}'.format(suffix)]
+    if f'solar{suffix}' in df.columns:
+        load -= df['solar{}'.format(suffix)]
+    return pd.Series(load.values, index=df.index, name='residual_load{}'.format(suffix))
 
 # TODO: USE SQL HERE!!!
-def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_horizons:int, horizon:int, verbose:bool)\
+def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:int, horizon:int, verbose:bool)\
         -> tuple[pd.DataFrame, pd.DataFrame]:
+
+    tso_name = main_pars['region']
+    targets = main_pars['targets']
+    target_label = main_pars['label']
 
     # -------- laod database TODO move to SQLlite DB
     df_smard = pd.read_parquet(db_path + 'smard/' + 'history.parquet')
@@ -40,6 +55,7 @@ def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_h
     df_es = pd.read_parquet(db_path + 'epexspot/' + 'history.parquet')
     df_entsoe = pd.read_parquet(db_path + 'entsoe/' + 'history.parquet')
     df_entsoe = df_entsoe.apply(pd.to_numeric, errors='coerce')
+
     # ----- CHECKS AND NOTES ----
     if verbose:
         print("---------- LOADING DATABASE DATA ----------")
@@ -71,73 +87,97 @@ def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_h
                 df_om_offshore_f.index[-1].minute == 0 and
                 df_om_offshore_f.index[-1].second == 0)
 
-    target_notso = ''
+    target_label_notso = ''
     tso_dict = {}
-    if (('wind_offshore' in target) or ('wind_onshore' in target) or ('solar' in target) or ('load' in target) or ('energy_mix' in target)):
 
-        for de_reg in de_regions:
-            if target.__contains__(de_reg['suffix']) and tso_name != de_reg['name']:
-                raise IOError(f"The region must be {de_reg} for target={target}")
-            if target.endswith(de_reg['suffix']):
-                target_notso = target.replace(de_reg['suffix'], '')
-                tso_dict = de_reg
-                break
-        if target_notso == '':
-            raise ValueError(f"target={target} does not contain {[de_reg['suffix'] for de_reg in de_regions]}")
+    for de_reg in de_regions:
+        if target_label.__contains__(de_reg['suffix']) and tso_name != de_reg['name']:
+            raise IOError(f"The region must be {de_reg} for target_label={target_label}")
+        if target_label.endswith(de_reg['suffix']):
+            target_label_notso = target_label.replace(de_reg['suffix'], '')
+            tso_dict = de_reg
+            break
+    if target_label_notso == '':
+        raise ValueError(f"target_label={target_label} does not contain {[de_reg['suffix'] for de_reg in de_regions]}")
 
-        suffix = tso_dict['suffix']
 
-        # get target column
-        if target_notso == 'energy_mix':
-            target_cols =  df_entsoe[
-                [target_ + suffix for target_ in energy_mix_config['targets']
-                    if not target_ in list(energy_mix_config['aggregations'].keys())]
-            ]
-            for key in energy_mix_config['targets']:
-                if key in list(energy_mix_config['aggregations'].keys()):
-                    keys_to_agg = [
-                        col + suffix for col in energy_mix_config['aggregations'][key]
-                            if col + suffix in list(df_entsoe.keys())
-                    ]
-                    if len(keys_to_agg) != len(energy_mix_config['aggregations'][key]):
-                        print(f"Warning! Not all keys for aggregating {key} are found in entsoe dataframe. "
-                              f"{len(keys_to_agg)} out of {len(energy_mix_config['aggregations'][key])} will be used ")
-                    # aggregate for the required column
-                    df_entsoe[key + suffix] = df_entsoe[keys_to_agg].sum(axis=1)
-                    target_cols = pd.merge(
-                        target_cols, df_entsoe[key + suffix], left_index=True, right_index=True, how='left'
-                    )
-        else:
-            target_cols = df_entsoe[target_notso + suffix]
+    suffix = tso_dict['suffix']
 
-        target_cols.replace(['NaN', 'None', '', ' '], np.nan, inplace=True)
-        if target_cols.isna().any().any():
-            print("Warning! Nans in the target columns! Filling with 0")
-        target_cols.fillna(0, inplace=True) #
+    ''' build df_hist and df_forecast '''
 
-        # get feature dataframe
-        dataframe, dataframe_f = None, None
+    # single target processing
+    if len(targets) == 1:
+        target = targets[0]
+        target_cols = df_entsoe[target]
+        # select feature weather frame
         if 'wind_offshore' in target: dataframe, dataframe_f = df_om_offshore, df_om_offshore_f
         elif 'wind_onshore' in target: dataframe, dataframe_f = df_om_onshore, df_om_onshore_f
         elif 'solar' in target: dataframe, dataframe_f = df_om_solar, df_om_solar_f
         elif 'load' in target: dataframe, dataframe_f = df_om_cities, df_om_cities_f
-        elif 'energy_mix' in target: dataframe, dataframe_f = df_om_cities, df_om_cities_f
         else: raise NotImplementedError(f"No dataframe selection for target={target} tso_name={tso_name}")
-
-        # get features specific to this location (TSO)
+        # select locations
         locations = []
         if 'wind_offshore' in target: locations = loc_offshore_windfarms
         elif 'wind_onshore' in target: locations = loc_onshore_windfarms
         elif 'solar' in target: locations = loc_solarfarms
         elif 'load' in target: locations = loc_cities
-        elif 'energy_mix' in target: locations = loc_cities
         else: raise NotImplementedError(f"Locations are not available for target={target} tso_name={tso_name}")
-
+        # build df_hist and df_forecast
         om_suffixes = [loc['suffix'] for loc in locations if loc['TSO'] == tso_dict['TSO']]
         feature_col_names = dataframe.columns[dataframe.columns.str.endswith(tuple(om_suffixes))]
 
         if verbose:
-            print(f"TARGET: {target} TSO: {tso_dict['TSO']} "
+            print(f"TARGET LABEL: {target_label_notso} TSO: {tso_dict['TSO']} "
+                  f"Locations: {len([loc for loc in locations if loc['TSO'] == tso_dict['TSO']])} "
+                  f"OM suffixes: {len(om_suffixes)} Feature columns: {len(feature_col_names)}")
+            print(f"Suffixes {om_suffixes}")
+        # combine weather data and target column (by convention)
+        df_hist = pd.merge(
+            left=dataframe[feature_col_names], right=target_cols, left_index=True, right_index=True, how='left'
+        )
+        df_forecast = dataframe_f[feature_col_names]
+
+    # multitarget dataset
+    else:
+        if target_label_notso != 'energy_mix':
+            raise NotImplementedError(f"Target label={target_label_notso} not implemented.")
+        aggregations =  main_pars['aggregations'] if 'aggregations' in main_pars else {}
+        # build target columns
+        target_cols =  df_entsoe[
+            [target_ + suffix for target_ in targets
+                if not target_ in list(aggregations.keys())]
+        ]
+        for col in target_cols:
+            if len(df_entsoe[col].unique()) < len(df_entsoe[col])*0.01:
+                if verbose: print(
+                    f"Warning! Dropping target column {col} as there are only { len(df_entsoe[col])*0.01 } unique values"
+                )
+                target_cols.drop(columns=[col], inplace=True)
+        # add aggregations if any
+        for key in targets:
+            if key in list(aggregations.keys()):
+                keys_to_agg = [
+                    col + suffix for col in aggregations[key]
+                    if col + suffix in list(df_entsoe.keys())
+                ]
+                if len(keys_to_agg) != len(aggregations[key]):
+                    print(f"Warning! Not all keys for aggregating {key} are found in entsoe dataframe. "
+                          f"{len(keys_to_agg)} out of {len(aggregations[key])} will be used ")
+                # aggregate for the required column
+                df_entsoe[key + suffix] = df_entsoe[keys_to_agg].sum(axis=1)
+                target_cols = pd.merge(
+                    target_cols, df_entsoe[key + suffix], left_index=True, right_index=True, how='left'
+                )
+
+        # fixed weather dataframes and locations
+        dataframe, dataframe_f = df_om_cities, df_om_cities_f
+        locations = loc_cities
+        # build df_hist and df_forecast
+        om_suffixes = [loc['suffix'] for loc in locations if loc['TSO'] == tso_dict['TSO']]
+        feature_col_names = dataframe.columns[dataframe.columns.str.endswith(tuple(om_suffixes))]
+        # build df_hist and df_forecast
+        if verbose:
+            print(f"TARGET LABEL: {target_label_notso} TSO: {tso_dict['TSO']} "
                   f"Locations: {len([loc for loc in locations if loc['TSO'] == tso_dict['TSO']])} "
                   f"OM suffixes: {len(om_suffixes)} Feature columns: {len(feature_col_names)}")
             print(f"Suffixes {om_suffixes}")
@@ -148,22 +188,40 @@ def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_h
         df_forecast = dataframe_f[feature_col_names]
 
 
-    else:
-        raise NotImplementedError(f"target={target} is not yet supported")
+    ''' add forecasted quantities as features '''
 
     # add additional quantities
-    add_exog = []
-    if 'load' in target: add_exog = ["wind_offshore", "wind_onshore", "solar"]
-    elif 'energy_mix' in target: add_exog = ["wind_offshore", "wind_onshore", "solar", 'load', 'residual_load']
+    if len(targets) == 1 and 'load' in targets[0]: add_exog = ["wind_offshore", "wind_onshore", "solar"]
+    elif len(targets) > 1 and 'energy_mix' in target_label: add_exog = ["wind_offshore", "wind_onshore", "solar", 'load', 'residual_load']
+    else: add_exog = []
 
     if len(add_exog) > 0:
-        if len(tso_dict.keys()) == 0: raise NotImplementedError(f"No TSO dict available for target={target}")
+        if len(tso_dict.keys()) == 0: raise NotImplementedError(
+            f"No TSO dict available for target_label={target_label} tso_name={tso_name}"
+        )
+
         for exog in add_exog:
             # load historic data
             exog_tso = exog + tso_dict['suffix']
-            if not exog_tso in df_entsoe.columns.tolist():
+            if not exog_tso in df_entsoe.columns.tolist() and not exog == 'residual_load':
                 if verbose: print(f"Warning! Required exogenous feature {exog_tso} is not in ENTSO-E dataset. Skipping.")
                 continue
+
+            if exog == 'residual_load':
+
+                df_hist = pd.merge(
+                    left=df_hist, right=compute_residual_load(df_hist, suffix), left_index=True, right_index=True, how='left'
+                )
+
+                df_forecast = pd.merge(
+                    left=df_forecast,
+                    right=compute_residual_load(df_forecast, suffix),
+                    left_index=True,
+                    right_index=True,
+                    how='left'
+                )
+                continue
+
 
             entsoe_col = df_entsoe[exog_tso]
             df_hist = pd.merge(left=df_hist, right=entsoe_col, left_index=True, right_index=True, how='left')
@@ -210,7 +268,7 @@ def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_h
               f"From {len(dataframe)} entries do {len(df_hist)} ({len(df_hist)/len(dataframe)*100:.1f} %)")
 
     # check again the dataframe validity
-    if not 'energy_mix' in target:
+    if len(targets) == 1:
         if not len(df_hist.columns) == len(df_forecast.columns)+1:
             raise ValueError(f'The DataFrames have different columns. '
                              f'hist={df_hist.shape} forecast={df_forecast.shape}')
@@ -310,7 +368,6 @@ def extract_from_database(target:str, db_path:str, outdir:str, tso_name:str, n_h
 def mask_outliers_and_unphysical_values(
         df_hist: pd.DataFrame,
         df_forecast: pd.DataFrame,
-        target: str,
         verbose: bool = False
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
@@ -357,44 +414,47 @@ def mask_outliers_and_unphysical_values(
                     np.nan
                 )
 
-    # ----- 2) Simple outlier (anomaly) detection on the target column -----
-    # Train a z-score based detection on df_hist[target]
-    # (If your target column is missing in any row, drop those temporarily to calculate stats)
-    hist_nonan = df_hist[target].dropna()
-    mean_val = hist_nonan.mean()
-    std_val = hist_nonan.std()
-    threshold = 3  # For example, 3 standard deviations
+    targets = [str(col) for col in df_hist.columns if col not in df_forecast.columns]
+    for target in targets:
 
-    if std_val == 0 or np.isnan(std_val):
-        if verbose:
-            print(f"[Anomaly Detection] Standard deviation is zero or NaN for '{target}'. Skipping outlier masking.")
-    else:
-        # Identify outliers in df_hist
-        outliers_hist_mask = (df_hist[target] - mean_val).abs() > threshold * std_val
-        outliers_hist_count = outliers_hist_mask.sum()
-        if verbose and outliers_hist_count > 0:
-            print(
-                f"[Anomaly Detection] '{target}' | "
-                f"{outliers_hist_count} outliers found in df_hist (z-score > {threshold})."
-            )
-        df_hist.loc[outliers_hist_mask, target] = np.nan
+        # ----- 2) Simple outlier (anomaly) detection on the target column -----
+        # Train a z-score based detection on df_hist[target]
+        # (If your target column is missing in any row, drop those temporarily to calculate stats)
+        hist_nonan = df_hist[target].dropna()
+        mean_val = hist_nonan.mean()
+        std_val = hist_nonan.std()
+        threshold = 3  # For example, 3 standard deviations
 
-        # Identify outliers in df_forecast using the same mean, std
-        # outliers_fore_mask = (df_forecast[target] - mean_val).abs() > threshold * std_val
-        # outliers_fore_count = outliers_fore_mask.sum()
-        # if verbose and outliers_fore_count > 0:
-        #     print(
-        #         f"[Anomaly Detection] '{target}' | "
-        #         f"{outliers_fore_count} outliers found in df_forecast (z-score > {threshold})."
-        #     )
-        # df_forecast.loc[outliers_fore_mask, target] = np.nan
+        if std_val == 0 or np.isnan(std_val):
+            if verbose:
+                print(f"[Anomaly Detection] Standard deviation is zero or NaN for '{target}'. Skipping outlier masking.")
+        else:
+            # Identify outliers in df_hist
+            outliers_hist_mask = (df_hist[target] - mean_val).abs() > threshold * std_val
+            outliers_hist_count = outliers_hist_mask.sum()
+            if verbose and outliers_hist_count > 0:
+                print(
+                    f"[Anomaly Detection] '{target}' | "
+                    f"{outliers_hist_count} outliers found in df_hist (z-score > {threshold})."
+                )
+            df_hist.loc[outliers_hist_mask, target] = np.nan
+
+            # Identify outliers in df_forecast using the same mean, std
+            # outliers_fore_mask = (df_forecast[target] - mean_val).abs() > threshold * std_val
+            # outliers_fore_count = outliers_fore_mask.sum()
+            # if verbose and outliers_fore_count > 0:
+            #     print(
+            #         f"[Anomaly Detection] '{target}' | "
+            #         f"{outliers_fore_count} outliers found in df_forecast (z-score > {threshold})."
+            #     )
+            # df_forecast.loc[outliers_fore_mask, target] = np.nan
 
     # Return the cleaned dataframes
     return df_hist, df_forecast
 
-def clean_and_impute(df_hist, df_forecast, target, verbose:bool)->tuple[pd.DataFrame, pd.DataFrame]:
+def clean_and_impute(df_hist, df_forecast, verbose:bool)->tuple[pd.DataFrame, pd.DataFrame]:
 
-    df_hist, df_forecast = mask_outliers_and_unphysical_values(df_hist, df_forecast, target, verbose)
+    df_hist, df_forecast = mask_outliers_and_unphysical_values(df_hist, df_forecast, verbose)
     df_hist = validate_dataframe(df_hist, 'df_hist', verbose=verbose)
     df_forecast = validate_dataframe(df_forecast, 'df_forecast', verbose=verbose)
     expected_range = pd.date_range(start=df_hist.index.min(), end=df_hist.index.max(), freq='h')

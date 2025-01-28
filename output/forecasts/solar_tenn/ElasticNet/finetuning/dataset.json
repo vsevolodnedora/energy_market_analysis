@@ -11,5 +11,8 @@
     ],
     "add_cyclical_time_features": true,
     "feature_engineer": "WeatherSolarPowerFE",
-    "target": "solar_tenn"
+    "targets": [
+        "solar_tenn"
+    ],
+    "label": "solar_tenn"
 }

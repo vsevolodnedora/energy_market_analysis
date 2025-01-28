@@ -1,7 +1,9 @@
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-def plot_time_series_with_residuals(tasks: list[dict], target: str = 'total_grid_load', ylabel: str = '', **kwargs):
+def plot_time_series_with_residuals(
+        tasks, run_label, target, ylabel, **kwargs
+):
     '''
 
     Plots forecasts split into adjacent windows. Each window can show several forecasts performed with
@@ -20,6 +22,8 @@ def plot_time_series_with_residuals(tasks: list[dict], target: str = 'total_grid
     :param kwargs: additional arguments for plotting
     :return: None
     '''
+
+
 
     # Determine the maximum number of results across tasks
     max_n_results = max(len(task['results']) for task in tasks)
@@ -119,5 +123,5 @@ def plot_time_series_with_residuals(tasks: list[dict], target: str = 'total_grid
         ax_bottom.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
         fig.autofmt_xdate(rotation=45)
     model_names = "".join(task["name"]+'_' for task in tasks)
-    plt.savefig(f'{target}_{model_names}.png', bbox_inches='tight')
+    plt.savefig(f'{run_label}_{model_names}.png', bbox_inches='tight')
     plt.show()

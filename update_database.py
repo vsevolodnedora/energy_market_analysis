@@ -32,7 +32,7 @@ def main(task:str, verbose:bool = True):
 
     tasks = [
         'all',
-        'update_epexspot'
+        'update_epexspot',
         'update_entsoe',
         'update_smard',
         'update_openmeteo_windfarms_offshore',

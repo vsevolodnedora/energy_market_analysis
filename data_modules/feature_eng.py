@@ -83,7 +83,9 @@ def compute_air_density_moist(temperature:pd.Series,pressure:pd.Series,humidity:
     # R_v = 461.50  # J/(kg·K)
     # air_density_moist = ( p_d_pa / (R_d * T_K) + e_pa / (R_v * T_K) )
     # return air_density_moist
-
+    temperature = np.asarray(temperature).flatten()
+    pressure = np.asarray(pressure).flatten()
+    humidity = np.asarray(humidity).flatten()
 
     # Convert temperature °C -> K
     T_K = temperature + 273.15
@@ -131,6 +133,8 @@ def compute_dew_point_temperature(temperature:pd.Series, humidity:pd.Series):
     return dew_point_temperature
 
 def compute_vapor_pressure(temperature:pd.Series, humidity:pd.Series):
+    temperature = np.asarray(temperature).flatten()
+    humidity = np.asarray(humidity).flatten()
     T_C = temperature # in Celsius
     RH_frac = humidity / 100.0
     # e (hPa) = 6.112 * exp(17.67 * T / (T + 243.5)) * RH
@@ -393,8 +397,8 @@ class WeatherWindPowerFE(WeatherBasedFE):
             )
         # 3. Encode Wind Direction (Cyclic)
         if self.config["encode_wind_direction"]:
-            loc_df["wind_dir_sin" + location_suffix] = np.sin(np.deg2rad(loc_df[wind_dir_100m_col]))
-            loc_df["wind_dir_cos" + location_suffix] = np.cos(np.deg2rad(loc_df[wind_dir_100m_col]))
+            loc_df["wind_dir_sin" + location_suffix] = np.sin(np.deg2rad(np.asarray(loc_df[wind_dir_100m_col])))
+            loc_df["wind_dir_cos" + location_suffix] = np.cos(np.deg2rad(np.asarray(loc_df[wind_dir_100m_col])))
             loc_df.drop(columns=[wind_dir_100m_col], inplace=True)
         # 4. Compute Wind Shear
         if self.config["compute_wind_shear"]:
@@ -471,7 +475,7 @@ class WeatherWindPowerFE(WeatherBasedFE):
             raise ValueError("Cannot apply spatial aggregation on one location")
 
         # Extract config
-        method: str = self.config.get("spatial_agg_method")
+        method: str = self.config["spatial_agg_method"]
 
         # Collect suffixes from self.locations
         suffixes = [loc["suffix"] for loc in self.locations]
@@ -824,7 +828,7 @@ class WeatherSolarPowerFE(WeatherBasedFE):
         if len(self.locations) <= 1:
             raise ValueError("Cannot apply spatial aggregation on a single location")
 
-        method: str = self.config.get("spatial_agg_method")
+        method: str = self.config["spatial_agg_method"]
         suffixes = [loc["suffix"] for loc in self.locations]
 
         # Build the base feature map
@@ -1296,7 +1300,7 @@ class WeatherLoadFE(WeatherBasedFE):
         if len(self.locations) <= 1:
             raise ValueError("Cannot apply spatial aggregation on a single location")
 
-        method: str = self.config.get("spatial_agg_method", "mean")
+        method: str = self.config["spatial_agg_method"]
         suffixes = [loc["suffix"] for loc in self.locations]
 
         # Build the base feature map

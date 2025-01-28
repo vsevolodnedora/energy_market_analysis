@@ -9,6 +9,11 @@ if __name__ == '__main__':
     db_path = './database/'
 
     targets = ['wind_offshore', 'wind_onshore', 'solar', 'load']
+
+    # update_forecast_production(
+    #     database=db_path, variable='load', outdir='./output/forecasts/', verbose=True
+    # )
+
     for target in targets:
         update_forecast_production(
             database=db_path, variable=target, outdir='./output/forecasts/', verbose=True

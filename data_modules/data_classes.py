@@ -125,29 +125,42 @@ class HistForecastDataset:
 
     def __init__(
             self,
-            df_historic:pd.DataFrame, df_forecast:pd.DataFrame or None, pars:dict
+            df_historic:pd.DataFrame,
+            df_forecast:pd.DataFrame or None,
+            pars:dict
     ):
 
         expected_range = pd.date_range(start=df_historic.index.min(), end=df_historic.index.max(), freq='h')
         if not df_historic.index.equals(expected_range):
             raise ValueError("full_index must be continuous with hourly frequency.")
 
-        self.target_key = pars['target']
-        if self.target_key in ['offshore_wind', 'onshore_wind', 'solar']:
-            self.ensure_positive = True
-        else:
-            self.ensure_positive = False
+
+        self.targets_list : list = pars['targets']
+
         self.verbose = pars['verbose']
+        if len(self._targets_list) == 1 and len(df_historic.columns) - len(df_forecast.columns) != 1:
+            raise ValueError(
+                f"For one target {self._targets_list[0]} the "
+                f"df_histric should have exactly 1 extra column with respect to df_forecast."
+                f"Found that df_historic has {len(df_historic.columns)} columns, "
+                f"while df_forecast has {len(df_forecast.columns)} columns."
+            )
+
 
         if pars['copy_input']:
             if pars['verbose']:print("Copyting df_historic and df_forecast for dataclass")
-            self.df_historic_ = copy.deepcopy( df_historic[[col for col in df_historic.columns if col != self.target_key]] )
-            self.df_target_ = copy.deepcopy( df_historic[self.target_key] )
-            self.df_forecast_ = copy.deepcopy( df_forecast )
+            self.df_historic_ = copy.deepcopy(
+                df_historic[[col for col in df_historic.columns if not col in list(self._targets_list)]]
+            )
+            self.df_target_ : pd.DataFrame = copy.deepcopy( df_historic[self._targets_list] )
+            self.df_forecast_ : pd.DataFrame = copy.deepcopy( df_forecast )
         else:
-            self.df_historic_ = df_historic[[col for col in df_historic.columns if col != self.target_key]]
-            self.df_target_ = df_historic[self.target_key]
-            self.df_forecast_ = df_forecast
+            self.df_historic_ : pd.DataFrame = df_historic[[
+                col for col in df_historic.columns if not col in list(self._targets_list)
+            ]]
+            self.df_target_ : pd.DataFrame = df_historic[self._targets_list]
+            self.df_forecast_ : pd.DataFrame = df_forecast
+
 
         self.original_features = copy.deepcopy( self.df_historic_.columns.tolist() )
         self.forecast_horizon = pars['forecast_horizon']
@@ -165,7 +178,11 @@ class HistForecastDataset:
             )
 
         # check if columns are the same
-        if not compare_columns(df_historic[[col for col in df_historic.columns if col != self.target_key]], df_forecast):
+
+        if not compare_columns(
+                df_historic[[col for col in df_historic.columns if not col in list(self._targets_list)]],
+                df_forecast
+        ):
             raise ValueError("df_historic and df_forecast must have same columns")
 
         # check if there are no nans or missing values or non-monotonicities
@@ -184,8 +201,11 @@ class HistForecastDataset:
 
     # ------------- PIPELINE ----------------
 
-    def process_data(self, config:dict, df_hist_:pd.DataFrame, df_forecast_:pd.DataFrame, df_target_:pd.Series) \
-            ->tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
+    def process_data(self, config:dict, df_hist_:pd.DataFrame, df_forecast_:pd.DataFrame, df_target_:pd.DataFrame) \
+            ->tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+
+        if not isinstance(df_target_, pd.DataFrame):
+            raise ValueError("df_target_ must be a pandas DataFrame")
 
         # CHECKS
         if not df_hist_.index.intersection(df_forecast_.index).empty:
@@ -204,14 +224,12 @@ class HistForecastDataset:
 
         ''' ------- HISTORIC TARGET ------- '''
 
-        # 1. TARGET
-
         self.do_log_target = config['log_target']
         if self.do_log_target:
             # Add small constant to prevent log(0)
-            df_target = np.log10(df_target_ + 1e-8)
+            df_target_ = np.log10(df_target_ + 1e-8)
         else:
-            df_target = df_target_
+            df_target_ = df_target_
 
         target_scaler_name = config['target_scaler']
         do_load_scaler = False
@@ -225,39 +243,38 @@ class HistForecastDataset:
             do_load_scaler = True
         if do_load_scaler:
             if self.verbose:
-                print(f"Using pre-fitted scaler for target={self.target_key}")
-            column = self.target_scaler.transform(df_target.values.reshape(-1, 1)).flatten()
-            df_target = pd.Series( column, index=df_target.index )
+                print(f"Using pre-fitted scaler for targets_list={self._targets_list}")
+            y_scaled = self.target_scaler.transform( df_target_ )
+            df_target = pd.DataFrame(y_scaled, index=df_target_.index, columns=df_target_.columns)
         else:
-            print(f"Fitting scaler for target={self.target_key}")
-            column = self.target_scaler.fit_transform(df_target.values.reshape(-1, 1)).flatten()
-            df_target = pd.Series( column, index=df_target.index )
+            if self.verbose:
+                print(f"Fitting scaler for targets_list={self._targets_list}")
+            y_scaled = self.target_scaler.fit_transform(df_target_)
+            df_target = pd.DataFrame(y_scaled, index=df_target_.index, columns=df_target_.columns)
 
-        self.transform_target_series = lambda data: pd.Series(
-            (
+        ''' --- Target Transformers --- '''
+
+        self.transform_target = lambda data : (
+            pd.DataFrame(
                 self.target_scaler.transform(
-                    (np.log10(data + 1e-8) if self.do_log_target else data).values.reshape(-1, 1)
-                ).flatten()
-                if self.target_scaler is not None
-                else (np.log10(data + 1e-8) if self.do_log_target else data).values.reshape(-1, 1)
-            ),
-            index=data.index,
-            name=data.name
+                    (np.log10(data + 1e-8) if self.do_log_target else data)
+                ) if self.target_scaler is not None else (
+                    np.log10(data + 1e-8) if self.do_log_target else data
+                ),
+                index=data.index,
+                columns=data.columns
+            )
         )
-
-        self.inv_transform_target_series = lambda data: pd.Series(
-            (
-                (10 ** self.target_scaler.inverse_transform(data.values.reshape(-1, 1)).flatten() - 1e-8)
-                if self.do_log_target
-                else self.target_scaler.inverse_transform(data.values.reshape(-1, 1)).flatten()
-            ),
-            index=data.index,
-            name=data.name
+        self.inv_transform_target = lambda data: (
+            pd.DataFrame(
+                self.target_scaler.inverse_transform(data),
+                index=data.index,
+                columns=data.columns
+            ).pipe(lambda df: 10 ** df - 1e-8 if self.do_log_target else df)
         )
 
         ''' ---- add physics-informed features ----- '''
         df_hist_, df_forecast_ = physics_informed_feature_engineering(df_hist_, df_forecast_, config, self.verbose)
-
 
         expected_range = pd.date_range(start=df_hist_.index.min(), end=df_hist_.index.max(), freq='h')
         if not df_hist_.index.equals(expected_range):
@@ -311,19 +328,20 @@ class HistForecastDataset:
         if 'lags_target' in config.keys() and not config['lags_target'] is None:
             self.lags_target = config['lags_target']
             for lag in range(1, self.lags_target + 1):
-                exog[f'{self.target_key}_lag_{lag}'] = df_target.shift(lag)
+                for target_ in df_target_.columns:
+                    exog[f'{target_}_lag_{lag}'] = df_target[target_].shift(lag)
 
             # Drop rows with NaN values due to lagging and save the final dataframe for forecasting later
             exog.dropna(inplace=True)
 
             # adjust the target column if lags were added (remove rows with nans)
-            df_target = df_target[exog.index]
+            df_target = df_target.loc[exog.index]
 
         else:
             self.lags_target = None
 
         exog = _adjust_dataframe_to_divisible_by_N( exog, len(df_forecast_), self.verbose )
-        df_target = df_target[exog.index]
+        df_target = df_target.loc[exog.index]
 
         if not validate_dataframe_simple(exog):
             raise ValueError("Error in validating dataframe with engineered features")
@@ -347,7 +365,8 @@ class HistForecastDataset:
 
         if 'lags_target' in config.keys() and not config['lags_target'] is None:
             for lag in range(1, self.lags_target+1):
-                exog_forecast[f'{self.target_key}_lag_{lag}'] = -1
+                for target_ in df_target_.columns:
+                    exog_forecast[f'{target_}_lag_{lag}'] = -1
 
         if not validate_dataframe_simple(exog_forecast):
             raise ValueError("Error in validating dataframe with engineered forecasted features")
@@ -359,6 +378,10 @@ class HistForecastDataset:
         if not exog.index.equals(expected_range):
             raise ValueError("exog must be continuous with hourly frequency.")
 
+        for col in exog.columns:
+            for target_ in self._targets_list:
+                if str(col).startswith(target_) and not str(col).__contains__('lag'):
+                    raise ValueError("Exogenous has target without lags.")
 
         return exog, exog_forecast, df_target
 
@@ -367,7 +390,76 @@ class HistForecastDataset:
             config, self.df_historic_, self.df_forecast_, self.df_target_
         )
 
+    def inverse_transform_targets(self, result:pd.DataFrame) -> pd.DataFrame:
+        ''' column-wise inverse transformation separately for _actual, _fitted, _lower, _upper'''
+        if not isinstance(result, pd.DataFrame):
+            raise TypeError("Inverse transformation result must be a pandas DataFrame")
+
+        df_res = pd.DataFrame()
+
+        for type in ["_actual", "_fitted", "_lower", "_upper"]:
+            df_i = result[[f"{col}{type}" for col in self.targets_list]]
+
+            if len(df_i) > 0:
+                df_i_unscaled = self.inv_transform_target(df_i)
+                if df_res.empty : df_res = df_i_unscaled.copy()
+                else: df_res = pd.merge(df_res, df_i_unscaled, left_index=True, right_index=True, how='left')
+        # df_res = df_res.reindex(columns=result.columns, fill_value=np.nan)
+        return df_res
+
+    def transform_targets(self, df:pd.DataFrame) -> pd.DataFrame:
+        ''' column-wise inverse transformation separately for _actual, _fitted, _lower, _upper'''
+        if not isinstance(df, pd.DataFrame):
+            raise TypeError("Inverse transformation result must be a pandas DataFrame")
+
+        df_res = pd.DataFrame()
+
+        for type in ["_actual", "_fitted", "_lower", "_upper"]:
+            df_i = df[[f"{col}{type}" for col in self.targets_list]]
+            df_i.rename(columns={f"{col}{type}" : f"{col}" for col in self.targets_list }, inplace=True)
+
+            if len(df_i) > 0:
+                df_i_unscaled = self.transform_target(df_i)
+                df_i_unscaled.rename(columns={f"{col}" : f"{col}{type}" for col in self.targets_list }, inplace=True)
+                if df_res.empty : df_res = df_i_unscaled.copy()
+                else: df_res = pd.merge(df_res, df_i_unscaled, left_index=True, right_index=True, how='left')
+        # df_res = df_res.reindex(columns=result.columns, fill_value=np.nan)
+        return df_res
+
+        # for target_ in self.targets_list:
+        #     if f"{target_}_lower" in result.columns and f"{target_}_upper" in result.columns:
+        #         df_i = result[[f"{target_}_actual", f"{target_}_fitted", f"{target_}_lower", f"{target_}_upper"]]
+        #     else:
+        #         df_i = result[[f"{target_}_actual", f"{target_}_fitted"]]
+        #     df_i_inv = self.inv_transform_target()
+        #
+        #
+        #
+        # actual_detransformed_ = self.inv_transform_target(result[[f"{col}_actual" for col in self._targets_list]])
+        # fitted_detransformed_ = self.inv_transform_target(result[[f"{col}_fitted" for col in  self._targets_list]])
+        # result_detransformed = pd.merge(actual_detransformed_, fitted_detransformed_, left_index=True, right_index=True)
+        # for target_ in self._targets_list:
+        #
+        #
+        #
+        # if f"_lower" in result.columns and f"_upper" in result.columns:
+        #     lower_detransformed_=self.inv_transform_target(result[[f"{col}_lower" for col in  self._targets_list]])
+        #     upper_detransformed_=self.inv_transform_target(result[[f"{col}_upper" for col in  self._targets_list]])
+        #     result_detransformed = pd.merge(result_detransformed, lower_detransformed_, left_index=True, right_index=True)
+        #     result_detransformed = pd.merge(result_detransformed, upper_detransformed_, left_index=True, right_index=True)
+        # return result_detransformed
+
     # --------------- access to the dataset (class interface) ---------------
+    @property
+    def targets_list(self)->list:
+        return self._targets_list
+    @targets_list.setter
+    def targets_list(self, value):
+        """Setter for targets_list"""
+        if not isinstance(value, list):  # Add validation if necessary
+            raise ValueError("targets_list must be a list.")
+        self._targets_list = value
+
     @property
     def init_pars(self)->dict:
         return self.set_pars

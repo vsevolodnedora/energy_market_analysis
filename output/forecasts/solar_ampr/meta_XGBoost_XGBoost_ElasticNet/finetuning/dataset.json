@@ -12,5 +12,7 @@
     "feature_engineer": "WeatherSolarPowerFE",
     "lags_target": null,
     "copy_input": true,
-    "target": "solar_ampr"
+    "targets": [
+        "solar_ampr"
+    ]
 }

@@ -1,109 +1,112 @@
 {
-    "start_date": "2023-03-05T00:00:00+00:00",
-    "end_date": "2025-01-25T23:00:00+00:00",
+    "start_date": "2023-02-28T00:00:00+00:00",
+    "end_date": "2025-01-27T23:00:00+00:00",
     "horizon": 168,
     "features": [
+        "temperature_2m_agg",
         "relative_humidity_2m_agg",
+        "surface_pressure_agg",
+        "precipitation_agg",
+        "cloud_cover_agg",
         "wind_speed_10m_agg",
         "wind_speed_100m_agg",
         "wind_direction_10m_agg",
-        "wind_direction_100m_agg",
         "wind_gusts_10m_agg",
         "air_density_agg",
         "wind_power_density_agg",
-        "air_density_moist_agg",
-        "wind_shear_agg",
-        "wind_ramp_agg",
+        "wind_dir_sin_agg",
+        "wind_dir_cos_agg",
+        "turbulence_intensity_agg",
         "gust_factor_agg",
         "vapor_pressure_agg",
         "wind_speed_lag_1_agg",
         "wind_speed_lag_6_agg",
         "wind_speed_lag_12_agg",
+        "precip_lag_1_agg",
+        "precip_lag_6_agg",
         "hour",
         "dayofweek",
         "is_holiday",
         "hour_sin",
         "hour_cos",
         "day_sin",
-        "day_cos",
-        "wind_onshore_ampr_lag_1",
-        "wind_onshore_ampr_lag_2",
-        "wind_onshore_ampr_lag_3",
-        "wind_onshore_ampr_lag_4",
-        "wind_onshore_ampr_lag_5",
-        "wind_onshore_ampr_lag_6",
-        "wind_onshore_ampr_lag_7",
-        "wind_onshore_ampr_lag_8",
-        "wind_onshore_ampr_lag_9",
-        "wind_onshore_ampr_lag_10",
-        "wind_onshore_ampr_lag_11",
-        "wind_onshore_ampr_lag_12"
+        "day_cos"
     ],
     "error_metrics": {
-        "2024-12-22T00:00:00+00:00": {
-            "mse": 719374.7668843081,
-            "rmse": 848.1596352599598,
-            "mae": 645.2202331173088,
-            "mape": 63.16892921987628,
-            "smape": 102.14088090053248,
-            "bias": -135.02720056598363,
-            "variance": 701142.4219916218,
-            "std": 837.3424759270378,
-            "r2": 0.8697766694120094,
-            "prediction_interval_coverage": 0.5892857142857143,
-            "prediction_interval_width": 2200.075675754777
+        "2024-12-24T00:00:00+00:00": {
+            "wind_onshore_ampr": {
+                "mse": 1502510.7440926107,
+                "rmse": 1225.7694498120807,
+                "mae": 1027.4370639948277,
+                "mape": 110.39879486292638,
+                "smape": 186.63809858898998,
+                "bias": 429.2404461461704,
+                "variance": 1318263.3834848474,
+                "std": 1148.1565152386008,
+                "r2": -1.3212626141656223,
+                "prediction_interval_coverage": 0.875,
+                "prediction_interval_width": 3798.8033176990116
+            }
         },
-        "2024-12-29T00:00:00+00:00": {
-            "mse": 1810634.6278928795,
-            "rmse": 1345.5982416356226,
-            "mae": 1045.6093931601683,
-            "mape": 41.332802431194985,
-            "smape": 66.39233251548158,
-            "bias": 183.13341213121672,
-            "variance": 1777096.7812540573,
-            "std": 1333.0779351763563,
-            "r2": 0.6194334005394397,
-            "prediction_interval_coverage": 0.75,
-            "prediction_interval_width": 3477.107926968021
+        "2024-12-31T00:00:00+00:00": {
+            "wind_onshore_ampr": {
+                "mse": 2217851.129994755,
+                "rmse": 1489.2451544305106,
+                "mae": 1085.3190102943222,
+                "mape": 36.65209832905588,
+                "smape": 52.36325614406473,
+                "bias": 836.8679190997597,
+                "variance": 1517503.2159763929,
+                "std": 1231.8698047993516,
+                "r2": 0.6988535515147207,
+                "prediction_interval_coverage": 0.8452380952380952,
+                "prediction_interval_width": 3798.6693816675843
+            }
         },
-        "2025-01-05T00:00:00+00:00": {
-            "mse": 1888185.6279960044,
-            "rmse": 1374.1126693237366,
-            "mae": 1041.6299509789633,
-            "mape": 27.668557209540573,
-            "smape": 48.72414324049191,
-            "bias": 349.6445788114387,
-            "variance": 1765934.296503776,
-            "std": 1328.8846061655527,
-            "r2": 0.7381560879493607,
-            "prediction_interval_coverage": 0.8988095238095238,
-            "prediction_interval_width": 5275.363539835039
+        "2025-01-07T00:00:00+00:00": {
+            "wind_onshore_ampr": {
+                "mse": 1063433.2814867562,
+                "rmse": 1031.2290150527942,
+                "mae": 850.2401745678577,
+                "mape": 49.32769814621127,
+                "smape": 110.9446783309272,
+                "bias": -337.9962266519641,
+                "variance": 949191.8322557905,
+                "std": 974.2647649667879,
+                "r2": 0.7965395649165099,
+                "prediction_interval_coverage": 0.9226190476190477,
+                "prediction_interval_width": 3798.3252271360134
+            }
         },
-        "2025-01-12T00:00:00+00:00": {
-            "mse": 268728.6169045764,
-            "rmse": 518.3904097343781,
-            "mae": 420.6175601726255,
-            "mape": 47.200317020920785,
-            "smape": 118.52493460130084,
-            "bias": -385.156278884179,
-            "variance": 120383.257740669,
-            "std": 346.9629054245843,
-            "r2": 0.1716363703581626,
-            "prediction_interval_coverage": 0.4107142857142857,
-            "prediction_interval_width": 598.1670788068317
+        "2025-01-14T00:00:00+00:00": {
+            "wind_onshore_ampr": {
+                "mse": 529976.3082316424,
+                "rmse": 727.9947171728943,
+                "mae": 610.9307269693554,
+                "mape": 170.31918386170364,
+                "smape": 250.90016871679072,
+                "bias": -320.97689977952956,
+                "variance": 426950.13803956425,
+                "std": 653.4142162821101,
+                "r2": -0.45459569024087454,
+                "prediction_interval_coverage": 1.0,
+                "prediction_interval_width": 3797.7059259023754
+            }
         },
-        "2025-01-19T00:00:00+00:00": {
-            "mse": 1601956.3358805003,
-            "rmse": 1265.684137484744,
-            "mae": 920.5146959919373,
-            "mape": 104.02598067266445,
-            "smape": 117.66278471289449,
-            "bias": -548.7015402767476,
-            "variance": 1300882.9555784247,
-            "std": 1140.562561010322,
-            "r2": 0.8051791619709183,
-            "prediction_interval_coverage": 0.4226190476190476,
-            "prediction_interval_width": 2569.773452150913
+        "2025-01-21T00:00:00+00:00": {
+            "wind_onshore_ampr": {
+                "mse": 1684271.4447513227,
+                "rmse": 1297.7948392374362,
+                "mae": 1052.148439220624,
+                "mape": 54.27857695166386,
+                "smape": 68.81712193490304,
+                "bias": -755.2600325584086,
+                "variance": 1113853.727971194,
+                "std": 1055.3926889888874,
+                "r2": 0.7705671003850068,
+                "prediction_interval_coverage": 0.8630952380952381,
+                "prediction_interval_width": 3797.2768837998515
+            }
         }
     }
 }

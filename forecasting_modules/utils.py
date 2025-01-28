@@ -737,9 +737,7 @@ def compute_timeseries_split_cutoffs(
 
 
 
-def compute_error_metrics(target:str,result:pd.DataFrame)->dict:
-
-    res = copy.deepcopy(result)
+def compute_error_metrics(target:list,result:pd.DataFrame)->dict:
 
     def smape(actual, predicted):
         """
@@ -761,35 +759,36 @@ def compute_error_metrics(target:str,result:pd.DataFrame)->dict:
 
         return smape_value
 
+    res_dict ={}
+    for target_ in target:
+        # extract arrays
+        y_true = result[f'{target_}_actual'].values
+        y_pred = result[f'{target_}_fitted'].values
+        y_lower = result[f'{target_}_lower'].values if f'{target_}_lower' in result.columns else np.zeros_like(y_true)
+        y_upper = result[f'{target_}_upper'].values if f'{target_}_lower' in result.columns else np.zeros_like(y_true)
+        coverage = np.mean((y_true >= y_lower) & (y_true <= y_upper))
 
-    # extract arrays
-    y_true = res[f'{target}_actual'].values
-    y_pred = res[f'{target}_fitted'].values
-    y_lower = res[f'{target}_lower'].values
-    y_upper = res[f'{target}_upper'].values
-    coverage = np.mean((y_true >= y_lower) & (y_true <= y_upper))
+        # if not np.all(np.isfinite(y_true)):
+        #     print ("WARNIGN! y_true contains NaN, infinity, or values too large for dtype('float64').")
+        #     y_true = np.nan_to_num(y_true, nan=0.0, posinf=1e10, neginf=-1e10)
+        # if not np.all(np.isfinite(y_pred)):
+        #     print ("WARNING! y_pred contains NaN, infinity, or values too large for dtype('float64').")
+        #     y_pred = np.nan_to_num(y_pred, nan=0.0, posinf=1e10, neginf=-1e10)
 
-    if not np.all(np.isfinite(y_true)):
-        print ("WARNIGN! y_true contains NaN, infinity, or values too large for dtype('float64').")
-        y_pred = np.nan_to_num(y_pred, nan=0.0, posinf=1e10, neginf=-1e10)
-    if not np.all(np.isfinite(y_pred)):
-        print ("WARNING! y_pred contains NaN, infinity, or values too large for dtype('float64').")
-        y_pred = np.nan_to_num(y_pred, nan=0.0, posinf=1e10, neginf=-1e10)
-
-    # compute metrics
-    res_dict = {
-        'mse': mean_squared_error(y_true, y_pred),
-        'rmse': np.sqrt(mean_squared_error(y_true, y_pred)),
-        'mae': mean_absolute_error(y_true, y_pred),
-        'mape': mean_absolute_percentage_error(y_true+1e-10, y_pred) * 100,
-        'smape': smape(y_true, y_pred),
-        'bias': np.mean(y_pred - y_true),
-        'variance': np.var(y_pred - y_true),
-        'std': np.std(y_pred - y_true),
-        'r2':r2_score(y_true, y_pred),
-        'prediction_interval_coverage':coverage,
-        'prediction_interval_width':np.mean(y_upper - y_lower)
-    }
+        # compute metrics
+        res_dict[target_] = {
+            'mse': mean_squared_error(y_true, y_pred),
+            'rmse': np.sqrt(mean_squared_error(y_true, y_pred)),
+            'mae': mean_absolute_error(y_true, y_pred),
+            'mape': mean_absolute_percentage_error(y_true+1e-10, y_pred) * 100,
+            'smape': smape(y_true, y_pred),
+            'bias': np.mean(y_pred - y_true),
+            'variance': np.var(y_pred - y_true),
+            'std': np.std(y_pred - y_true),
+            'r2':r2_score(y_true, y_pred),
+            'prediction_interval_coverage':coverage,
+            'prediction_interval_width':np.mean(y_upper - y_lower)
+        }
 
     return res_dict
 

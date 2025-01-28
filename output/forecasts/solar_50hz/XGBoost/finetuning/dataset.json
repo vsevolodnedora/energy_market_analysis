@@ -12,5 +12,8 @@
     ],
     "add_cyclical_time_features": true,
     "feature_engineer": "WeatherSolarPowerFE",
-    "target": "solar_50hz"
+    "targets": [
+        "solar_50hz"
+    ],
+    "label": "solar_50hz"
 }

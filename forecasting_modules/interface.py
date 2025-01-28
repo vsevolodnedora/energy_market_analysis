@@ -21,16 +21,17 @@ def main_forecasting_pipeline(task_list:list, outdir:str, database:str, verbose:
         os.mkdir(outdir)
 
     for task in task_list:
-        target = task['target']
+        targets = task['targets']
         region = task['region']
+        run_label = task['label']
 
         # get features + target (historic) and features (forecast) from database
         df_hist, df_forecast = extract_from_database(
-            target=target, db_path=database, outdir=outdir, verbose=verbose, tso_name=region, n_horizons=100, horizon=7*24
+            main_pars=task, db_path=database, outdir=outdir, verbose=verbose, n_horizons=100, horizon=7*24
         )
 
         # clean data from nans and outliers
-        df_hist, df_forecast = clean_and_impute(df_hist=df_hist,df_forecast=df_forecast,target=target,verbose=verbose)
+        df_hist, df_forecast = clean_and_impute(df_hist=df_hist,df_forecast=df_forecast,verbose=verbose)
 
         # initialize the processor for tasks
         processor = ForecastingTaskSingleTarget(
@@ -65,16 +66,17 @@ def main_forecasting_pipeline(task_list:list, outdir:str, database:str, verbose:
             processor.process_task_plot_predict_forecast(task)
 
         if task['task_summarize']:
-            processor.process_task_determine_the_best_model(task, outdir=outdir+target+'/')
+            processor.process_task_determine_the_best_model(task, outdir=outdir+run_label+'/')
 
 def update_forecast_production(database:str, outdir:str, variable:str, verbose:bool):
     cv_folds_ft = 3
     cv_folds_eval = 5
     task_list = [
         {
-            "target": "wind_offshore_tenn",
+            "label":["wind_offshore_tenn"],
+            "targets": "wind_offshore_tenn",
             "region": "DE_TENNET",
-            "label": "Offshore Wind Power Generation (TenneT) [MW]",
+            "plot_label": "Offshore Wind Power Generation (TenneT) [MW]",
             "task_fine_tuning":[
                 # {'model':'Prophet',
                 #  'dataset_pars':{
@@ -92,7 +94,7 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
 
                 # {'model':'XGBoost',
                 #  'dataset_pars':{
-                #      'log_target':True,
+                #      'log_target':False,
                 #      'forecast_horizon':None,
                 #      'target_scaler':'StandardScaler',
                 #      'feature_scaler':'StandardScaler',
@@ -101,11 +103,11 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                 #      'add_cyclical_time_features':True,
                 #      'feature_engineer':'WeatherWindPowerFE'
                 #  },
-                #  'finetuning_pars':{'n_trials':20,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
-
+                #  'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+                #
                 # {'model':'ElasticNet',
                 #  'dataset_pars':{
-                #      'log_target':True,
+                #      'log_target':False,
                 #      'forecast_horizon':None,
                 #      'target_scaler':'StandardScaler',
                 #      'feature_scaler':'StandardScaler',
@@ -114,11 +116,11 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                 #      'add_cyclical_time_features':True,
                 #      'feature_engineer':'WeatherWindPowerFE'
                 #  },
-                #  'finetuning_pars':{'n_trials':20,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+                #  'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
                 #
                 # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)',
                 #  'dataset_pars': {
-                #      'log_target':True,
+                #      'log_target':False,
                 #      'forecast_horizon':None,
                 #      'target_scaler':'StandardScaler',
                 #      'feature_scaler':'StandardScaler',
@@ -128,10 +130,10 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                 #      'lags_target': None,
                 #      'copy_input':True
                 #  },
-                #  'finetuning_pars':{'n_trials':25,
+                #  'finetuning_pars':{'n_trials':20,
                 #                     'optim_metric':'rmse',
                 #                     'cv_folds':cv_folds_ft,
-                #                     'cv_folds_base':35, # at least cv_folds_eval + 1
+                #                     'cv_folds_base':40,#35, # at least cv_folds_eval + 1
                 #                     'use_base_models_pred_intervals':False}}
             ],
             "task_training":[
@@ -182,8 +184,9 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
             if tso_reg['name'] in avail_regions:
                 task_list_ = copy.deepcopy(task_list)
                 for t in task_list_:
-                    t['label'] = f"Offshore Wind Power Generation ({tso_reg['name']}) [MW]"
-                    t['target'] = f"wind_offshore{tso_reg['suffix']}"
+                    t['label'] = f"wind_offshore{tso_reg['suffix']}"
+                    t['targets'] = [t['label']]
+                    t['plot_label'] = f"Offshore Wind Power Generation ({tso_reg['name']}) [MW]"
                     t['region'] = tso_reg['name']
                     for tt in t['task_fine_tuning']:
                         tt['dataset_pars']['feature_engineer'] = 'WeatherWindPowerFE'
@@ -199,8 +202,9 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
             if tso_reg['name'] in avail_regions:
                 task_list_ = copy.deepcopy(task_list)
                 for t in task_list_:
-                    t['label'] = f"Onshore Wind Power Generation ({tso_reg['name']}) [MW]"
-                    t['target'] = f"wind_onshore{tso_reg['suffix']}"
+                    t['label'] = f"wind_onshore{tso_reg['suffix']}"
+                    t['targets'] = [t['label']]
+                    t['plot_label'] = f"Onshore Wind Power Generation ({tso_reg['name']}) [MW]"
                     t['region'] = tso_reg['name']
                     for tt in t['task_fine_tuning']:
                         tt['dataset_pars']['feature_engineer']  = 'WeatherWindPowerFE'
@@ -216,8 +220,9 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
             if tso_reg['name'] in avail_regions:
                 task_list_ = copy.deepcopy(task_list)
                 for t in task_list_:
-                    t['label'] = f"Solar Power Generation ({tso_reg['name']}) [MW]"
-                    t['target'] = f"solar{tso_reg['suffix']}"
+                    t['label'] = f"solar{tso_reg['suffix']}"
+                    t['targets'] = [t['label']]
+                    t['plot_label'] = f"Solar Power Generation ({tso_reg['name']}) [MW]"
                     t['region'] = tso_reg['name']
                     for tt in t['task_fine_tuning']:
                         tt['dataset_pars']['log_target'] = False
@@ -234,8 +239,9 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
             if tso_reg['name'] in avail_regions:
                 task_list_ = copy.deepcopy(task_list)
                 for t in task_list_:
-                    t['label'] = f"Load ({tso_reg['name']}) [MW]"
-                    t['target'] = f"load{tso_reg['suffix']}"
+                    t['label'] = f"load{tso_reg['suffix']}"
+                    t['targets'] = [t['label']]
+                    t['plot_label'] = f"Load ({tso_reg['name']}) [MW]"
                     t['region'] = tso_reg['name']
                     for tt in t['task_fine_tuning']:
                         tt['dataset_pars']['feature_engineer']  = 'WeatherLoadFE'
@@ -245,14 +251,37 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
 
     ''' -------------- MIX (4 TSOs) ------------- '''
 
+    task_list_ = copy.deepcopy(task_list)
+    task_list_[0]['task_fine_tuning'] = [
+        {'model':'CatBoost',
+         'dataset_pars':{
+             'log_target':False,
+             'lags_target': None,
+             'forecast_horizon':None,
+             'target_scaler':'StandardScaler',
+             'feature_scaler':'StandardScaler',
+             'copy_input':True,
+             'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
+             'add_cyclical_time_features':True,
+             'feature_engineer':'WeatherLoadPowerFE',
+             'spatial_agg_method': 'mean' # fix
+
+         },
+         'finetuning_pars':{'n_trials':5,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+    ]
+
     if variable == "energy_mix":
         avail_regions = ["DE_TENNET", "DE_50HZ", "DE_AMPRION", "DE_TRANSNET"]
         for tso_reg in de_regions:
             if tso_reg['name'] in avail_regions:
-                task_list_ = copy.deepcopy(task_list)
+                task_list_ = copy.deepcopy(task_list_)
                 for t in task_list_:
-                    t['label'] = f"Energy Mix ({tso_reg['name']}) [MW]"
-                    t['target'] = f"energy_mix{tso_reg['suffix']}"
+                    t['label'] = f"energy_mix{tso_reg['suffix']}"
+                    t['targets'] = ["hard_coal", "lignite", "coal_derived_gas", "oil", "other_fossil", "gas", "renewables"]
+                    t['aggregations'] = {"renewables": [
+                        "biomass","waste","geothermal","pumped_storage","run_of_river","water_reservoir","other_renewables"
+                    ]}
+                    t['plot_label'] = f"Energy Mix ({tso_reg['name']}) [MW]"
                     t['region'] = tso_reg['name']
                     for tt in t['task_fine_tuning']:
                         tt['dataset_pars']['feature_engineer']  = 'WeatherLoadFE'

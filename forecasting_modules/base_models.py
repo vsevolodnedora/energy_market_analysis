@@ -89,6 +89,7 @@ class BaseForecaster:
         self.verbose = verbose
         self.expected_mean_deviation = 20
         self.expected_std_deviation = 10
+        self.train_end = None
 
     def _is_scaled(self, data):
         """
@@ -103,7 +104,7 @@ class BaseForecaster:
     def get_regressor(self) -> MapieRegressor:
         return self.model
 
-    def fit(self, X_scaled:pd.DataFrame, y_scaled:pd.Series)->None:
+    def fit(self, X_scaled:pd.DataFrame, y_scaled:pd.DataFrame)->None:
         '''
         Fits the forecasting model to the data.
         :param X_scaled: time-series dataframe with exogenous variables. Normalized, regularized and scaled.
@@ -112,7 +113,7 @@ class BaseForecaster:
         '''
         pass
 
-    def predict(self, X_scaled:pd.DataFrame, y_scaled:pd.Series or None) -> pd.DataFrame:
+    def predict(self, X_scaled:pd.DataFrame, y_scaled:pd.DataFrame or None) -> pd.DataFrame:
         '''
         Compute trained model predictions for each timestep in the given train data set.
         :param X_scaled: time-series dataframe with exogenous variables. (same as used for fitting)
@@ -128,7 +129,9 @@ class BaseForecaster:
 
         # form results
         if y_scaled is None:
-            y_scaled = pd.Series([np.nan] * len(X_scaled), index=X_scaled.index)
+            y_scaled = pd.DataFrame(
+                {self.target:[np.nan] * len(X_scaled)}, columns=[self.target], index=X_scaled.index
+            )
 
         array = np.array(res)
         # check for outliers (due to method failing)
@@ -146,14 +149,14 @@ class BaseForecaster:
         # )
 
         results = pd.DataFrame({
-            f'{self.target}_actual': y_scaled.values,
+            f'{self.target}_actual': y_scaled[self.target].values,
             f'{self.target}_fitted': pd.Series(array, index=y_scaled.index),
             f'{self.target}_lower': pd.Series(lower, index=y_scaled.index),
             f'{self.target}_upper': pd.Series(upper, index=y_scaled.index)
         }, index=X_scaled.index)
         return results
 
-    def forecast_window(self, X_test:pd.DataFrame, y_train_scaled:pd.Series or None, lags_target:int or None)->pd.DataFrame:
+    def forecast_window(self, X_test:pd.DataFrame, y_train_scaled:pd.DataFrame or None, lags_target:int or None)->pd.DataFrame:
         '''
         Compute trained model forecast for each timestep in the given test data set.
         If there are lagged targets as features, then iterative procedure is requried. Otherwise it is
@@ -164,6 +167,9 @@ class BaseForecaster:
         [f'{target}_actual',f'{target}_fitted',f'{target}_lower',f'{target}_upper'] where the last two
         correspond to 95% confidence intervals.
         '''
+
+        # if X_test.index[0] < self.train_end:
+        #     raise ValueError(f"Data leakage X_test[0] = {X_test.index[0]} while training data is {self.train_end}")
 
         if lags_target is None:
             return self.predict(X_test, None)
@@ -179,6 +185,12 @@ class BaseForecaster:
 
         # if set(X_test.columns) != set(self.features):
         #     raise ValueError("X_test.columns must match self.features")
+
+        if len(y_train_scaled.columns) > 1:
+            raise ValueError("y_train_scaled.columns must have 1 column for single target forecasting")
+
+        # for simplicity
+        y_train_scaled = pd.Series(y_train_scaled[self.target].values, index=y_train_scaled.index)
 
         forecast_values, lower, upper, X_futures = [], [], [], []
         # predict target for each time step in future features X_scaled
@@ -293,7 +305,7 @@ class BaseForecaster:
 
     def reset_model(self):
         del self.model; self.model = MapieRegressor()
-        del  self.X_futures_df;  self.X_futures_df = pd.DataFrame()
+        del self.X_futures_df;  self.X_futures_df = pd.DataFrame()
 
 class XGBoostMapieRegressor(BaseForecaster):
 
@@ -304,7 +316,7 @@ class XGBoostMapieRegressor(BaseForecaster):
         self.name='XGBoostMapieRegressor'
         self.model = model
 
-    def fit(self, X_scaled, y_scaled):
+    def fit(self, X_scaled:pd.DataFrame, y_scaled:pd.DataFrame):
         # Check if base model is pre-fitted
         if hasattr(self.model.estimator, "fit"):
             if self.verbose: print(f"Base model {self.name} is not fitted. Fitting using X={X_scaled.shape}")
@@ -315,7 +327,9 @@ class XGBoostMapieRegressor(BaseForecaster):
                 f"X_scaled={X_scaled.shape} and y_scaled={y_scaled.shape}"
             )
         # fit the Mapieregressor model
+        y_scaled = pd.Series(y_scaled.values.flatten(), index=y_scaled.index)
         self.model.fit(X_scaled, y_scaled)
+        self.train_end = y_scaled.index[-1]
 
         # save data for feature importance analysis
         # self.features = X_scaled.columns.tolist()
@@ -338,6 +352,136 @@ class XGBoostMapieRegressor(BaseForecaster):
     #     feature_importance = pd.Series(importances, index=self.features)
     #     feature_importance = feature_importance.sort_values(ascending=False)
     #     return feature_importance
+
+
+class CatBoostMultiTargetForecaster:
+    def __init__(self,targets:str,  model: MapieRegressor, alpha:float, verbose:bool): # lags_target:int or None,
+        self.name='CatBoostMultiTargetRegressor'
+        self.targets = targets
+        self.model = model
+        self.verbose = verbose
+
+    def fit(self, X_scaled, y_scaled):
+        # Check if base model is pre-fitted
+        if not hasattr(self.model, "booster_"):
+            if self.verbose: print(f"Base model {self.name} is not fitted. Fitting using X={X_scaled.shape}")
+            self.model.fit(X_scaled, y_scaled)
+        if len(X_scaled) == 0 or len(y_scaled) == 0:
+            raise ValueError(
+                f"Empty dataframe is passed for training: "
+                f"X_scaled={X_scaled.shape} and y_scaled={y_scaled.shape}"
+            )
+        # fit the Mapieregressor model
+        self.model.fit(X_scaled, y_scaled)
+
+    def predict(self, X_scaled:pd.DataFrame, y_scaled:pd.Series or None) -> pd.DataFrame:
+        '''
+        Compute trained model predictions for each timestep in the given train data set.
+        :param X_scaled: time-series dataframe with exogenous variables. (same as used for fitting)
+        :param y_scaled: time-series dataframe with target. (same as used for fitting)
+        :return: pd.DataFrame with columns:
+            [f'{target}_actual',f'{target}_fitted',f'{target}_lower',f'{target}_upper'] where the last two
+        correspond to 95% confidence intervals.
+        '''
+        # predict with model
+        res = self.model.predict(X_scaled)
+
+        # lower = np.array( pis[:, 0, 0] )
+        # upper = np.array( pis[:, 1, 0] )
+
+        # form results
+        if y_scaled is None:
+            y_scaled = pd.Series([np.nan] * len(X_scaled), index=X_scaled.index)
+
+        res_df = {}
+        for i, target_ in enumerate(self.target):
+            res_df[f'{target_}_actual'] = y_scaled.values
+            res_df[f'{target_}_fitted'] =  pd.Series(res[:, i], index=y_scaled.index)
+            # res_df[f'{self.target}_lower'] = pd.Series(lower, index=y_scaled.index) # TODO add a measure for CI
+            # res_df[ f'{self.target}_upper'] = pd.Series(upper, index=y_scaled.index)
+
+        results = pd.DataFrame(res_df, index=X_scaled.index)
+        return results
+
+    def forecast_window(self, X_test:pd.DataFrame, y_train_scaled:pd.DataFrame or None, lags_target:int or None)->pd.DataFrame:
+        '''
+        Compute trained model forecast for each timestep in the given test data set.
+        If there are lagged targets as features, then iterative procedure is requried. Otherwise it is
+        equivalent to calling predict()
+
+        :param X_scaled: time-series dataframe with exogenous variables. (e.g., forecasting horizon length)
+        :return: pd.DataFrame with columns:
+        [f'{target}_actual',f'{target}_fitted',f'{target}_lower',f'{target}_upper'] where the last two
+        correspond to 95% confidence intervals.
+        '''
+
+        if lags_target is None:
+            return self.predict(X_test, None)
+
+        if not lags_target is None:
+            if y_train_scaled is None:
+                raise ValueError("Requires y_train_scaled for lagged target")
+            time_delta = pd.Timedelta(y_train_scaled.index[-1] - y_train_scaled.index[-2])
+            if y_train_scaled.index[-1] + time_delta != X_test.index[0]:
+                raise ValueError("X_test.inex[0] must be y_train.inex[0] + 1 hour. Given "
+                                 f"y_train_scaled.index[-1] + 1 = {y_train_scaled.index[-1] + timedelta(hours=1)}"
+                                 f"X_test.index[0] = {X_test.index[0]}")
+
+        # if set(X_test.columns) != set(self.features):
+        #     raise ValueError("X_test.columns must match self.features")
+
+        forecast_values, lower, upper, X_futures = [], [], [], []
+        # predict target for each time step in future features X_scaled
+        for i in range(len(X_test)):
+            # X_future = self.ds.exog_forecast.iloc[[i]].to_dict('records')[0]
+            X_future = X_test.iloc[[i]].to_dict('records')[0]
+            # Update lag features for target (if lag featires are needed)
+            if not lags_target is None:
+                for lag in range(1, lags_target+1):
+                    if not f'{self.target}_lag_{lag}' in X_test.columns:
+                        raise ValueError("X_test.columns must match self.features")
+                    if (i - lag >= 0):
+                        # For the target variable, use forecasted values
+                        if len(y_train_scaled) == 1:
+                            X_future[f'{self.target}_lag_{lag}'] = forecast_values[i - lag]
+                    else:
+                        # Use historical data for initial lags
+                        val = y_train_scaled.iloc[-lag + i]
+                        X_future[f'{self.target}_lag_{lag}'] = val
+            # Predict and store forecasted value
+            values = pd.DataFrame([X_future], columns=X_future.keys())
+            # Save X_future for feature importance
+            X_futures.append(values.copy(deep=True))
+            # use MapieRegressor.predict() to forecast for the next time-step
+            forecast_value, forecast_pis = self.model.predict( values )
+            forecast_values.append(forecast_value[0])
+            # get confidence intervals
+            lower.append(forecast_pis[:, 0, 0][0])
+            upper.append(forecast_pis[:, 1, 0][0])
+
+        # check for nans
+        array = np.array(forecast_values)  # Ensure input is a NumPy array
+        if np.isnan(array).any():
+            nan_count = np.isnan(array).sum()
+            raise ValueError(f"Forecast window contains NaN values: {nan_count} for {self.target}")
+        if np.isinf(array).any():
+            inf_count = np.isinf(array).sum()
+            raise ValueError(f"Forecast window contains inf values: {inf_count} for {self.target}")
+
+
+        # Save x_futures for later use Convert x_futures to DataFrame
+        self.X_futures_df = pd.concat(X_futures, axis=0, ignore_index=True)
+        self.X_futures_df.index = X_test.index
+
+        # combine the result of the forecast
+        df = pd.DataFrame({
+            f'{self.target}_actual':[np.nan]*len(forecast_values),
+            f'{self.target}_fitted': pd.Series(forecast_values, index=X_test.index),
+            f'{self.target}_lower': pd.Series(lower, index=X_test.index),
+            f'{self.target}_upper': pd.Series(upper, index=X_test.index)
+        }, index=X_test.index)
+
+        return df
 
 class ProphetForecaster(BaseForecaster):
 
@@ -369,7 +513,7 @@ class ProphetForecaster(BaseForecaster):
             prophet_df[str(col)] = X_scaled[col].values
         return prophet_df
 
-    def fit(self, X_scaled:pd.DataFrame, y_scaled:pd.Series):
+    def fit(self, X_scaled:pd.DataFrame, y_scaled:pd.DataFrame):
         if len(X_scaled) == 0 or len(y_scaled) == 0:
             raise ValueError(
                 f"Empty dataframe is passed for training: "
@@ -379,6 +523,11 @@ class ProphetForecaster(BaseForecaster):
         :X_scaled indexed by pd.Timestamp
         :y_scaled indexed by pd.Timestamp
         '''
+
+        if len(y_scaled.columns) > 1:
+            raise ValueError("y_train_scaled.columns must have 1 column for single target forecasting")
+        # for simplicity
+        y_scaled = pd.Series(y_scaled[self.target].values, index=y_scaled.index)
 
         # Check if datasets are scaled
         if not self._is_scaled(X_scaled):
@@ -412,8 +561,12 @@ class ProphetForecaster(BaseForecaster):
         self.model.fit(self.prophet_df)
 
 
-    def predict(self, X_scaled:pd.DataFrame, y_scaled:pd.Series) -> pd.DataFrame:
+    def predict(self, X_scaled:pd.DataFrame, y_scaled:pd.DataFrame) -> pd.DataFrame:
         ''' predict target for all entries in the training data '''
+        if len(y_scaled.columns) > 1:
+            raise ValueError("y_train_scaled.columns must have 1 column for single target forecasting")
+        # for simplicity
+        y_scaled = pd.Series(y_scaled[self.target].values, index=y_scaled.index)
 
         prophet_df = self._create_prophet_df(X_scaled, y_scaled)
         # Generate predictions
@@ -431,11 +584,17 @@ class ProphetForecaster(BaseForecaster):
 
         return predict_df
 
-    def forecast_window(self, X_scaled:pd.DataFrame,y_train_scaled:pd.Series or None,lags_target:int or None)->pd.DataFrame:
+    def forecast_window(self, X_scaled:pd.DataFrame,y_train_scaled:pd.DataFrame or None,lags_target:int or None)->pd.DataFrame:
         ''' Overrides base method. Lagged features are not supported for Prophet model.
         '''
+
+        if len(y_train_scaled.columns) > 1:
+            raise ValueError("y_train_scaled.columns must have 1 column for single target forecasting")
+        # for simplicity
+        y_train_scaled = pd.Series(y_train_scaled[self.target].values, index=y_train_scaled.index)
+
         # self.X_future = X_scaled
-        # Generate predictions
+            # Generate predictions
         predict_df = pd.DataFrame(index=X_scaled.index)
         predict_df.index.name = 'date'
         predict_df.reset_index(inplace=True, names='ds')
@@ -459,7 +618,7 @@ class ProphetForecaster(BaseForecaster):
         predict_df.index = predict_df.index.tz_localize(X_scaled.index.tzinfo)
         return predict_df
 
-    def get_model_feature_importance(self, X_train:pd.DataFrame, y_train:pd.Series, X_test:pd.DataFrame,lags_target:int or None) -> pd.DataFrame:
+    def get_model_feature_importance(self, X_train:pd.DataFrame, y_train:pd.DataFrame, X_test:pd.DataFrame,lags_target:int or None) -> pd.DataFrame:
         """
         Explanation
         Prophet provides the additive contribution of each regressor, which directly reflects their
@@ -506,7 +665,7 @@ class ElasticNetMapieRegressor(BaseForecaster):
         self.base_model = model
         self.features = None
 
-    def fit(self, X_scaled:pd.DataFrame, y_scaled) -> None:
+    def fit(self, X_scaled:pd.DataFrame, y_scaled:pd.DataFrame) -> None:
         # Check if base model is pre-fitted
         if hasattr(self.model.estimator, "fit"):
             if self.verbose: print(f"Base model {self.name} is not fitted. Fitting using X={X_scaled.shape}")
@@ -520,6 +679,7 @@ class ElasticNetMapieRegressor(BaseForecaster):
             )
 
         # Fit mapieregressor model
+        y_scaled = pd.Series(y_scaled[self.target],name=self.target,index=y_scaled.index)
         self.model.fit(X_scaled, y_scaled)
         # self.features = X_scaled.columns.tolist()
         # self.lag_y_past = y_scaled.copy()

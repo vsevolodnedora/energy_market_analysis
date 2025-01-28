@@ -1,5 +1,5 @@
 {
-    "log_target": true,
+    "log_target": false,
     "forecast_horizon": null,
     "target_scaler": "StandardScaler",
     "feature_scaler": "StandardScaler",
@@ -12,5 +12,7 @@
     "feature_engineer": "WeatherWindPowerFE",
     "lags_target": null,
     "copy_input": true,
-    "target": "wind_onshore_tran"
+    "targets": [
+        "wind_onshore_tran"
+    ]
 }
