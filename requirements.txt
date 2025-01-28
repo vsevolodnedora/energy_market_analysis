@@ -19,6 +19,7 @@ joblib
 future
 xgboost
 lightgbm
+catboost
 shap
 prophet
 optuna
