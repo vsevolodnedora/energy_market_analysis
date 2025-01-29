@@ -10,6 +10,10 @@ from datetime import timedelta, datetime
 from data_collection_modules.german_locations import de_regions
 from data_collection_modules.utils import compare_columns
 
+from logger import get_logger
+logger = get_logger(__name__)
+logger.info("This is a log message")
+
 def preprocess_generation(df_gen:pd.DataFrame, drop_consumption:bool, verbose:bool)->pd.DataFrame:
 
     generation_type_mapping = {
@@ -66,25 +70,25 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
 
     df = pd.DataFrame()
     for i, region in enumerate(de_regions):
-        if verbose: print(f"Requesting ENTSO-E data for region {region['name']} from {start_date} till {today}")
+        if verbose: logger.info(f"Requesting ENTSO-E data for region {region['name']} from {start_date} till {today}")
 
         ''' ------------ GENERATION ENERGY MIX ---------------- '''
         df_gen = None
         fname = f"tmp_gen{region['suffix']}_hist.parquet"
         if os.path.isfile(working_dir + fname):
-            if verbose: print(f"Loading temporary file: {working_dir + fname}")
+            if verbose: logger.info(f"Loading temporary file: {working_dir + fname}")
             df_gen = pd.read_parquet(working_dir + fname)
         else:
             # query generation
             for i in range(5):
                 try:
                     # --- REALIZED GENERATION ---
-                    if verbose: print(f"Collecting generation for {region['name']} from {start_date} to {today}")
+                    if verbose: logger.info(f"Collecting generation for {region['name']} from {start_date} to {today}")
                     df_gen = client.query_generation(country_code=region['name'], start=start_date, end=today,psr_type=None)
                     df_gen = preprocess_generation(df_gen, drop_consumption=True, verbose=verbose)
                     time.sleep(5) # not to trigger ENTSO-E API abort
                 except Exception as e:
-                    print(f"Failed to fetch generation from ENTSOE API ({i}/{5}) for region "
+                    logger.error(f"Failed to fetch generation from ENTSOE API ({i}/{5}) for region "
                           f"{region['name']} from {start_date} till {today}: \n\t{e}")
                     time.sleep(5)
                     continue
@@ -92,21 +96,21 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
             if df_gen is None:
                 raise ConnectionAbortedError(f"Failed to fetch generation from ENTSOE API for region "
                                              f"{region['name']} from {start_date} till {today}.")
-            if verbose: print(f"Saving temporary file: {working_dir + fname}")
+            if verbose: logger.info(f"Saving temporary file: {working_dir + fname}")
             df_gen.to_parquet(working_dir + fname)
 
         ''' ------------- TOTAL GENERATION FORECAST ------------------ '''
         df_gen_f = None
         fname = f"tmp_gen{region['suffix']}_total_forecast.parquet"
         if os.path.isfile(working_dir + fname):
-            if verbose: print(f"Loading temporary file: {working_dir + fname}")
+            if verbose: logger.info(f"Loading temporary file: {working_dir + fname}")
             df_gen_f = pd.read_parquet(working_dir + fname)
         else:
             # query generation
             for i in range(5):
                 try:
                     # --- generation forecast aggregated
-                    if verbose: print(f"Collecting generation forecast for {region['name']} from {start_date} to {today}")
+                    if verbose: logger.info(f"Collecting generation forecast for {region['name']} from {start_date} to {today}")
                     df_gen_f = client.query_generation_forecast(
                         country_code=region['name'], start=start_date, end=today
                     )
@@ -120,7 +124,7 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
                     df_gen_f = df_gen_f.resample('h').mean()
                     time.sleep(5) # not to trigger ENTSO-E API abort
                 except Exception as e:
-                    print(f"Failed to fetch generation forecast from ENTSOE API ({i}/{5}) for region "
+                    logger.error(f"Failed to fetch generation forecast from ENTSOE API ({i}/{5}) for region "
                           f"{region['name']} from {start_date} till {today}: \n\t{e}")
                     time.sleep(5)
                     continue
@@ -128,21 +132,21 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
             if df_gen_f is None:
                 raise ConnectionAbortedError(f"Failed to fetch generation forecast from ENTSOE API for region "
                                              f"{region['name']} from {start_date} till {today}.")
-            if verbose: print(f"Saving temporary file: {working_dir + fname}")
+            if verbose: logger.info(f"Saving temporary file: {working_dir + fname}")
             df_gen_f.to_parquet(working_dir + fname)
 
         ''' ------------- SOLAR & WIND GENERATION FORECAST ------------- '''
         df_gen_sw_f = None
         fname = f"tmp_gen{region['suffix']}_solarwind_forecast.parquet"
         if os.path.isfile(working_dir + fname):
-            if verbose: print(f"Loading temporary file: {working_dir + fname}")
+            if verbose: logger.info(f"Loading temporary file: {working_dir + fname}")
             df_gen_sw_f = pd.read_parquet(working_dir + fname)
         else:
             # query generation
             for i in range(5):
                 try:
                     # --- REALIZED GENERATION ---
-                    if verbose: print(
+                    if verbose: logger.info(
                         f"Collecting solar & wind generation forecast for {region['name']} from {start_date} to {today}"
                     )
                     df_gen_sw_f = client.query_wind_and_solar_forecast(
@@ -159,7 +163,7 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
                     df_gen_sw_f = df_gen_sw_f.resample('h').mean()
                     time.sleep(5) # not to trigger ENTSO-E API abort
                 except Exception as e:
-                    print(f"Failed to fetch solar & wind generation forecast from ENTSOE API ({i}/{5}) for region "
+                    logger.error(f"Failed to fetch solar & wind generation forecast from ENTSOE API ({i}/{5}) for region "
                           f"{region['name']} from {start_date} till {today}: \n\t{e}")
                     time.sleep(5)
                     continue
@@ -169,21 +173,21 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
                     f"Failed to fetch solar & wind generation forecast from ENTSOE API for region "
                     f"{region['name']} from {start_date} till {today}."
                 )
-            if verbose: print(f"Saving temporary file: {working_dir + fname}")
+            if verbose: logger.info(f"Saving temporary file: {working_dir + fname}")
             df_gen_sw_f.to_parquet(working_dir + fname)
 
         ''' ---------- LOAD ------------ '''
         df_load = None
         fname = f"tmp_load{region['suffix']}_forecast.parquet"
         if os.path.isfile(working_dir + fname):
-            if verbose: print(f"Loading temporary file: {working_dir + fname}")
+            if verbose: logger.info(f"Loading temporary file: {working_dir + fname}")
             df_load = pd.read_parquet(working_dir + fname)
         else:
             # query generation
             for i in range(5):
                 try:
                     # --- REALIZED GENERATION ---
-                    if verbose: print(f"Collecting load for {region['name']} from {start_date} to {today}")
+                    if verbose: logger.info(f"Collecting load for {region['name']} from {start_date} to {today}")
                     df_load = client.query_load_and_forecast(country_code=region['name'], start=start_date, end=today)
                     df_load.rename(columns={
                         "Forecasted Load":"load_forecast",
@@ -195,7 +199,7 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
                     df_load = df_load.resample('h').mean()
                     time.sleep(5) # not to trigger ENTSO-E API abort
                 except Exception as e:
-                    print(f"Failed to fetch load from ENTSOE API ({i}/{5}) for region "
+                    logger.error(f"Failed to fetch load from ENTSOE API ({i}/{5}) for region "
                           f"{region['name']} from {start_date} till {today}: \n\t{e}")
                     time.sleep(5)
                     continue
@@ -203,7 +207,7 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
             if df_load is None:
                 raise ConnectionAbortedError(f"Failed to fetch load from ENTSOE API for region "
                                              f"{region['name']} from {start_date} till {today}.")
-            if verbose: print(f"Saving temporary file: {working_dir + fname}")
+            if verbose: logger.info(f"Saving temporary file: {working_dir + fname}")
             df_load.to_parquet(working_dir + fname)
 
         # --- Combine dataframes (assume indexes match)
@@ -218,7 +222,7 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
         if df.empty:  df = df_tot
         else: df = pd.merge(df, df_tot, left_index=True, right_index=True, how="left")
 
-    if verbose: print(f"Successfully collected ENTSO-E data (df={df.shape}) from {start_date} till {today}. "
+    if verbose: logger.info(f"Successfully collected ENTSO-E data (df={df.shape}) from {start_date} till {today}. "
                       f"Removing temporary files...")
 
     for i, region in enumerate(de_regions):
@@ -237,7 +241,7 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
 def create_entsoe_from_api(start_date:pd.Timestamp or None, today:pd.Timestamp,data_dir:str,api_key:str,verbose:bool):
     df = fetch_entsoe_data_from_api(data_dir, start_date, today, api_key, verbose)
     fname = data_dir + 'history.parquet'
-    if verbose: print(f"ENTSOE data is successfully collected. Shape={df.shape}. Saving into {fname}")
+    if verbose: logger.info(f"ENTSOE data is successfully collected. Shape={df.shape}. Saving into {fname}")
     df.to_parquet(fname)
 
 def update_entsoe_from_api(today:pd.Timestamp,data_dir:str,api_key:str,verbose:bool):
@@ -246,14 +250,14 @@ def update_entsoe_from_api(today:pd.Timestamp,data_dir:str,api_key:str,verbose:b
     df_hist = pd.read_parquet(fname)
     df_hist.index = pd.to_datetime(df_hist.index, utc=True)
     start_date = pd.Timestamp(df_hist.index[-1]) - timedelta(days=3) # to override previously incorrect last values
-    if verbose: print(f"Updating ENTSOE data from {start_date} till {today}. Current shape={df_hist.shape}")
+    if verbose: logger.info(f"Updating ENTSOE data from {start_date} till {today}. Current shape={df_hist.shape}")
     df = fetch_entsoe_data_from_api(data_dir, start_date, today, api_key, verbose)
     compare_columns(df, df_hist)
     if len(df.columns) != len(df_hist.columns):
         raise ValueError(f"Historic dataframe has {len(df_hist.columns)} columns, updated one has {len(df.columns)}")
     combined = df.combine_first(df_hist)
     combined.sort_index(inplace=True)
-    if verbose: print(f"ENTSOE data is successfully updated. Shape={df.shape}. Saving into {fname}")
+    if verbose: logger.info(f"ENTSOE data is successfully updated. Shape={df.shape}. Saving into {fname}")
     combined.to_parquet(fname)
 
 if __name__ == '__main__':

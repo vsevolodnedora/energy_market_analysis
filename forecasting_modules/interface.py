@@ -15,9 +15,13 @@ from data_modules.data_loaders import (
     clean_and_impute
 )
 
+from logger import get_logger
+logger = get_logger(__name__)
+
 def main_forecasting_pipeline(task_list:list, outdir:str, database:str, verbose:bool):
 
     if not os.path.isdir(outdir):
+        if verbose: logger.info("Creating output directory {}".format(outdir))
         os.mkdir(outdir)
 
     for task in task_list:
@@ -288,6 +292,8 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                         tt['dataset_pars']['locations'] = \
                             [loc['name'] for loc in loc_cities if loc['TSO']==tso_reg['TSO']]
                 main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+
+    logger.critical('BYE')
 
 if __name__ == '__main__':
     # todo add tests

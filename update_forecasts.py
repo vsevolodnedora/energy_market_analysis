@@ -4,6 +4,9 @@ from forecasting_modules import (
     update_forecast_production
 )
 
+from logger import get_logger
+logger = get_logger(__name__)
+
 
 if __name__ == '__main__':
     db_path = './database/'
@@ -19,4 +22,4 @@ if __name__ == '__main__':
             database=db_path, variable=target, outdir='./output/forecasts/', verbose=True
         )
 
-    print(f"All tasks in update are completed successfully!")
+    logger.info(f"All tasks in update are completed successfully!")
