@@ -14,6 +14,7 @@ jobs:
       contents: write
     env:
       ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+      LOG_LEVEL: WARNING
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
