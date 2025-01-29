@@ -7,6 +7,9 @@ import openmeteo_requests
 from datetime import datetime, timedelta
 from pysolar.solar import get_altitude, get_azimuth
 
+from logger import get_logger
+logger = get_logger(__name__)
+
 class OpenMeteo:
 
     vars_basic = (
@@ -103,7 +106,7 @@ class OpenMeteo:
                 for response in responses:
                     hourly.append( response.Hourly() )
             except Exception as e:
-                if self.verbose: print(f"Failed to fetch weather data from openmeteo {i}/{5} "
+                if self.verbose: logger.error(f"Failed to fetch weather data from openmeteo {i}/{5} "
                                        f"for {params.get('start_date', 'N/A')} -> {params.get('end_date', 'N/A')} "
                                        f"with Error:\n{e}")
                 time.sleep(20*i)  # in case API is overloaded
@@ -179,7 +182,7 @@ class OpenMeteo:
         # making heavy-duty API call (it might overload API so we need to be able to fail and load)
         fname = data_dir  + '/' + "tmp_hist.parquet"
         if os.path.exists(fname):
-            if self.verbose: print(f"Loading temporary file: {fname}")
+            if self.verbose: logger.info(f"Loading temporary file: {fname}")
             hist_data = pd.read_parquet(fname)
         else:
             hist_data = self.make_request(url, params)
@@ -192,7 +195,7 @@ class OpenMeteo:
         url = "https://historical-forecast-api.open-meteo.com/v1/forecast"
         fname = data_dir  + '/' + "tmp_hist_forecast.parquet"
         if os.path.exists(fname):
-            if self.verbose: print(f"Loading temporary file: {fname}")
+            if self.verbose: logger.info(f"Loading temporary file: {fname}")
             hist_forecast_data = pd.read_parquet(fname)
         else:
             hist_forecast_data = self.make_request(url, params)
@@ -206,7 +209,7 @@ class OpenMeteo:
         del params['end_date']
         fname = data_dir  + '/' + "tmp_forecast.parquet"
         if os.path.exists(fname):
-            if self.verbose: print(f"Loading temporary file: {fname}")
+            if self.verbose: logger.info(f"Loading temporary file: {fname}")
             forecast_data = pd.read_parquet(fname)
         else:
             forecast_data = self.make_request(url, params)
@@ -222,7 +225,7 @@ class OpenMeteo:
 
         # delete temporary files if present
         if self.verbose:
-            print(f"Openmeteo data from {start_date} to {end_date} is collected successfully (df={df.shape})."
+            logger.info(f"Openmeteo data from {start_date} to {end_date} is collected successfully (df={df.shape})."
                   f"Removing temporary files...")
             tmp_files = [
                 data_dir  + '/' + "tmp_hist.parquet",
@@ -241,7 +244,7 @@ def add_solar_elevation_and_azimuth(df: pd.DataFrame, locations, verbose=False):
     for i, loc in enumerate(locations):
         lat, lon, suffix = loc['lat'], loc['lon'], loc['suffix']
         if verbose:
-            print(f"Adding solar elevation and/or azimuth to {loc['name']} ({i}/{len(locations)})",)
+            logger.info(f"Adding solar elevation and/or azimuth to {loc['name']} ({i}/{len(locations)})",)
         elevation_list = []
         azimuth_list = []
         for ts in df.index:
@@ -259,7 +262,7 @@ def add_solar_elevation_and_azimuth(df: pd.DataFrame, locations, verbose=False):
     return df
 
 def create_openmeteo_from_api(fpath:str, locations:list, variables:list, start_date:pd.Timestamp, verbose:bool):
-    if verbose: print(f"Collecting historical data from OpenMeteo from {start_date} ({len(locations)})"
+    if verbose: logger.info(f"Collecting historical data from OpenMeteo from {start_date} ({len(locations)})"
                      f"{[loc['name'] for loc in locations]} locations")
 
     om = OpenMeteo(start_date, locations, variables, verbose=verbose)
@@ -271,7 +274,7 @@ def create_openmeteo_from_api(fpath:str, locations:list, variables:list, start_d
     idx = df_hist.index[-1]-timedelta(days=14) # separate historic and forecasted data
     df_hist[:idx].to_parquet(fpath,engine='pyarrow')
     df_hist[idx+timedelta(hours=1):].to_parquet( fpath.replace('history','forecast'),engine='pyarrow' )
-    if verbose: print(f"OpenMeteo data updated. "
+    if verbose: logger.info(f"OpenMeteo data updated. "
                       f"Collected df_hist={df_hist[:idx].shape} and df_forecast={df_hist[idx+timedelta(hours=1):].shape}. ")
 
 def update_openmeteo_from_api(fpath:str, verbose:bool, locations:list, variables:list, ):
@@ -280,7 +283,7 @@ def update_openmeteo_from_api(fpath:str, verbose:bool, locations:list, variables
         raise ValueError(f"Cannot update df_hist as its idx[-1]={df_hist.index[-1]} File={fpath}")
     last_timestamp = pd.Timestamp(df_hist.dropna(how='all', inplace=False).last_valid_index())
     start_date = last_timestamp - timedelta(days=3) # overwrite previous historic forecast with actual data
-    if verbose: print(f"Updating openmeteo {fpath} with {len(variables)} variables from {start_date}. "
+    if verbose: logger.info(f"Updating openmeteo {fpath} with {len(variables)} variables from {start_date}. "
                       f"Current data has shape {df_hist.shape}")
 
     om = OpenMeteo(start_date, locations, variables, verbose=verbose)
@@ -304,7 +307,7 @@ def update_openmeteo_from_api(fpath:str, verbose:bool, locations:list, variables
     df_om[:idx].to_parquet(fpath,engine='pyarrow')
     df_om[idx+timedelta(hours=1):].to_parquet( fpath.replace('history', 'forecast'), engine='pyarrow' )
 
-    if verbose: print(f"OpenMeteo file {fpath} updated with {len(variables)} variables.\n"
+    if verbose: logger.info(f"OpenMeteo file {fpath} updated with {len(variables)} variables.\n"
                       f"Collected df_hist={df_om[:idx].shape} and df_forecast={df_om[idx+timedelta(hours=1):].shape}. ")
 
 

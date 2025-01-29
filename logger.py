@@ -1,6 +1,10 @@
 import logging
 import os
 import sys
+from dotenv import load_dotenv
+
+
+load_dotenv()  # Load environment variables from .env
 
 # Detect if running inside GitHub Actions
 GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"

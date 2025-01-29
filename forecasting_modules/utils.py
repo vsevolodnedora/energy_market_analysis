@@ -647,7 +647,7 @@ def compute_timeseries_split_cutoffs(
 
     min_train_size = len(full_index) - folds * horizon
 
-    print(f"| folds={folds} min_train_size={min_train_size} full_index={len(full_index)} |")
+    # print(f"| folds={folds} min_train_size={min_train_size} full_index={len(full_index)} |")
 
     if horizon % 24 != 0:
         raise ValueError("Horizon must be divisible by 24 (whole days).")
@@ -719,10 +719,10 @@ def compute_timeseries_split_cutoffs(
         # Move to the next potential cutoff point
         current_index -= step
 
-        print(f"\tFor cutoff={cutoff} | "
-              f"(folds={folds}) len(cutoffs)={len(cutoffs)} min_train_size={min_train_size} "
-              f"full_index={len(full_index)} | train={len(train_idx)} test={len(test_idx)} | "
-              f"train_start = {train_start} | train_end = {train_end} | test_start = {test_start}")
+        # print(f"\tFor cutoff={cutoff} | "
+        #       f"(folds={folds}) len(cutoffs)={len(cutoffs)} min_train_size={min_train_size} "
+        #       f"full_index={len(full_index)} | train={len(train_idx)} test={len(test_idx)} | "
+        #       f"train_start = {train_start} | train_end = {train_end} | test_start = {test_start}")
 
     if len(cutoffs) < folds:
         raise ValueError("Unable to generate the required number of folds with the given constraints. ")

@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 
+from logger import get_logger
+logger = get_logger(__name__)
+
 def validate_dataframe_simple(df: pd.DataFrame, text:str = '') -> bool:
     if not df.index.is_monotonic_increasing:
         raise ValueError(f"DataFrame index is not sorted in ascending order | {text}")
@@ -26,11 +29,11 @@ def validate_dataframe_simple(df: pd.DataFrame, text:str = '') -> bool:
         inf_columns = inf_counts[inf_counts > 0]
 
         if inf_columns.empty:
-            print("No infinite values found in the DataFrame.")
+            logger.info("No infinite values found in the DataFrame.")
         else:
-            print(f"In {text} | Columns with infinite values and their counts:")
+            logger.error(f"In {text} | Columns with infinite values and their counts:")
             for col, count in inf_columns.items():
-                print(f"{col}: {count} infinite values")
+                logger.error(f"{col}: {count} infinite values")
         return False
 
     return True
@@ -47,11 +50,11 @@ def compare_columns(df1:pd.DataFrame, df2:pd.DataFrame):
 
     # Print results
     if not missing_in_df2 and not missing_in_df1:
-        print("Both DataFrames have the same columns.")
+        logger.info("Both DataFrames have the same columns.")
         return True
     else:
         if missing_in_df2:
-            print("Columns in first DataFrame but missing in forecast df:", missing_in_df2)
+            logger.error("Columns in first DataFrame but missing in forecast df:", missing_in_df2)
         if missing_in_df1:
-            print("Columns in second DataFrame but missing in history df:", missing_in_df1)
+            logger.error("Columns in second DataFrame but missing in history df:", missing_in_df1)
         return False

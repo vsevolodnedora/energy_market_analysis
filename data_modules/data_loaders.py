@@ -15,6 +15,9 @@ from data_modules.utils import (
 )
 from forecasting_modules.utils import convert_ensemble_string
 
+from logger import get_logger
+logger = get_logger(__name__)
+
 # TODO: refacto this into a proper ETL pipeline
 
 # energy_mix_config = {
@@ -58,24 +61,24 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
 
     # ----- CHECKS AND NOTES ----
     if verbose:
-        print("---------- LOADING DATABASE DATA ----------")
-        print(f"SMARD data shapes hist={df_smard.shape} (days={len(df_smard)/24}) start={df_smard.index[0]} end={df_smard.index[-1]}")
-        print(f"ENTSOE data shapes hist={df_entsoe.shape} (days={len(df_entsoe)/24}) start={df_entsoe.index[0]} end={df_entsoe.index[-1]}")
-        print(f"OM offshore data shapes hist={df_om_offshore.shape} (days={len(df_om_offshore)/24}) start={df_om_offshore.index[0]} end={df_om_offshore.index[-1]}")
-        print(f"OM offshore data shapes forecast={df_om_offshore_f.shape} (days={len(df_om_offshore_f)/24}) start={df_om_offshore_f.index[0]} end={df_om_offshore_f.index[-1]}")
-        print(f"OM onshore data shapes hist={df_om_onshore.shape} (days={len(df_om_onshore)/24}) start={df_om_onshore.index[0]} end={df_om_onshore.index[-1]}")
-        print(f"OM onshore data shapes forecast={df_om_onshore_f.shape} (days={len(df_om_onshore_f)/24}) start={df_om_onshore_f.index[0]} end={df_om_onshore_f.index[-1]}")
-        print(f"OM solar data shapes hist={df_om_solar.shape} (days={len(df_om_solar)/24}) start={df_om_solar.index[0]} end={df_om_solar.index[-1]}")
-        print(f"OM solar data shapes forecast={df_om_solar_f.shape} (days={len(df_om_solar_f)/24}) start={df_om_solar_f.index[0]} end={df_om_solar_f.index[-1]}")
-        print(f"EPEXSPOT data shapes hist={df_es.shape} (days={len(df_es)/24}) start={df_es.index[0]} end={df_es.index[-1]}")
-        print("-------------------------------------------")
+        logger.info("---------- LOADING DATABASE DATA ----------")
+        logger.info(f"SMARD data shapes hist={df_smard.shape} (days={len(df_smard)/24}) start={df_smard.index[0]} end={df_smard.index[-1]}")
+        logger.info(f"ENTSOE data shapes hist={df_entsoe.shape} (days={len(df_entsoe)/24}) start={df_entsoe.index[0]} end={df_entsoe.index[-1]}")
+        logger.info(f"OM offshore data shapes hist={df_om_offshore.shape} (days={len(df_om_offshore)/24}) start={df_om_offshore.index[0]} end={df_om_offshore.index[-1]}")
+        logger.info(f"OM offshore data shapes forecast={df_om_offshore_f.shape} (days={len(df_om_offshore_f)/24}) start={df_om_offshore_f.index[0]} end={df_om_offshore_f.index[-1]}")
+        logger.info(f"OM onshore data shapes hist={df_om_onshore.shape} (days={len(df_om_onshore)/24}) start={df_om_onshore.index[0]} end={df_om_onshore.index[-1]}")
+        logger.info(f"OM onshore data shapes forecast={df_om_onshore_f.shape} (days={len(df_om_onshore_f)/24}) start={df_om_onshore_f.index[0]} end={df_om_onshore_f.index[-1]}")
+        logger.info(f"OM solar data shapes hist={df_om_solar.shape} (days={len(df_om_solar)/24}) start={df_om_solar.index[0]} end={df_om_solar.index[-1]}")
+        logger.info(f"OM solar data shapes forecast={df_om_solar_f.shape} (days={len(df_om_solar_f)/24}) start={df_om_solar_f.index[0]} end={df_om_solar_f.index[-1]}")
+        logger.info(f"EPEXSPOT data shapes hist={df_es.shape} (days={len(df_es)/24}) start={df_es.index[0]} end={df_es.index[-1]}")
+        logger.info("-------------------------------------------")
 
     if len(df_om_offshore_f) != len(df_om_offshore_f) or len(df_om_solar_f) != len(df_om_solar_f):
         raise IOError("The forecast DataFrames have different number of columns.")
 
     # check that horizon is correct and that start/end hours are correct
     if horizon < len(df_om_offshore_f):
-        if verbose: print(
+        if verbose: logger.info(
             f"Forecast dataframe has {len(df_om_offshore_f)} rows while {horizon} rows are requested. Trimming..."
         )
         df_om_offshore_f = df_om_offshore_f.iloc[:horizon]
@@ -127,10 +130,10 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
         feature_col_names = dataframe.columns[dataframe.columns.str.endswith(tuple(om_suffixes))]
 
         if verbose:
-            print(f"TARGET LABEL: {target_label_notso} TSO: {tso_dict['TSO']} "
+            logger.info(f"TARGET LABEL: {target_label_notso} TSO: {tso_dict['TSO']} "
                   f"Locations: {len([loc for loc in locations if loc['TSO'] == tso_dict['TSO']])} "
                   f"OM suffixes: {len(om_suffixes)} Feature columns: {len(feature_col_names)}")
-            print(f"Suffixes {om_suffixes}")
+            logger.info(f"Suffixes {om_suffixes}")
         # combine weather data and target column (by convention)
         df_hist = pd.merge(
             left=dataframe[feature_col_names], right=target_cols, left_index=True, right_index=True, how='left'
@@ -149,8 +152,8 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
         ]
         for col in target_cols:
             if len(df_entsoe[col].unique()) < len(df_entsoe[col])*0.01:
-                if verbose: print(
-                    f"Warning! Dropping target column {col} as there are only { len(df_entsoe[col])*0.01 } unique values"
+                if verbose: logger.warning(
+                    f"Dropping target column {col} as there are only { len(df_entsoe[col])*0.01 } unique values"
                 )
                 target_cols.drop(columns=[col], inplace=True)
         # add aggregations if any
@@ -161,7 +164,7 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
                     if col + suffix in list(df_entsoe.keys())
                 ]
                 if len(keys_to_agg) != len(aggregations[key]):
-                    print(f"Warning! Not all keys for aggregating {key} are found in entsoe dataframe. "
+                    logger.warning(f"Not all keys for aggregating {key} are found in entsoe dataframe. "
                           f"{len(keys_to_agg)} out of {len(aggregations[key])} will be used ")
                 # aggregate for the required column
                 df_entsoe[key + suffix] = df_entsoe[keys_to_agg].sum(axis=1)
@@ -177,10 +180,10 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
         feature_col_names = dataframe.columns[dataframe.columns.str.endswith(tuple(om_suffixes))]
         # build df_hist and df_forecast
         if verbose:
-            print(f"TARGET LABEL: {target_label_notso} TSO: {tso_dict['TSO']} "
+            logger.info(f"TARGET LABEL: {target_label_notso} TSO: {tso_dict['TSO']} "
                   f"Locations: {len([loc for loc in locations if loc['TSO'] == tso_dict['TSO']])} "
                   f"OM suffixes: {len(om_suffixes)} Feature columns: {len(feature_col_names)}")
-            print(f"Suffixes {om_suffixes}")
+            logger.info(f"Suffixes {om_suffixes}")
         # combine weather data and target column (by convention)
         df_hist = pd.merge(
             left=dataframe[feature_col_names], right=target_cols, left_index=True, right_index=True, how='left'
@@ -204,7 +207,7 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
             # load historic data
             exog_tso = exog + tso_dict['suffix']
             if not exog_tso in df_entsoe.columns.tolist() and not exog == 'residual_load':
-                if verbose: print(f"Warning! Required exogenous feature {exog_tso} is not in ENTSO-E dataset. Skipping.")
+                if verbose: logger.warning(f"Required exogenous feature {exog_tso} is not in ENTSO-E dataset. Skipping.")
                 continue
 
             if exog == 'residual_load':
@@ -264,7 +267,7 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
     # limit dataframe to the required max size
     df_hist = df_hist.tail(len(df_forecast)*n_horizons)
     if verbose:
-        print(f"Limiting df_hist to {n_horizons} horizons. "
+        logger.info(f"Limiting df_hist to {n_horizons} horizons. "
               f"From {len(dataframe)} entries do {len(df_hist)} ({len(df_hist)/len(dataframe)*100:.1f} %)")
 
     # check again the dataframe validity
@@ -398,7 +401,7 @@ def mask_outliers_and_unphysical_values(
                 unphys_fore = ((df_forecast[col] < phys_lower) | (df_forecast[col] > phys_upper)).sum()
 
                 if verbose and (unphys_hist > 0 or unphys_fore > 0):
-                    print(
+                    logger.info(
                         f"[Physical Limits] Column '{col}' | "
                         f"Replaced {unphys_hist} unphysical values in df_hist, "
                         f"{unphys_fore} in df_forecast."
@@ -427,13 +430,13 @@ def mask_outliers_and_unphysical_values(
 
         if std_val == 0 or np.isnan(std_val):
             if verbose:
-                print(f"[Anomaly Detection] Standard deviation is zero or NaN for '{target}'. Skipping outlier masking.")
+                logger.info(f"[Anomaly Detection] Standard deviation is zero or NaN for '{target}'. Skipping outlier masking.")
         else:
             # Identify outliers in df_hist
             outliers_hist_mask = (df_hist[target] - mean_val).abs() > threshold * std_val
             outliers_hist_count = outliers_hist_mask.sum()
             if verbose and outliers_hist_count > 0:
-                print(
+                logger.info(
                     f"[Anomaly Detection] '{target}' | "
                     f"{outliers_hist_count} outliers found in df_hist (z-score > {threshold})."
                 )
@@ -455,8 +458,8 @@ def mask_outliers_and_unphysical_values(
 def clean_and_impute(df_hist, df_forecast, verbose:bool)->tuple[pd.DataFrame, pd.DataFrame]:
 
     df_hist, df_forecast = mask_outliers_and_unphysical_values(df_hist, df_forecast, verbose)
-    df_hist = validate_dataframe(df_hist, 'df_hist', verbose=verbose)
-    df_forecast = validate_dataframe(df_forecast, 'df_forecast', verbose=verbose)
+    df_hist = validate_dataframe(df_hist, 'df_hist', log_func=logger.warning, verbose=verbose)
+    df_forecast = validate_dataframe(df_forecast, 'df_forecast', log_func=logger.warning, verbose=verbose)
     expected_range = pd.date_range(start=df_hist.index.min(), end=df_hist.index.max(), freq='h')
     if not df_hist.index.equals(expected_range):
         raise ValueError("full_index must be continuous with hourly frequency.")
@@ -471,7 +474,7 @@ def clean_and_impute(df_hist, df_forecast, verbose:bool)->tuple[pd.DataFrame, pd
                 error_message += f"- {column}: {count} NaNs\n"
             raise ValueError(error_message)
         else:
-            print("No NaNs found in the DataFrame.")
+            logger.info("No NaNs found in the DataFrame.")
     check_for_nans_and_raise_error(df_hist)
     check_for_nans_and_raise_error(df_forecast)
 

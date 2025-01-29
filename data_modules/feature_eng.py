@@ -15,6 +15,9 @@ from data_collection_modules.german_locations import all_locations
 from data_modules.utils import validate_dataframe
 
 
+from logger import get_logger
+logger = get_logger(__name__)
+
 def create_holiday_weekend_series(df_index):
     # Create a Germany holiday calendar
     de_holidays = holidays.Germany()
@@ -142,12 +145,22 @@ def compute_vapor_pressure(temperature:pd.Series, humidity:pd.Series):
     lvapor_pressure = e_hpa
     return lvapor_pressure # in hPa
 
-def compute_wind_sheer(wind_speed_high:pd.Series, wind_speed_low:pd.Series):
-    # alpha = ln(V_100 / V_10) / ln(100/10)
-    numerator = np.log(wind_speed_high / wind_speed_low)
-    denominator = np.log(100.0 / 10.0)
-    sheer = numerator / denominator
-    sheer = sheer.replace([np.inf, -np.inf], np.nan)
+def compute_wind_sheer(wind_speed_high: pd.Series, wind_speed_low: pd.Series):
+    # Convert inputs to numpy arrays and flatten
+    wind_speed_high = np.asarray(wind_speed_high).flatten()
+    wind_speed_low = np.asarray(wind_speed_low).flatten()
+
+    # Replace zeros in wind_speed_low with the smallest positive value in the series
+    min_positive = np.min(wind_speed_low[wind_speed_low > 0]) if np.any(wind_speed_low > 0) else 1e-6
+    wind_speed_low = np.where(wind_speed_low <= 0, min_positive, wind_speed_low)
+
+    # Compute wind shear
+    res = wind_speed_high / wind_speed_low
+    sheer = np.log(np.maximum(res, 1e-10)) / np.log(10.0)  # Ensure no log(0) issues
+
+    # Replace infinite values with NaN
+    sheer = np.where(np.isinf(sheer), np.nan, sheer)
+
     return sheer
 
 def compute_turbulence_intensity(wind_speed:pd.Series, window:int):
@@ -292,10 +305,10 @@ class WeatherBasedFE:
             combined_df = self._apply_spatial_aggregation(combined_df)
         else:
             if self.verbose:
-                print("No spatial aggregation method specified.")
+                logger.info("No spatial aggregation method specified.")
 
         if self.verbose:
-            print(f"Preprocessing result Shapes {df.shape} -> {combined_df.shape}"
+            logger.info(f"Preprocessing result Shapes {df.shape} -> {combined_df.shape}"
                   f" Start {df.index[0]} -> {combined_df.index[0]}"
                   f" End {df.index[-3]} -> {combined_df.index[-1]}")
 
@@ -1547,7 +1560,7 @@ class WeatherLoadFE(WeatherBasedFE):
 def physics_informed_feature_engineering(df_hist_:pd.DataFrame, df_forecast_:pd.DataFrame, config:dict, verbose:bool):
 
     if config['feature_engineer'] in ['WeatherWindPowerFE','WeatherSolarPowerFE','WeatherLoadFE']:
-        if verbose:print(f"Performing feature engineering with {config['feature_engineer']}")
+        if verbose:logger.info(f"Performing feature engineering with {config['feature_engineer']}")
         n_cols = len(df_hist_.columns)
         if config['feature_engineer'] == 'WeatherWindPowerFE':  o_feat = WeatherWindPowerFE( config, verbose=verbose )
         elif config['feature_engineer'] == 'WeatherSolarPowerFE': o_feat = WeatherSolarPowerFE( config, verbose=verbose )
@@ -1570,18 +1583,18 @@ def physics_informed_feature_engineering(df_hist_:pd.DataFrame, df_forecast_:pd.
 
         # split back into hist and forecast
         df_tmp = pd.merge(df_tmp, df_non_weather_tmp, left_index=True, right_index=True, how="left")
-        df_tmp = validate_dataframe(df_tmp)
+        df_tmp = validate_dataframe(df_tmp,name='df_tmp_feature_engineering',log_func=logger.info)
         df_hist_, df_forecast_ = df_tmp[:df_forecast_.index[0]-pd.Timedelta(hours=1)], df_tmp[df_forecast_.index[0]:]
 
         assert len(df_forecast_) == n_f
 
         df_hist_ = df_hist_.dropna(inplace=False) # in case there are lagged features -- nans are introguded
 
-        if verbose: print(f"Feature engineering ({config['feature_engineer']}) "
+        if verbose: logger.info(f"Feature engineering ({config['feature_engineer']}) "
                           f"From {n_cols} now using {len(df_hist_)} features (excl. target)")
     else:
         if verbose:
-            print(f"Feature engineering is not implemented for {config['feature_engineer']}. "
+            logger.warning(f"Feature engineering is not implemented for {config['feature_engineer']}. "
                   f"Using {len(df_hist_.columns)} raw features.")
 
     return df_hist_, df_forecast_

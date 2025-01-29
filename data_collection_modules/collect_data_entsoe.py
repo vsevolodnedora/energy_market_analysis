@@ -12,7 +12,6 @@ from data_collection_modules.utils import compare_columns
 
 from logger import get_logger
 logger = get_logger(__name__)
-logger.info("This is a log message")
 
 def preprocess_generation(df_gen:pd.DataFrame, drop_consumption:bool, verbose:bool)->pd.DataFrame:
 

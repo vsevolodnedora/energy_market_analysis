@@ -1,5 +1,5 @@
 import pandas as pd
-import os, sys
+import os, sys, logging
 from dotenv import load_dotenv
 
 from datetime import datetime

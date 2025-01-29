@@ -12,6 +12,9 @@ import logging
 import holidays
 from prophet import Prophet
 
+from logger import get_logger
+logger = get_logger(__name__)
+
 def detect_outliers_zscore(values, z_thresh: float = 3.0):
     """
     Return a boolean mask where True indicates the value is an outlier
@@ -50,7 +53,7 @@ def fill_outliers_in_forecast_with_interpolation(
     outlier_mask = detect_outliers_zscore(array, z_thresh=z_thresh)
     if (len(array[outlier_mask]) > 0):
         array[outlier_mask] = np.nan
-        if verbose: print (
+        if verbose: logger.warning (
             f"Outlier detection alert! "
             f"Method:z={z_thresh}-score "
             f"N={len(array[outlier_mask])} "
@@ -60,7 +63,7 @@ def fill_outliers_in_forecast_with_interpolation(
     outlier_mask = detect_outliers_diff(array, diff_thresh=diff_thresh)
     if (len(array[outlier_mask]) > 0):
         array[outlier_mask] = np.nan
-        if verbose: print (
+        if verbose: logger.warning (
             f"Outlier detection alert! "
             f"Method:diff={diff_thresh} "
             f"N={len(array[outlier_mask])} "
@@ -270,7 +273,7 @@ class BaseForecaster:
                     shap_values = explainer.shap_values(self.X_futures_df)
                 else:
                     # Use KernelExplainer for Unknown regressor
-                    print(f"WARNING using slow KernelExplainer() for estimator={est}")
+                    logger.warning(f"Using slow KernelExplainer() for estimator={est}")
                     background = X_train_scaled if len(X_train_scaled) <= 100 \
                         else X_train_scaled.sample(250, random_state=0)
                     explainer = shap.KernelExplainer(est.predict, background)
@@ -319,7 +322,7 @@ class XGBoostMapieRegressor(BaseForecaster):
     def fit(self, X_scaled:pd.DataFrame, y_scaled:pd.DataFrame):
         # Check if base model is pre-fitted
         if hasattr(self.model.estimator, "fit"):
-            if self.verbose: print(f"Base model {self.name} is not fitted. Fitting using X={X_scaled.shape}")
+            if self.verbose: logger.info(f"Base model {self.name} is not fitted. Fitting using X={X_scaled.shape}")
             self.model.estimator.fit(X_scaled, y_scaled)
         if len(X_scaled) == 0 or len(y_scaled) == 0:
             raise ValueError(
@@ -364,7 +367,7 @@ class CatBoostMultiTargetForecaster:
     def fit(self, X_scaled, y_scaled):
         # Check if base model is pre-fitted
         if not hasattr(self.model, "booster_"):
-            if self.verbose: print(f"Base model {self.name} is not fitted. Fitting using X={X_scaled.shape}")
+            if self.verbose: logger.info(f"Base model {self.name} is not fitted. Fitting using X={X_scaled.shape}")
             self.model.fit(X_scaled, y_scaled)
         if len(X_scaled) == 0 or len(y_scaled) == 0:
             raise ValueError(
@@ -557,7 +560,7 @@ class ProphetForecaster(BaseForecaster):
         logger.propagate = False
         logger.setLevel(logging.CRITICAL)
 
-        if self.verbose: print(f"Base model {self.name} is not fitted. Fitting using X={X_scaled.shape}")
+        if self.verbose: logger.info(f"Base model {self.name} is not fitted. Fitting using X={X_scaled.shape}")
         self.model.fit(self.prophet_df)
 
 
@@ -668,7 +671,7 @@ class ElasticNetMapieRegressor(BaseForecaster):
     def fit(self, X_scaled:pd.DataFrame, y_scaled:pd.DataFrame) -> None:
         # Check if base model is pre-fitted
         if hasattr(self.model.estimator, "fit"):
-            if self.verbose: print(f"Base model {self.name} is not fitted. Fitting using X={X_scaled.shape}")
+            if self.verbose: logger.info(f"Base model {self.name} is not fitted. Fitting using X={X_scaled.shape}")
             # print("Base model has a 'fit' method and is likely not pre-fitted.")
             self.model.estimator.fit(X_scaled, y_scaled)
 

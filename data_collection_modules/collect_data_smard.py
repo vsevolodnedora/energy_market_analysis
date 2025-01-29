@@ -10,6 +10,9 @@ from pandas.errors import ParserError
 
 # from .utils import validate_dataframe
 
+from logger import get_logger
+logger = get_logger(__name__)
+
 class DataEnergySMARD:
 
     dw_id = 'G2Vtz'  # Importe gesamt
@@ -211,7 +214,7 @@ class DataEnergySMARD:
 
         })
         if verbose:
-            print("\tStatus Code:", data.status_code)
+            logger.info("\tStatus Code:", data.status_code)
         # print("Response Text:", data.text)
 
         # create pandas dataframe out of response string (csv)
@@ -258,7 +261,7 @@ class DataEnergySMARD:
             # apply mapping
             df.rename(columns=self.mapping, inplace=True)
             if self.verbose:
-                print(f"API call successful. Collected df={df.shape}")
+                logger.info(f"API call successful. Collected df={df.shape}")
             # convert time to UTC
             if utc:
                 df['date'] = pd.to_datetime(df['date'], format='%d.%m.%Y %H:%M')
@@ -284,7 +287,7 @@ class DataEnergySMARD:
             except Exception as e:
                 start_date = start_date - timedelta(days=7)
                 if self.verbose:
-                    print(f"Attempt {i}/{5}. Parse error in getting modules {modules} Error:\n{e}. "
+                    logger.error(f"Attempt {i}/{5}. Parse error in getting modules {modules} Error:\n{e}. "
                       f"Setting earlier start_date by 7 day to {start_date}")
                 continue
 
@@ -312,7 +315,7 @@ class DataEnergySMARD:
     ''' ------------------------------------------------------------- '''
 
     def get_international_flow(self)->pd.DataFrame:
-        if self.verbose: print(f"Collecting cross-border flows for {self.start_date} to {self.end_date} "
+        if self.verbose: logger.info(f"Collecting cross-border flows for {self.start_date} to {self.end_date} "
                                f"for {list(self.country_map.keys())}")
         df = pd.DataFrame()
         for country in self.country_map.keys():
@@ -330,7 +333,7 @@ class DataEnergySMARD:
         return df
 
     def get_forecasted_generation(self)->pd.DataFrame:
-        if self.verbose: print(f"Collecting forecaster generation for {self.start_date} to {self.end_date}")
+        if self.verbose: logger.info(f"Collecting forecaster generation for {self.start_date} to {self.end_date}")
         # o_smard = DataEnergySMARD(start_date=start_date, end_date=end_date)
         df = self.request_data(modules_id=DataEnergySMARD.FORECASTED_POWER_GENERATION)
         df.rename(columns={'total':'total_gen'}, inplace=True)
@@ -340,7 +343,7 @@ class DataEnergySMARD:
         return df
 
     def get_forecasted_consumption(self)->pd.DataFrame:
-        if self.verbose: print(f"Collecting forecaster consumption for {self.start_date} to {self.end_date}")
+        if self.verbose: logger.info(f"Collecting forecaster consumption for {self.start_date} to {self.end_date}")
         df = self.request_data(modules_id=DataEnergySMARD.FORECASTED_POWER_CONSUMPTION)
         # df.rename(columns={'total':'total_gen'}, inplace=True)
         # df.rename(columns={'other':'other_gen'}, inplace=True)
@@ -532,26 +535,26 @@ def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datad
     if not os.path.isdir(datadir):
         os.mkdir(datadir)
 
-    if verbose: print(f"Updating SMARD data from {start_date} to {end_date}")
+    if verbose: logger.info(f"Updating SMARD data from {start_date} to {end_date}")
     o_smard = DataEnergySMARD( start_date=start_date,  end_date=end_date, verbose=verbose)
 
     # collect cross-border flows
     fname0 = datadir+'/smard_smard_flow.parquet'
     if os.path.isfile(fname0):
         df_smard_flow = pd.read_parquet(fname0)
-        if verbose: print(f"Loading file {fname0}")
+        if verbose: logger.info(f"Loading file {fname0}")
     else:
         df_smard_flow = o_smard.get_international_flow()
         df_smard_flow.set_index('date',inplace=True)
         df_smard_flow.to_parquet(fname0)
-        if verbose: print(f"Saving file {fname0}")
+        if verbose: logger.info(f"Saving file {fname0}")
 
 
     # collect forecasted generation and load
     fname1 = datadir+'/smard_gen_forecasted.parquet'
     if os.path.isfile(fname1):
         df_smard_gen_forecasted = pd.read_parquet(fname1)
-        if verbose: print(f"Loading file {fname1}")
+        if verbose: logger.info(f"Loading file {fname1}")
     else:
         df_smard_gen_forecasted:pd.DataFrame = o_smard.get_forecasted_generation()
         df_smard_gen_forecasted = df_smard_gen_forecasted.rename(
@@ -559,70 +562,70 @@ def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datad
         )
         df_smard_gen_forecasted = df_smard_gen_forecasted.resample('h', on='date').sum()
         df_smard_gen_forecasted.to_parquet(fname1)
-        if verbose: print(f"Saving file {fname1}")
+        if verbose: logger.info(f"Saving file {fname1}")
 
     # collecting forecasted consumption
     fname2 = datadir+'/smard_con_forecasted.parquet'
     if os.path.isfile(fname2):
         df_smard_con_forecasted = pd.read_parquet(fname2)
-        if verbose: print(f"Loading file {fname2}")
+        if verbose: logger.info(f"Loading file {fname2}")
     else:
-        if verbose: print(f"Collecting forecasted power consumption for {start_date} to {end_date}")
+        if verbose: logger.info(f"Collecting forecasted power consumption for {start_date} to {end_date}")
         df_smard_con_forecasted = o_smard.get_forecasted_consumption()
         df_smard_con_forecasted = df_smard_con_forecasted.rename(
             columns={col: col + "_forecasted" for col in df_smard_con_forecasted.columns if col != 'date'}
         )
         df_smard_con_forecasted = df_smard_con_forecasted.resample('h', on='date').sum()
         df_smard_con_forecasted.to_parquet(fname2)
-        if verbose: print(f"Saving file {fname2}")
+        if verbose: logger.info(f"Saving file {fname2}")
 
     # collect actual realized generation and load
     fname3 = datadir+'/smard_gen_realized.parquet'
     if os.path.isfile(fname3):
         df_smard_gen_realized = pd.read_parquet(fname3)
-        if verbose: print(f"Loading file {fname3}")
+        if verbose: logger.info(f"Loading file {fname3}")
     else:
-        if verbose: print(f"Collecting realized power generation for {start_date} to {end_date}")
+        if verbose: logger.info(f"Collecting realized power generation for {start_date} to {end_date}")
         df_smard_gen_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_GENERATION)
         df_smard_gen_realized = df_smard_gen_realized.resample('h', on='date').sum()
         df_smard_gen_realized.to_parquet(fname3)
-        if verbose: print(f"Saving file {fname3}")
+        if verbose: logger.info(f"Saving file {fname3}")
 
     # collect realized consumption
     fname4 = datadir+'/smard_con_realized.parquet'
     if os.path.isfile(fname4):
         df_smard_con_realized = pd.read_parquet(fname4)
-        if verbose: print(f"Loading file {fname4}")
+        if verbose: logger.info(f"Loading file {fname4}")
     else:
         if verbose: print(f"Collecting realized power consumption for {start_date} to {end_date}")
         df_smard_con_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_CONSUMPTION)
         df_smard_con_realized = df_smard_con_realized.resample('h', on='date').sum()
         df_smard_con_realized.to_parquet(fname4)
-        if verbose: print(f"Saving file {fname4}")
+        if verbose: logger.info(f"Saving file {fname4}")
 
     # collect realize consumption residual
     fname5 = datadir+'/smard_con_res_realized.parquet'
     if os.path.isfile(fname5):
         df_smard_con_res_realized = pd.read_parquet(fname5)
-        if verbose: print(f"Loading file {fname5}")
+        if verbose: logger.info(f"Loading file {fname5}")
     else:
-        if verbose: print(f"Collecting realized power consumption residual for {start_date} to {end_date}")
+        if verbose: logger.info(f"Collecting realized power consumption residual for {start_date} to {end_date}")
         df_smard_con_res_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_CONSUMPTION_RESIDUAL)
         df_smard_con_res_realized = df_smard_con_res_realized.resample('h', on='date').sum()
         df_smard_con_res_realized.to_parquet(fname5)
-        if verbose: print(f"Saving file {fname5}")
+        if verbose: logger.info(f"Saving file {fname5}")
 
     # collect DA prices
     fname6 = datadir+'/smard_da_prices.parquet'
     if os.path.isfile(fname6):
         df_da_prices = pd.read_parquet(fname6)
-        if verbose: print(f"Loading file {fname6}")
+        if verbose: logger.info(f"Loading file {fname6}")
     else:
-        if verbose: print(f"Collecting DA prices for {start_date} to {end_date}")
+        if verbose: logger.info(f"Collecting DA prices for {start_date} to {end_date}")
         df_da_prices = o_smard.request_data(modules_id=DataEnergySMARD.SPOT_MARKET)
         df_da_prices = df_da_prices.resample('h', on='date').mean()
         df_da_prices.to_parquet(fname6)
-        if verbose: print(f"Saving file {fname6}")
+        if verbose: logger.info(f"Saving file {fname6}")
 
 
     # merge data
@@ -633,7 +636,7 @@ def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datad
     df_smard = pd.merge(left=df_smard,right=df_smard_con_res_realized,left_index=True,right_index=True,how='outer')
     df_smard = pd.merge(left=df_smard,right=df_da_prices,left_index=True,right_index=True,how='outer')
 
-    if verbose: print(f"Deleting temporary files")
+    if verbose: logger.info(f"Deleting temporary files")
     for f in [fname0, fname1, fname2, fname3, fname4, fname5, fname6]:
         if os.path.isfile(f):
             os.remove(f)
@@ -642,7 +645,7 @@ def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datad
 
 
 def update_smard_from_api(today:pd.Timestamp,data_dir:str,verbose:bool):
-    if verbose: print(f"Updating SMARD data up to {today}")
+    if verbose: logger.info(f"Updating SMARD data up to {today}")
     fname = data_dir + 'history.parquet'
     df_hist = pd.read_parquet(fname)
     last_timestamp = pd.Timestamp(df_hist.dropna(how='all', inplace=False).last_valid_index())
@@ -667,19 +670,19 @@ def update_smard_from_api(today:pd.Timestamp,data_dir:str,verbose:bool):
     # df_hist = df_hist[:last_timestamp].combine_first(df_smard[last_timestamp:today])
     # save
     df_hist.to_parquet(fname)
-    if verbose:print(f"SMARD data is successfully saved to {fname} with shape {df_hist.shape}")
+    if verbose:logger.info(f"SMARD data is successfully saved to {fname} with shape {df_hist.shape}")
     gc.collect()
 
 
 def create_smard_from_api(start_date:pd.Timestamp or None, today:pd.Timestamp,data_dir:str,verbose:bool):
-    if verbose: print(f"Collecting SMARD data for {start_date} - {today}")
+    if verbose: logger.info(f"Collecting SMARD data for {start_date} - {today}")
     fname = data_dir + 'history.parquet'
     end_date = today + timedelta(hours=24)
     start_date_ = start_date - timedelta(hours=24)
     df_smard = collect_smard_from_api(start_date=start_date_, end_date=end_date, datadir=data_dir, verbose=verbose)
     df_smard = df_smard[start_date:today]
     df_smard.to_parquet(fname)
-    if verbose:print(f"SMARD data is successfully saved to {fname} with shape {df_smard.shape}")
+    if verbose:logger.info(f"SMARD data is successfully saved to {fname} with shape {df_smard.shape}")
 
 # def update_create_smard_from_api(start_date:pd.Timestamp or None, today:pd.Timestamp,data_dir:str,verbose):
 #

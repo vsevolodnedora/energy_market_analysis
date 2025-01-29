@@ -5,6 +5,9 @@ import gc
 
 from .utils import validate_dataframe_simple
 
+from logger import get_logger
+logger = get_logger(__name__)
+
 def update_epexspot_from_files(today:pd.Timestamp,data_dir:str,verbose:bool,raw_data_dir='./data/DE-LU/DayAhead_MRC/'):
 
     fname = data_dir + 'history.parquet'
@@ -19,7 +22,7 @@ def update_epexspot_from_files(today:pd.Timestamp,data_dir:str,verbose:bool,raw_
     # ----------- UPDATE EPEXTSPOT --------------
 
     files = glob(raw_data_dir + '*.csv')
-    if verbose: print(f"Updating EPEX SPOT data ({raw_data_dir})")
+    if verbose: logger.info(f"Updating EPEX SPOT data ({raw_data_dir})")
 
     df_da_upd = pd.DataFrame()
     for file in files:
@@ -53,6 +56,6 @@ def update_epexspot_from_files(today:pd.Timestamp,data_dir:str,verbose:bool,raw_
 
     # save
     df_hist.to_parquet(fname)
-    if verbose: print(f"Epexspot data is successfully saved to {fname} with shape {df_hist.shape}")
+    if verbose: logger.info(f"EPEXSPOT data is successfully saved to {fname} with shape {df_hist.shape}")
 
     gc.collect()

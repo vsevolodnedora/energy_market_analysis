@@ -25,7 +25,8 @@ from data_modules.feature_eng import (
     WeatherLoadFE
 )
 
-
+from logger import get_logger
+logger = get_logger(__name__)
 
 def _seasonal_imputation_with_historical_values(column:pd.Series, period:str='weekly')->pd.Series:
     """
@@ -45,7 +46,9 @@ def _seasonal_imputation_with_historical_values(column:pd.Series, period:str='we
     # Identify zero values
     zero_indices = column[column == 0].index
     if len(zero_indices) > 0:
-        print(f'WARNING: There are {len(zero_indices)} zero values in the {column.name} column. Imputing using {period} average.')
+        logger.warning(
+            f'There are {len(zero_indices)} zero values in the {column.name} column. Imputing using {period} average.'
+        )
 
     for idx in zero_indices:
         # Select similar historical periods based on the period setting
@@ -91,7 +94,7 @@ def _adjust_dataframe_to_divisible_by_N(df, N, verbose:bool):
     if remainder != 0:
         rows_to_remove = remainder
         df = df.iloc[rows_to_remove:]
-        if verbose:print(f"Cropping dataframe to be devisibile by {N}. "
+        if verbose:logger.info(f"Cropping dataframe to be devisibile by {N}. "
                          f"N rows: {num_rows} -> {len(df)}. Removing {rows_to_remove}")
 
     return df
@@ -148,7 +151,7 @@ class HistForecastDataset:
 
 
         if pars['copy_input']:
-            if pars['verbose']:print("Copyting df_historic and df_forecast for dataclass")
+            if pars['verbose']:logger.info("Copyting df_historic and df_forecast for dataclass")
             self.df_historic_ = copy.deepcopy(
                 df_historic[[col for col in df_historic.columns if not col in list(self._targets_list)]]
             )
@@ -238,17 +241,17 @@ class HistForecastDataset:
         elif target_scaler_name == 'MaxAbsScaler': self.target_scaler = MaxAbsScaler()
         elif target_scaler_name == 'RobustScaler': self.target_scaler = RobustScaler()
         else:
-            if self.verbose: print(f"Loading target scaler: {target_scaler_name}")
+            if self.verbose: logger.info(f"Loading target scaler: {target_scaler_name}")
             self.target_scaler = joblib.load(target_scaler_name) # dir + 'target_scaler.pkl'
             do_load_scaler = True
         if do_load_scaler:
             if self.verbose:
-                print(f"Using pre-fitted scaler for targets_list={self._targets_list}")
+                logger.info(f"Using pre-fitted scaler for targets_list={self._targets_list}")
             y_scaled = self.target_scaler.transform( df_target_ )
             df_target = pd.DataFrame(y_scaled, index=df_target_.index, columns=df_target_.columns)
         else:
             if self.verbose:
-                print(f"Fitting scaler for targets_list={self._targets_list}")
+                logger.info(f"Fitting scaler for targets_list={self._targets_list}")
             y_scaled = self.target_scaler.fit_transform(df_target_)
             df_target = pd.DataFrame(y_scaled, index=df_target_.index, columns=df_target_.columns)
 
@@ -293,15 +296,15 @@ class HistForecastDataset:
             elif feature_scaler_name == 'MaxAbsScaler': self.feature_scaler = MaxAbsScaler()
             elif feature_scaler_name == 'RobustScaler': self.feature_scaler = RobustScaler()
             else:
-                if self.verbose: print(f"Loading feature scaler: {feature_scaler_name}")
+                if self.verbose: logger.info(f"Loading feature scaler: {feature_scaler_name}")
                 self.feature_scaler = joblib.load(feature_scaler_name) # dir + 'target_scaler.pkl'
                 do_load_feature_scaler = True
             if do_load_feature_scaler:
                 X_scaled = self.feature_scaler.transform(df_hist_)
-                print(f"Using pre-fitted scaler for features")
+                logger.info(f"Using pre-fitted scaler for features")
             else:
                 X_scaled = self.feature_scaler.fit_transform(df_hist_)
-                print(f"Fitting scaler for {len(df_hist_.columns)} columns")
+                logger.info(f"Fitting scaler for {len(df_hist_.columns)} columns")
             df_hist_scaled = pd.DataFrame(X_scaled, index=df_hist_.index, columns=df_hist_.columns)
             exog = exog.merge(df_hist_scaled, left_index=True, right_index=True, how='left')
         else:
@@ -416,6 +419,7 @@ class HistForecastDataset:
 
         for type in ["_actual", "_fitted", "_lower", "_upper"]:
             df_i = df[[f"{col}{type}" for col in self.targets_list]]
+            df_i = df_i.copy()  # Ensure df_i is a new copy to avoid SettingWithCopyWarning
             df_i.rename(columns={f"{col}{type}" : f"{col}" for col in self.targets_list }, inplace=True)
 
             if len(df_i) > 0:

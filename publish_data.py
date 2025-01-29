@@ -10,10 +10,12 @@ import os
 import numpy as np
 from datetime import datetime, timedelta
 
-from pyarrow import dictionary
-
 from forecasting_modules import compute_error_metrics, analyze_model_performance, convert_ensemble_string
 from data_collection_modules.german_locations import de_regions
+
+from logger import get_logger
+logger = get_logger(__name__)
+
 
 def convert_csv_to_json(df, target, output_dir, prefix, cols):
     """
@@ -45,7 +47,7 @@ def convert_csv_to_json(df, target, output_dir, prefix, cols):
             with open(output_path, "w") as json_file:
                 json.dump(json_data, json_file, indent=4)
         else:
-            print(f"Column '{column}' not found in the CSV file. (columns={df.columns})")
+            logger.info(f"Column '{column}' not found in the CSV file. (columns={df.columns})")
 
 def save_to_json(df:pd.DataFrame, metadata:dict, fname_json:str, verbose:bool):
     # Convert the index (timestamps) to ISO 8601 strings and reset the index
@@ -63,7 +65,7 @@ def save_to_json(df:pd.DataFrame, metadata:dict, fname_json:str, verbose:bool):
 
     with open(fname_json, 'w') as f:
         json.dump(json_data, f, indent=4)
-    if verbose: print(f"Saved {fname_json}")
+    if verbose: logger.info(f"Saved {fname_json}")
 
 def publish_to_api(
         run_label:str='wind_offshore',
@@ -98,7 +100,7 @@ def publish_to_api(
         raise NotImplementedError(f"Target '{target}' for run_label '{run_label}' not implemented.")
 
     if not os.path.isdir(output_dir):
-        if verbose: print(f"Creating directory '{output_dir}'")
+        if verbose: logger.info(f"Creating directory '{output_dir}'")
         os.makedirs(output_dir)
 
     df_results = pd.DataFrame()
@@ -318,7 +320,7 @@ def publish_generation(
     total_metrics = retain_most_recent_entries(total_metrics, N=horizon)
     ave_total_metric = np.average([total_metrics[time_s][metric] for time_s in total_metrics.keys()])
 
-    print(f'For {target} average over {n_folds} total RMSE for {target} is {ave_total_metric}')
+    logger.info(f'For {target} average over {n_folds} total RMSE for {target} is {ave_total_metric}')
 
 
     # ----------- COMPUTE SMARD ERROR OVER THE LAST N HORIZONS ------------------ #
@@ -337,7 +339,7 @@ def publish_generation(
     smard_metrics = retain_most_recent_entries(smard_metrics, n_folds)
     ave_smard_metric = np.average([smard_metrics[time_s][metric] for time_s in smard_metrics.keys()])
 
-    print(f'For {target} Average over {n_folds} SMARD RMSE for {target} is {ave_smard_metric}')
+    logger.info(f'For {target} Average over {n_folds} SMARD RMSE for {target} is {ave_smard_metric}')
 
     table = pd.DataFrame(table)
 
@@ -346,7 +348,7 @@ def publish_generation(
     possible_types = ['forecast.csv', 'result.csv']
 
     if not os.path.exists(output_dir):
-        if verbose: print(f'Creating output directory {output_dir}')
+        if verbose: logger.info(f'Creating output directory {output_dir}')
         os.makedirs(output_dir)
 
     # Convert .csv past and current forecasts into json files for each TSO
@@ -465,17 +467,17 @@ def publish_forecasts(db_path:str, target_settings:list[dict], verbose:bool):
     # check if output directory set up or set them up
     data_dir = "./deploy/data/"
     if not os.path.isdir(data_dir):
-        if verbose: print(f"Creating {data_dir}")
+        if verbose: logger.info(f"Creating {data_dir}")
         os.mkdir(data_dir)
 
     data_dir_web = data_dir + "forecasts/"
     if not os.path.isdir(data_dir_web):
-        if verbose: print(f"Creating {data_dir_web}")
+        if verbose: logger.info(f"Creating {data_dir_web}")
         os.mkdir(data_dir_web)
 
     data_dir_api = data_dir + "api/"
     if not os.path.isdir(data_dir_api):
-        if verbose: print(f"Creating {data_dir_api}")
+        if verbose: logger.info(f"Creating {data_dir_api}")
         os.mkdir(data_dir_api)
 
     for target_dict in target_settings:
@@ -516,4 +518,4 @@ if __name__ == '__main__':
 
     publish_forecasts(target_settings=target_settings, db_path=db_path, verbose=True)
 
-    print(f"All tasks in update are completed successfully!")
+    logger.info(f"All tasks in update are completed successfully!")

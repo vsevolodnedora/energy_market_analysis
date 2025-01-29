@@ -1,8 +1,12 @@
+from typing import Callable
+
 import numpy as np
 import pandas as pd
 
+from logger import get_logger
+logger = get_logger(__name__)
 
-def handle_nans_with_interpolation(df: pd.DataFrame, name: str) -> pd.DataFrame:
+def handle_nans_with_interpolation(df: pd.DataFrame, name: str, log_func:Callable[..., None]) -> pd.DataFrame:
     """
     Checks each column of the DataFrame for NaNs. If a column has more than 3 consecutive NaNs,
     it raises a ValueError. Otherwise, fills the NaNs using bi-directional interpolation.
@@ -16,8 +20,10 @@ def handle_nans_with_interpolation(df: pd.DataFrame, name: str) -> pd.DataFrame:
                             .groupby((~series.isna()).cumsum())
                             .cumsum())
         if consecutive_nans.max() > 3:
-            print(f"Warning. Column '{series.name}' in {name} contains {consecutive_nans.max()} "
-                             f" consecutive NaNs.")
+            msg = f"Column '{series.name}' in {name} contains {consecutive_nans.max()} consecutive NaNs."
+            log_func(msg)
+            # logger.warning(f"Column '{series.name}' in {name} contains {consecutive_nans.max()} "
+            #                  f" consecutive NaNs.")
 
     # Check all columns for consecutive NaNs first
     for col in df_copy.columns:
@@ -42,7 +48,7 @@ def fix_broken_periodicity_with_interpolation(df: pd.DataFrame, name: str) -> pd
     missing_timestamps = expected_index.difference(df.index)
 
     if missing_timestamps.empty:
-        print(f"The DataFrame {name} is already hourly with no missing segments.")
+        logger.info(f"The DataFrame {name} is already hourly with no missing segments.")
         return df
 
     # Convert to a Series to check consecutive missing timestamps
@@ -60,27 +66,27 @@ def fix_broken_periodicity_with_interpolation(df: pd.DataFrame, name: str) -> pd
     fixed_df = df.reindex(expected_index)
     fixed_df = fixed_df.interpolate(method='time')
 
-    print(f"Added and interpolated {len(missing_timestamps)} missing timestamps in {name}.")
+    logger.info(f"Added and interpolated {len(missing_timestamps)} missing timestamps in {name}.")
 
     return fixed_df
 
-def validate_dataframe(df: pd.DataFrame, name: str = '', verbose:bool=False) -> pd.DataFrame:
+def validate_dataframe(df: pd.DataFrame, name: str, log_func:Callable[...,None], verbose:bool=False) -> pd.DataFrame:
     """Check for NaNs, missing values, and periodicity in a time-series DataFrame."""
 
     # Check for NaNs
     if df.isnull().any().any():
-        if verbose: print(f"ERROR! {name} DataFrame contains NaN values.")
-        df = handle_nans_with_interpolation(df, name)
+        if verbose: logger.error(f"{name} DataFrame contains NaN values.")
+        df = handle_nans_with_interpolation(df, name, log_func)
 
     # Check if index is sorted in ascending order
     if not df.index.is_monotonic_increasing:
-        if verbose: print(f"ERROR! {name} The index is not in ascending order.")
+        if verbose: logger.error(f"{name} The index is not in ascending order.")
         raise ValueError("Data is not in ascending order.")
 
     # Check for hourly frequency with no missing segments
     full_range = pd.date_range(start=df.index.min(), end=df.index.max(), freq='h')
     if not full_range.equals(df.index):
-        if verbose: print(f"ERROR! {name} The data is not hourly or has missing segments.")
+        if verbose: logger.error(f"{name} The data is not hourly or has missing segments.")
         df = fix_broken_periodicity_with_interpolation(df, name)
 
     return df

@@ -47,6 +47,9 @@ from forecasting_modules.base_models import (
     CatBoostMultiTargetForecaster
 )
 
+from logger import get_logger
+logger = get_logger(__name__)
+
 
 def save_optuna_results(study:optuna.Study, extra_pars:dict, outdir:str):
     """
@@ -181,8 +184,14 @@ def instantiate_base_forecaster(model_name:str, targets:list, model_pars:dict, v
 
 
     elif model_name == 'CatBoost':
-        if len(targets) > 1: extra_pars =  {'loss_function': 'MultiRMSE', 'eval_metric': 'MultiRMSE', 'silent':True}
-        else: extra_pars = {'loss_function': 'RMSE', 'eval_metric': 'RMSE', 'silent':True}
+        if len(targets) > 1: extra_pars =  {
+            'loss_function': 'MultiRMSE', 'eval_metric': 'MultiRMSE',
+            "allow_writing_files":False,"silent":True,"verbose":False
+        }
+        else: extra_pars = {
+            'loss_function': 'RMSE', 'eval_metric': 'RMSE',
+            "allow_writing_files":False,"silent":True,"verbose":False
+        }
         return CatBoostMultiTargetForecaster(
             model=CatBoostRegressor(**(model_pars | extra_pars)),  # Multivariate regression objective}),
             targets=targets, alpha=0.05, verbose=verbose
@@ -522,7 +531,7 @@ class TaskPaths:
 
     def _get_create(self, dir:str)->None:
         if not os.path.isdir(dir):
-            if self.verbose: print(f"Creating {dir}")
+            if self.verbose: logger.info(f"Creating {dir}")
             os.mkdir(dir)
 
     def to_run_dir(self):
@@ -580,14 +589,11 @@ class BaseModelTasks(TaskPaths):
             self, folds:int, X_train: pd.DataFrame or None, y_train: pd.DataFrame or None,
             ds: HistForecastDataset or None, do_fit:bool)->tuple[pd.DataFrame,pd.DataFrame]:
 
-        print('\n')
-        print(f'--- ENTERING train_evaluate_out_of_sample() model={self.model_label} --- ')
-
         if ds is None:
             ds = self.base_ds
         else:
             if self.verbose:
-                print(f"Using external dataset for {self.model_label}")
+                logger.info(f"Using external dataset for {self.model_label}")
 
         if ds is None:
             raise ReferenceError("Dataset class is not initialized")
@@ -612,25 +618,25 @@ class BaseModelTasks(TaskPaths):
             X_for_model: pd.DataFrame = ds.exog_hist
             y_for_model: pd.DataFrame = ds.target_hist
             if self.verbose:
-                print(f"Using full model dataset from {y_for_model.index[0]} to {y_for_model.index[-1]} "
+                logger.info(f"Using full model dataset from {y_for_model.index[0]} to {y_for_model.index[-1]} "
                       f"with {len(y_for_model)/24/7} weeks "
                       f"({len(y_for_model)/len(ds.forecast_idx)} horizons)")
             if self.verbose:
-                print(f"Running CV {folds} folds for {self.model_label}. "
+                logger.info(f"Running CV {folds} folds for {self.model_label}. "
                       f"Setting {len(X_for_model.columns)} "
                       f"features from dataset (lags_target={ds.lags_target}))")
         else:
             if self.verbose:
-                print(f"Using external dataset X_train={X_train.shape} y_train={y_train.shape} "
+                logger.info(f"Using external dataset X_train={X_train.shape} y_train={y_train.shape} "
                       f"Running CV {folds} folds for {self.model_label}. "
                       f"Given {len(X_for_model.columns)} features (lags_target={ds.lags_target}))")
 
         targets_list = ds.targets_list
 
         if not len(y_for_model) % len(ds.forecast_idx) == 0:
-            print(f"Train: {y_for_model.index[0]} to {y_for_model.index[-1]} ({len(y_for_model.index)/7/24} weeks, "
+            logger.info(f"Train: {y_for_model.index[0]} to {y_for_model.index[-1]} ({len(y_for_model.index)/7/24} weeks, "
                   f"{len(y_for_model.index)/len(ds.forecast_idx)} horizons) Horizon={len(ds.forecast_idx)/7/24} weeks")
-            print(f"Test: {ds.forecast_idx[0]} to {ds.forecast_idx[-1]}")
+            logger.info(f"Test: {ds.forecast_idx[0]} to {ds.forecast_idx[-1]}")
             raise ValueError("Train set size should be divisible by the test size")
 
         # clean up (TODO: refactor the class to avoid this...)
@@ -648,7 +654,7 @@ class BaseModelTasks(TaskPaths):
         )
 
         if self.verbose:
-            print(f"Setting cutoffs N={len(cutoffs)} with cutoff[0]={cutoffs[0]}")
+            logger.info(f"Setting cutoffs N={len(cutoffs)} with cutoff[0]={cutoffs[0]}")
 
         # sanity check that CV cutoffs are correctly set assuming multi-day forecasting horizon
         for idx, (c, (train_idx, test_idx)) in enumerate(zip(cutoffs, splits), start=1):
@@ -658,13 +664,13 @@ class BaseModelTasks(TaskPaths):
             # in case there is no data due to externally set cutoffs
             if idx > 0 and len(train_idx) == 0 or len(test_idx) == 0:
                 if self.verbose:
-                    print(f"Warning! Empty train data batch idx={idx}/{len(cutoffs)}. Skipping.")
+                    logger.info(f"Warning! Empty train data batch idx={idx}/{len(cutoffs)}. Skipping.")
                 continue
 
             if not len(train_idx) % len(test_idx) == 0:
-                print(f"Train: {train_idx[0]} to {train_idx[-1]} ({len(train_idx)/7/24} weeks, "
+                logger.info(f"Train: {train_idx[0]} to {train_idx[-1]} ({len(train_idx)/7/24} weeks, "
                       f"{len(train_idx)/len(test_idx)} horizons) Horizon={len(test_idx)/7/24} weeks")
-                print(f"Test: {test_idx[0]} to {test_idx[-1]}")
+                logger.info(f"Test: {test_idx[0]} to {test_idx[-1]}")
                 raise ValueError("Train set size should be divisible by the test size")
 
             # if not len(test_idx) & 24:
@@ -680,7 +686,7 @@ class BaseModelTasks(TaskPaths):
 
             if len(train_idx) == 0 or len(test_idx) == 0:
                 if self.verbose:
-                    print(f"Warning! Empty train data batch idx={idx}/{len(cutoffs)}. Skipping.")
+                    logger.info(f"Warning! Empty train data batch idx={idx}/{len(cutoffs)}. Skipping.")
                 continue
 
             # fit MapieRegressor(estimator=xbg.XBGRegressor(), method='naive', cv='prefit') model on the past data for current fold
@@ -704,7 +710,7 @@ class BaseModelTasks(TaskPaths):
 
             if not validate_dataframe_simple(result_detransformed):
                 if self.verbose:
-                    print(f"Error! Nans in the forecasted dataframe for "
+                    logger.info(f"Error! Nans in the forecasted dataframe for "
                           f"model={self.model_label} targets_list={targets_list} features={len(X_for_model.columns)} "
                           f"idx={idx} lags={ds.lags_target} Number of nans={len(result_detransformed.isna().sum())} ")
                 raise ValueError(f"Forecasting result contains nans. Results=\n{result}")
@@ -736,7 +742,7 @@ class BaseModelTasks(TaskPaths):
         # self.X_for_model = X_for_model
         # self.y_for_model = y_for_model
 
-        print(f'--- ENTERING train_evaluate_out_of_sample() model={self.model_label} --- ')
+        # logger.info(f'--- ENTERING train_evaluate_out_of_sample() model={self.model_label} --- ')
         return X_for_model, y_for_model
 
     def clear(self):
@@ -774,7 +780,7 @@ class BaseModelTasks(TaskPaths):
 
         dir = self.to_finetuned()
         if self.verbose:
-            print(f"Setting dataset for base model {self.model_label} from finetuning directory {dir}")
+            logger.info(f"Setting dataset for base model {self.model_label} from finetuning directory {dir}")
 
         with open(dir+'dataset.json', 'r') as f:
             self.model_dataset_pars = json.load(f)
@@ -798,7 +804,7 @@ class BaseModelTasks(TaskPaths):
         dir = self.to_dir(dir=dir)
 
         if self.verbose:
-            print(f"Setting dataset for base model {self.model_label} from directory {dir}")
+            logger.info(f"Setting dataset for base model {self.model_label} from directory {dir}")
 
         with open(dir+'dataset.json', 'r') as f:
             self.model_dataset_pars = json.load(f)
@@ -835,7 +841,7 @@ class BaseModelTasks(TaskPaths):
         dir = self.to_dir(dir=dir)
 
         if self.verbose:
-            print(f"Setting base forecaster {self.model_label} from directory {dir}")
+            logger.info(f"Setting base forecaster {self.model_label} from directory {dir}")
 
         with open(dir+'best_parameters.json', 'r') as f:
             self.optuna_pars = json.load(f)
@@ -858,7 +864,7 @@ class BaseModelTasks(TaskPaths):
         dir = self.to_dir(dir=dir)
 
         if self.verbose:
-            print(f"Loading base forecaster {self.model_label} from directory {dir}")
+            logger.info(f"Loading base forecaster {self.model_label} from directory {dir}")
 
         # if self.base_ds is None:
         #     raise ReferenceError(f"Dataset class for base forecaster {self.model_label} is not initialized")
@@ -888,7 +894,7 @@ class BaseModelTasks(TaskPaths):
 
     def print_average_metrics(self, prefix:str, metrics:dict):
         for target, metric in metrics.items():
-            print(prefix + f"RMSE={metric['rmse']:.1f} "
+            logger.info(prefix + f"RMSE={metric['rmse']:.1f} "
                            f"CI_width={metric['prediction_interval_width']:.1f} "
                            f"sMAPE={metric['smape']:.2f}")
 
@@ -925,7 +931,7 @@ class BaseModelTasks(TaskPaths):
         total = []
         for target, metric in average_metrics.items():
             if self.verbose:
-                print(f"Average RMSE for {target}: {metric['rmse']:.2f}")
+                logger.info(f"Average RMSE for {target}: {metric['rmse']:.2f}")
             total.append(metric['rmse'])
         res = float( np.mean(total) if len(total) > 1 else total[0] ) # Average over all CV folds
 
@@ -963,7 +969,7 @@ class BaseModelTasks(TaskPaths):
         save_datetime_now(dir) # save when the training was done
 
         if self.verbose:
-            print(f"Results of {self.model_label} fits are saved into {dir}")
+            logger.info(f"Results of {self.model_label} fits are saved into {dir}")
 
     def save_full_model(self, dir:str, ds:HistForecastDataset or None):
 
@@ -993,7 +999,7 @@ class BaseModelTasks(TaskPaths):
             json.dump(self.optuna_pars, f, indent=4)
 
         if self.verbose:
-            print(f"Metadata for the trained base model {self.model_label} and dataset are saved into {dir}")
+            logger.info(f"Metadata for the trained base model {self.model_label} and dataset are saved into {dir}")
 
     def run_save_forecast(self, X_test:pd.DataFrame or None, y_train:pd.DataFrame or None, folds:int):
         if self.base_ds is None:
@@ -1009,7 +1015,7 @@ class BaseModelTasks(TaskPaths):
         if y_train is None: y_train = self.base_ds.target_hist # needed for lagged target as features
         forecast = self.forecaster.forecast_window(X_test, y_train, lags_target=self.base_ds.lags_target)
         forecast = self.base_ds.inverse_transform_targets(forecast)
-        if self.verbose: print(f"Saving {self.to_forecast() + 'forecast.csv'}")
+        if self.verbose: logger.info(f"Saving {self.to_forecast() + 'forecast.csv'}")
         forecast.to_csv(self.to_forecast() + 'forecast.csv')
 
 
@@ -1089,7 +1095,7 @@ class EnsembleModelTasks(BaseModelTasks):
 
     def train_evaluate_out_of_sample_base_models(self, cv_folds_base:int, do_fit:bool):
         if self.verbose:
-            print(f"Running CV {'train-test' if do_fit else 'test only'} {list(self.base_models.keys())} "
+            logger.info(f"Running CV {'train-test' if do_fit else 'test only'} {list(self.base_models.keys())} "
                   f"base model using their respective datasets")
         for base_model_name, base_model_class in self.base_models.items():
             base_model_class.train_evaluate_out_of_sample(
@@ -1103,7 +1109,7 @@ class EnsembleModelTasks(BaseModelTasks):
 
         if ((not X_meta is None) and (not y_meta is None)):
             if self.verbose:
-                print(f"Manually setting X_meta={len(X_meta)} and y_meta={len(y_meta)} "
+                logger.info(f"Manually setting X_meta={len(X_meta)} and y_meta={len(y_meta)} "
                       f"(While current meta dataset has "
                       f"X_meta={len(self.meta_ds.exog_hist)} and y_meta={len(self.meta_ds.target_hist)}).")
             X_meta = X_meta
@@ -1126,7 +1132,7 @@ class EnsembleModelTasks(BaseModelTasks):
 
         cv_folds_base = len(self.base_models[list(self.base_models.keys())[-1]].results)
         if self.verbose:
-            print(f"Combining {cv_folds_base} "
+            logger.info(f"Combining {cv_folds_base} "
                   f"base-model CV folds to create a training set for meta-model {self.model_label}")
 
         if cv_folds_base < 3:
@@ -1144,7 +1150,7 @@ class EnsembleModelTasks(BaseModelTasks):
         )
 
         if self.verbose:
-            print(f"Setting cutoffs N={len(cutoffs)} with cutoff[0]={cutoffs[0]}")
+            logger.info(f"Setting cutoffs N={len(cutoffs)} with cutoff[0]={cutoffs[0]}")
 
         cutoffs = cutoffs[-cv_folds_base_to_use:]
         splits = splits[-cv_folds_base_to_use:]
@@ -1210,7 +1216,7 @@ class EnsembleModelTasks(BaseModelTasks):
         # self.y_ensemble = y_meta_model_train
 
         if self.verbose:
-            print(f"Trining data for meta-model {self.model_label} is collected")
+            logger.info(f"Trining data for meta-model {self.model_label} is collected")
 
         return X_meta_model_train, y_meta_model_train
 
@@ -1270,7 +1276,7 @@ class EnsembleModelTasks(BaseModelTasks):
         total = []
         for target, metric in average_metrics.items():
             if self.verbose:
-                print(f"Finetuning: average RMSE for {target}: {metric['rmse']:.2f}")
+                logger.info(f"Finetuning: average RMSE for {target}: {metric['rmse']:.2f}")
             total.append(metric['rmse'])
         res = float( np.mean(total) if len(total) > 1 else total[0] ) # Average over all CV folds
 
@@ -1317,7 +1323,7 @@ class EnsembleModelTasks(BaseModelTasks):
         forecast:pd.DataFrame = self.forecaster.forecast_window( X_test_, y_train, lags_target=pars['lags_target'] )
         forecast = self.meta_ds.inverse_transform_targets(forecast)
         dir = self.to_forecast()
-        if self.verbose: print(f"Saving {dir+'forecast.csv'}")
+        if self.verbose: logger.info(f"Saving {dir+'forecast.csv'}")
         forecast.to_csv(dir+'forecast.csv')
 
 
@@ -1370,7 +1376,7 @@ class ForecastingTaskSingleTarget:
         self.outdir_ = outdir
         if not os.path.isdir(self.outdir_):
             if self.verbose:
-                print(f"Creating {self.outdir_}")
+                logger.info(f"Creating {self.outdir_}")
             os.makedirs(self.outdir_)
         # # main output directory
         # self.verbose = verbose
@@ -1473,7 +1479,7 @@ class ForecastingTaskSingleTarget:
         )
 
         if self.verbose:
-            print(f"Performing optimization study for meta-{wrapper.name_base_model} as {wrapper.model_label}")
+            logger.info(f"Performing optimization study for meta-{wrapper.name_base_model} as {wrapper.model_label}")
         study = optuna.create_study(direction='minimize')
         study.optimize(
             lambda trial: wrapper.finetune(trial, cv_metrics_folds=finetuning_pars['cv_folds']),
@@ -1503,7 +1509,7 @@ class ForecastingTaskSingleTarget:
         wrapper.set_dataset_from_df(self.df_history, self.df_forecast, dataset_pars)
 
         if self.verbose:
-            print(f"Performing optimization study for {self.targets_list} with base model {model_label}")
+            logger.info(f"Performing optimization study for {self.targets_list} with base model {model_label}")
         study = optuna.create_study(direction='minimize')
         study.optimize(
             lambda trial: wrapper.finetune(trial, cv_metrics_folds=finetuning_pars['cv_folds']),

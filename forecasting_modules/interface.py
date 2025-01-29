@@ -293,7 +293,6 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                             [loc['name'] for loc in loc_cities if loc['TSO']==tso_reg['TSO']]
                 main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
 
-    logger.critical('BYE')
 
 if __name__ == '__main__':
     # todo add tests
