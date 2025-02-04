@@ -187,11 +187,11 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
             ],
             "task_training":[
                 # {'model':'Prophet', 'pars':{'cv_folds':cv_folds_eval}},
-                {'model':'XGBoost', 'pars':{'cv_folds':cv_folds_eval}},
-                {'model':'LightGBM', 'pars':{'cv_folds':cv_folds_eval}},
-                {'model':'ElasticNet', 'pars':{'cv_folds':cv_folds_eval}},
-                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','pars':{'cv_folds':cv_folds_eval}},
-                {'model':'ensemble[LightGBM](LightGBM,ElasticNet)','pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'XGBoost', 'pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'LightGBM', 'pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'ElasticNet', 'pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','pars':{'cv_folds':cv_folds_eval}},
+                # {'model':'ensemble[LightGBM](LightGBM,ElasticNet)','pars':{'cv_folds':cv_folds_eval}},
                 # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','pars':{'cv_folds':cv_folds_eval}}
             ],
             "task_forecasting":[
