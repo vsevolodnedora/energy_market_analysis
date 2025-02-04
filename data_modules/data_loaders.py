@@ -2,6 +2,8 @@ import copy, re, pandas as pd
 import numpy as np
 import os
 
+from future.utils import raise_
+
 from data_collection_modules.collect_data_openmeteo import OpenMeteo
 from data_collection_modules.german_locations import (
     de_regions,
@@ -35,7 +37,7 @@ def compute_residual_load(df:pd.DataFrame, suffix:str):
         load -= df['wind_onshore{}'.format(suffix)]
     if f'solar{suffix}' in df.columns:
         load -= df['solar{}'.format(suffix)]
-    return pd.Series(load.values, index=df.index, name='residual_load{}'.format(suffix))
+    return pd.Series(load.values, index=df.index, name=f'residual_load{suffix}')
 
 # TODO: USE SQL HERE!!!
 def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:int, horizon:int, verbose:bool)\
@@ -111,19 +113,34 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
     # single target processing
     if len(targets) == 1:
         target = targets[0]
-        target_cols = df_entsoe[target]
+        # if target in df_entsoe.columns.tolist():
+        #     raise KeyError(f"Target column {target} name already exists. This should not happen for aggregated columns.")
+        if 'other_renewables_agg' in target:
+            keys_to_agg = main_pars['aggregations'][target]
+            keys_to_agg_ = [key for key in keys_to_agg if key in df_entsoe.columns.tolist()]
+            if len(keys_to_agg_) != len(keys_to_agg):
+                logger.warning(f"Not all keys for aggregating {target} are found in entsoe dataframe. "
+                               f"{len(keys_to_agg_)} out of {len(keys_to_agg)} will be used ")
+            # aggregate for the required column
+            target_cols = pd.DataFrame(df_entsoe[keys_to_agg_].sum(axis=1), columns=[target])
+        else:
+            target_cols = df_entsoe[target]
+
         # select feature weather frame
         if 'wind_offshore' in target: dataframe, dataframe_f = df_om_offshore, df_om_offshore_f
         elif 'wind_onshore' in target: dataframe, dataframe_f = df_om_onshore, df_om_onshore_f
         elif 'solar' in target: dataframe, dataframe_f = df_om_solar, df_om_solar_f
         elif 'load' in target: dataframe, dataframe_f = df_om_cities, df_om_cities_f
+        elif 'other_renewables_agg' in target: dataframe, dataframe_f = df_om_cities, df_om_cities_f
         else: raise NotImplementedError(f"No dataframe selection for target={target} tso_name={tso_name}")
+
         # select locations
         locations = []
         if 'wind_offshore' in target: locations = loc_offshore_windfarms
         elif 'wind_onshore' in target: locations = loc_onshore_windfarms
         elif 'solar' in target: locations = loc_solarfarms
         elif 'load' in target: locations = loc_cities
+        elif 'other_renewables_agg' in target: locations = loc_cities
         else: raise NotImplementedError(f"Locations are not available for target={target} tso_name={tso_name}")
         # build df_hist and df_forecast
         om_suffixes = [loc['suffix'] for loc in locations if loc['TSO'] == tso_dict['TSO']]
@@ -146,30 +163,31 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
             raise NotImplementedError(f"Target label={target_label_notso} not implemented.")
         aggregations =  main_pars['aggregations'] if 'aggregations' in main_pars else {}
         # build target columns
-        target_cols =  df_entsoe[
-            [target_ + suffix for target_ in targets
-                if not target_ in list(aggregations.keys())]
-        ]
+        target_cols =  df_entsoe[[
+            target_ for target_ in targets if not target_ in list(aggregations.keys()) and target_ in df_entsoe.columns
+        ]]
         for col in target_cols:
-            if len(df_entsoe[col].unique()) < len(df_entsoe[col])*0.01:
+            if len(df_entsoe[col].unique()) < len(df_entsoe[col])*.1:
                 if verbose: logger.warning(
-                    f"Dropping target column {col} as there are only { len(df_entsoe[col])*0.01 } unique values"
+                    f"Dropping target column {col} as there are only { len(df_entsoe[col].unique()) } unique values. "
+                    f"Sum={pd.Series(df_entsoe[col]).sum():.1f}."
                 )
-                target_cols.drop(columns=[col], inplace=True)
+                target_cols = target_cols.drop(columns=[col])
+
         # add aggregations if any
         for key in targets:
             if key in list(aggregations.keys()):
                 keys_to_agg = [
-                    col + suffix for col in aggregations[key]
-                    if col + suffix in list(df_entsoe.keys())
+                    col for col in aggregations[key]
+                    if col in list(df_entsoe.keys())
                 ]
                 if len(keys_to_agg) != len(aggregations[key]):
                     logger.warning(f"Not all keys for aggregating {key} are found in entsoe dataframe. "
                           f"{len(keys_to_agg)} out of {len(aggregations[key])} will be used ")
                 # aggregate for the required column
-                df_entsoe[key + suffix] = df_entsoe[keys_to_agg].sum(axis=1)
+                df_entsoe[key] = df_entsoe[keys_to_agg].sum(axis=1)
                 target_cols = pd.merge(
-                    target_cols, df_entsoe[key + suffix], left_index=True, right_index=True, how='left'
+                    target_cols, df_entsoe[key], left_index=True, right_index=True, how='left'
                 )
 
         # fixed weather dataframes and locations
@@ -178,6 +196,15 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
         # build df_hist and df_forecast
         om_suffixes = [loc['suffix'] for loc in locations if loc['TSO'] == tso_dict['TSO']]
         feature_col_names = dataframe.columns[dataframe.columns.str.endswith(tuple(om_suffixes))]
+        feature_col_names = [
+            col for col in feature_col_names if (
+                    col.startswith('temperature') or
+                    col.startswith('wind_speed') or
+                    col.startswith('precipitation') or
+                    col.startswith('cloud_cover') or
+                    col.startswith('shortwave_radiation')
+            )
+        ]
         # build df_hist and df_forecast
         if verbose:
             logger.info(f"TARGET LABEL: {target_label_notso} TSO: {tso_dict['TSO']} "
@@ -191,10 +218,11 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
         df_forecast = dataframe_f[feature_col_names]
 
 
-    ''' add forecasted quantities as features '''
+    ''' add forecasted quantities as features (ALL TSOs) '''
 
     # add additional quantities
     if len(targets) == 1 and 'load' in targets[0]: add_exog = ["wind_offshore", "wind_onshore", "solar"]
+    elif len(targets) == 1 and 'other_renewables_agg' in targets[0]: add_exog = ["wind_offshore", "wind_onshore", "solar", 'load', 'residual_load']
     elif len(targets) > 1 and 'energy_mix' in target_label: add_exog = ["wind_offshore", "wind_onshore", "solar", 'load', 'residual_load']
     else: add_exog = []
 
@@ -204,64 +232,69 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
         )
 
         for exog in add_exog:
-            # load historic data
-            exog_tso = exog + tso_dict['suffix']
-            if not exog_tso in df_entsoe.columns.tolist() and not exog == 'residual_load':
-                if verbose: logger.warning(f"Required exogenous feature {exog_tso} is not in ENTSO-E dataset. Skipping.")
-                continue
+            for tso_dict in de_regions:
+                # load historic data
+                exog_tso_ = exog + tso_dict['suffix']
+                suffix_ = tso_dict['suffix']
 
-            if exog == 'residual_load':
+                logger.info(f"Adding exogenous feature {exog_tso_} to dataframe")
 
-                df_hist = pd.merge(
-                    left=df_hist, right=compute_residual_load(df_hist, suffix), left_index=True, right_index=True, how='left'
-                )
+                if not exog_tso_ in df_entsoe.columns.tolist() and not exog == 'residual_load':
+                    if verbose: logger.warning(f"Required exogenous feature {exog_tso_} is not in ENTSO-E dataset. Skipping.")
+                    continue
+
+                if exog == 'residual_load':
+                    res_load = compute_residual_load(df_hist, suffix_)
+                    df_hist = pd.merge(
+                        left=df_hist, right=res_load, left_index=True, right_index=True, how='left'
+                    )
+
+                    df_forecast = pd.merge(
+                        left=df_forecast,
+                        right=compute_residual_load(df_forecast, suffix_),
+                        left_index=True,
+                        right_index=True,
+                        how='left'
+                    )
+                    continue
+
+
+                entsoe_col = df_entsoe[exog_tso_]
+                df_hist = pd.merge(left=df_hist, right=entsoe_col, left_index=True, right_index=True, how='left')
+
+                # load forecast from current best forecast
+                best_model = None
+                fpath = outdir+exog_tso_+'/'+'best_model.txt'
+                if not os.path.isfile(fpath):
+                    raise FileNotFoundError(f"Best model file not found {fpath}")
+                with open(fpath, 'r') as f:
+                    best_model = f.read().strip()
+
+                if best_model.__contains__('ensemble'):
+                    best_model = convert_ensemble_string(best_model)
+
+                fpath = outdir+exog_tso_+'/' + best_model + '/' + 'forecast/' + 'forecast.csv'
+                if not os.path.isfile(fpath):
+                    raise FileNotFoundError(f"Forecast file not found {fpath}")
+
+                # load the latest forecast for exogenous variable and add it to df_forecast
+                df_ = pd.read_csv(fpath, index_col=0)
+                df_.index = pd.to_datetime(df_.index)
+                df_.rename(columns={f'{exog_tso_}_fitted':f'{exog_tso_}'},inplace=True)
+
+                # import matplotlib.pyplot as plt
+                # plt.plot(df_.index, df_[f'{exog_tso}_fitted'])
+                # plt.plot(df_forecast.index, df_forecast[df_forecast.columns.tolist()[0]])
+                # plt.show()
+                # exit(1)
 
                 df_forecast = pd.merge(
                     left=df_forecast,
-                    right=compute_residual_load(df_forecast, suffix),
+                    right=df_[f'{exog_tso_}'],
                     left_index=True,
                     right_index=True,
                     how='left'
                 )
-                continue
-
-
-            entsoe_col = df_entsoe[exog_tso]
-            df_hist = pd.merge(left=df_hist, right=entsoe_col, left_index=True, right_index=True, how='left')
-
-            # load forecast from current best forecast
-            best_model = None
-            fpath = outdir+exog_tso+'/'+'best_model.txt'
-            if not os.path.isfile(fpath):
-                raise FileNotFoundError(f"Best model file not found {fpath}")
-            with open(fpath, 'r') as f:
-                best_model = f.read().strip()
-
-            if best_model.__contains__('ensemble'):
-                best_model = convert_ensemble_string(best_model)
-
-            fpath = outdir+exog_tso+'/' + best_model + '/' + 'forecast/' + 'forecast.csv'
-            if not os.path.isfile(fpath):
-                raise FileNotFoundError(f"Forecast file not found {fpath}")
-
-            # load the latest forecast for exogenous variable and add it to df_forecast
-            df_ = pd.read_csv(fpath, index_col=0)
-            df_.index = pd.to_datetime(df_.index)
-            df_.rename(columns={f'{exog_tso}_fitted':f'{exog_tso}'},inplace=True)
-
-            # import matplotlib.pyplot as plt
-            # plt.plot(df_.index, df_[f'{exog_tso}_fitted'])
-            # plt.plot(df_forecast.index, df_forecast[df_forecast.columns.tolist()[0]])
-            # plt.show()
-            # exit(1)
-
-            df_forecast = pd.merge(
-                left=df_forecast,
-                right=df_[f'{exog_tso}'],
-                left_index=True,
-                right_index=True,
-                how='left'
-            )
 
 
     # limit dataframe to the required max size

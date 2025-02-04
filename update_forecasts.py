@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 if __name__ == '__main__':
     db_path = './database/'
 
-    targets = ['wind_offshore', 'wind_onshore', 'solar', 'load']
+    targets = ['wind_offshore', 'wind_onshore', 'solar', 'load', 'energy_mix']
 
     # update_forecast_production(
     #     database=db_path, variable='load', outdir='./output/forecasts/', verbose=True

@@ -1,7 +1,12 @@
 from .base_models import (
     XGBoostMapieRegressor,
+    LGBMMapieRegressor,
     ElasticNetMapieRegressor,
     ProphetForecaster
+)
+from .base_models_multitarget import (
+    MultiTargetCatBoostRegressor,
+    MultiTargetLGBMMultiTargetForecaster
 )
 from .utils import (
     compute_error_metrics,

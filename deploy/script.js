@@ -798,6 +798,14 @@ const forecastData = [
     // Show none of the TSO checkboxes here (only the "always" buttons):
     buttons: ["50hz", "tenn", "tran", "ampr"]
   },
+  {
+    id: 5,
+    title: "Generation Forecast",
+    dataKey: "generation-forecast",
+    descriptionFile: "generation_notes",
+    // Show none of the TSO checkboxes here (only the "always" buttons):
+    buttons: ["50hz", "tenn", "tran", "ampr"]
+  },
 ];
 
 // Helper object to define each TSO button’s label & CSS class
@@ -1048,6 +1056,52 @@ const getChart4Config = () => {
   };
 };
 
+const getChart5Config = () => {
+  return {
+    chartInstance   : chartState["chartInstance5"],
+    yAxisLabel      : 'Generation (MW)',//i18next.t('onshore-power-label-mw'),
+
+    regionConfigs   : [
+      {
+        checkboxId: 'ampr-checkbox-5',
+        variable  : 'generation_ampr',
+        alias     : 'Amprion',
+        color     : tsoColorMap['Amprion'],
+      },
+      {
+        checkboxId: 'tran-checkbox-5',
+        variable  : 'generation_tran',
+        alias     : 'TransnetBW',
+        color     : tsoColorMap['TransnetBW'],
+      },
+      {
+        checkboxId: '50hz-checkbox-5',
+        variable  : 'generation_50hz',
+        alias     : '50Hertz',
+        color     : tsoColorMap['50Hertz'],
+      },
+      {
+        checkboxId: 'tenn-checkbox-5',
+        variable  : 'generation_tenn',
+        alias     : 'TenneT',
+        color     : tsoColorMap['TenneT'],
+      },
+      {
+        checkboxId: 'total-checkbox-5',
+        variable  : 'generation',
+        alias     : 'Total',
+        color     : tsoColorMap['Total']
+      }
+    ],
+
+    pastDataSliderId: 'past-data-slider-5',
+    showIntervalId  : 'showci_checkbox-5',
+    errorElementId  : 'error-message5',
+    isDarkMode      : isDarkMode // or define it yourself
+  };
+};
+
+
 const chartConfigs = [
   {
     chartNum: 1,
@@ -1092,6 +1146,17 @@ const chartConfigs = [
     detailsSelector: 'details:nth-of-type(1)',
     filePrefix: 'load_notes',
     getConfigFunction: getChart4Config
+  },
+  {
+    chartNum: 5,
+    descriptionToggleId: 'description5-toggle-checkbox',
+    descriptionContainerId: 'chart5-description-container',
+    descLoadedKey: 'chart5DescLoaded',
+    createdKey: 'chart5Created',
+    instanceKey: 'chartInstance5',
+    detailsSelector: 'details:nth-of-type(1)',
+    filePrefix: 'generation_notes',
+    getConfigFunction: getChart5Config
   }
 ];
 

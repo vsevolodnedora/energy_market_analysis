@@ -1,13 +1,15 @@
 import copy, re, pandas as pd, numpy as np, matplotlib.pyplot as plt
 import os.path
 
+from lightgbm.basic import LightGBMError
 from numba import NonexistentTargetError
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.linear_model import ElasticNetCV, ElasticNet, Ridge
-from mapie.regression import MapieRegressor
+
 import xgboost as xgb
 from lightgbm import LGBMRegressor
 from catboost import CatBoostRegressor
+from sklearn.multioutput import MultiOutputRegressor
 import shap
 from datetime import datetime, timedelta
 import holidays
@@ -38,13 +40,23 @@ from data_modules.data_classes import (
     HistForecastDataset,
     suggest_values_for_ds_pars_optuna
 )
-from data_modules.data_vis import plot_time_series_with_residuals
+from data_modules.data_vis import (
+    plot_time_series_with_residuals,
+    plot_time_series_with_residuals_multi
+)
 from forecasting_modules.base_models import (
     BaseForecaster,
     XGBoostMapieRegressor,
+    LGBMMapieRegressor,
     ElasticNetMapieRegressor,
-    ProphetForecaster,
-    CatBoostMultiTargetForecaster
+    ProphetForecaster
+)
+from forecasting_modules.base_models_multitarget import (
+    MultiTargetCatBoostRegressor,
+    MultiTargetLGBMMultiTargetForecaster
+)
+from forecasting_modules.hyperparameters_for_optuna import (
+    get_parameters_for_optuna_trial
 )
 
 from logger import get_logger
@@ -99,67 +111,8 @@ def save_optuna_results(study:optuna.Study, extra_pars:dict, outdir:str):
     save_datetime_now(outdir) # save when the training was done
 
 
-def get_parameters_for_optuna_trial(model_name, trial:optuna.trial):
-
-    if model_name == 'XGBoost':
-        param = {
-            # 'objective': self.optim_pars['objective'],#'reg:squarederror',
-            # 'eval_metric': self.optim_pars['eval_metric'],#'rmse',
-            'n_estimators': trial.suggest_int('n_estimators', 300, 1000),
-            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3, log=True),
-            'max_depth': trial.suggest_int('max_depth', 3, 10),
-            'min_child_weight': trial.suggest_int('min_child_weight', 1, 10),
-            'subsample': trial.suggest_float('subsample', 0.5, 1.0),
-            'colsample_bytree': trial.suggest_float('colsample_bytree', 0.5, 1.0),
-            'reg_alpha': trial.suggest_float('reg_alpha', 1e-8, 1.0, log=True),
-            'reg_lambda': trial.suggest_float('reg_lambda', 1e-8, 1.0, log=True),
-        }
-
-    elif model_name == 'LightGBM':
-        param = {
-            'n_estimators': trial.suggest_int('n_estimators', 300, 1000),
-            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3, log=True),
-            'max_depth': trial.suggest_int('max_depth', 3, 10),
-            'num_leaves': trial.suggest_int('num_leaves', 20, 150),  # Specific to LightGBM
-            'min_child_samples': trial.suggest_int('min_child_samples', 5, 50),  # LightGBM's equivalent to min_child_weight
-            'min_child_weight': trial.suggest_float('min_child_weight', 1e-3, 1e-1, log=True),  # Ensures stability for multivariate
-            'subsample': trial.suggest_float('subsample', 0.5, 1.0),
-            'colsample_bytree': trial.suggest_float('colsample_bytree', 0.5, 1.0),
-            'reg_alpha': trial.suggest_float('reg_alpha', 1e-8, 1.0, log=True),
-            'reg_lambda': trial.suggest_float('reg_lambda', 1e-8, 1.0, log=True),
-            # 'boosting_type': trial.suggest_categorical('boosting_type', ['gbdt', 'dart', 'goss']),  # Explore boosting types
-            # 'extra_trees': trial.suggest_categorical('extra_trees', [True, False]),  # For tree regularization
-            'max_bin': trial.suggest_int('max_bin', 100, 500),  # Controls binning precision
-        }
-    elif model_name == 'CatBoost':
-        param = {
-            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3, log=True),
-        }
-    elif model_name == 'ElasticNet':
-        param = {
-            'l1_ratio': trial.suggest_float('l1_ratio', 0.01, 1.0, log=False),
-            'alpha': trial.suggest_float('alpha', 0.01, 1.0, log=False)
-        }
-
-    elif model_name == 'Prophet':
-        param = {
-            # 'growth': trial.suggest_categorical('growth', ['linear', 'logistic']),
-            # 'changepoint_prior_scale': trial.suggest_float('changepoint_prior_scale', 0.001, 0.5, log=True),
-            'seasonality_mode': trial.suggest_categorical('seasonality_mode', ['additive', 'multiplicative']),
-            'seasonality_prior_scale': trial.suggest_float('seasonality_prior_scale', 0.01, 10.0, log=True),
-            # 'holidays_prior_scale': trial.suggest_float('holidays_prior_scale', 0.01, 10.0, log=True),
-            'n_changepoints': trial.suggest_int('n_changepoints', 5, 100),
-            'yearly_seasonality': trial.suggest_categorical('yearly_seasonality', [True, False]),
-            'weekly_seasonality': trial.suggest_categorical('weekly_seasonality', [True, False]),
-            'daily_seasonality': trial.suggest_categorical('daily_seasonality', [True, False]),
-        }
-
-    else:
-        raise NotImplementedError(f"Fine-tuning parameter set for {model_name} not implemented")
-
-    return param
-
-def instantiate_base_forecaster(model_name:str, targets:list, model_pars:dict, verbose:bool)->BaseForecaster:
+def instantiate_base_forecaster(model_name:str, targets:list, model_pars:dict, verbose:bool)\
+        ->BaseForecaster | MultiTargetCatBoostRegressor | MultiTargetLGBMMultiTargetForecaster:
     # if 'l1_ratio' in model_pars: del model_pars['l1_ratio']
     # train the forecasting model several times to evaluate its performance, get all results
     if model_name == 'XGBoost':
@@ -167,6 +120,15 @@ def instantiate_base_forecaster(model_name:str, targets:list, model_pars:dict, v
         return XGBoostMapieRegressor(
             model=MapieRegressor(
                 xgb.XGBRegressor(**model_pars),
+                method='naive', cv='prefit'#TimeSeriesSplit(n_splits=5)
+            ), target=targets[0], alpha=0.05, verbose=verbose)
+
+    if model_name == 'LightGBM':
+        extra_pars = {'importance_type': 'gain', "verbose":-1} # Use 'gain' importance for feature selection
+        if len(targets) > 1: raise ValueError("LightGBM does not support multiple targets")
+        return LGBMMapieRegressor(
+            model=MapieRegressor(
+                LGBMRegressor(**(model_pars | extra_pars)),
                 method='naive', cv='prefit'#TimeSeriesSplit(n_splits=5)
             ), target=targets[0], alpha=0.05, verbose=verbose)
 
@@ -182,18 +144,31 @@ def instantiate_base_forecaster(model_name:str, targets:list, model_pars:dict, v
         if len(targets) > 1: raise ValueError("Prophet does not support multiple targets")
         return ProphetForecaster( params = model_pars, target=targets[0], alpha=0.05, verbose=verbose)
 
+    elif model_name == 'MultiTargetElasticNet':
+        extra_pars = {}
+        return MultiTargetLGBMMultiTargetForecaster(
+            model=MultiOutputRegressor(ElasticNet(**(model_pars | extra_pars))),
+            targets=targets, alpha=0.05, verbose=verbose
+        )
 
-    elif model_name == 'CatBoost':
+    elif model_name == 'MultiTargetCatBoost':
         if len(targets) > 1: extra_pars =  {
             'loss_function': 'MultiRMSE', 'eval_metric': 'MultiRMSE',
-            "allow_writing_files":False,"silent":True,"verbose":False
+            "allow_writing_files":False,"silent":True
         }
         else: extra_pars = {
             'loss_function': 'RMSE', 'eval_metric': 'RMSE',
-            "allow_writing_files":False,"silent":True,"verbose":False
+            "allow_writing_files":False,"silent":True
         }
-        return CatBoostMultiTargetForecaster(
+        return MultiTargetCatBoostRegressor(
             model=CatBoostRegressor(**(model_pars | extra_pars)),  # Multivariate regression objective}),
+            targets=targets, alpha=0.05, verbose=verbose
+        )
+
+    elif model_name == 'MultiTargetLGBM':
+        extra_pars = {'importance_type': 'gain', "verbose":-1} # Use 'gain' importance for feature selection
+        return MultiTargetLGBMMultiTargetForecaster(
+            model=MultiOutputRegressor(LGBMRegressor(**(model_pars | extra_pars))),
             targets=targets, alpha=0.05, verbose=verbose
         )
 
@@ -246,7 +221,7 @@ def analyze_model_performance( data: pd.DataFrame, n_folds: int, metric: str )->
                   .rename(columns={metric: f'avg_{metric}'}))
 
     # Determine the best model for each method (trained and forecast)
-    best_models = avg_errors.loc[avg_errors.groupby('method')[f'avg_{metric}'].idxmin()]
+    best_models = avg_errors.loc[avg_errors.groupby(['target','method'])[f'avg_{metric}'].idxmin()]
 
     # Check for model drift (forecast errors systematically larger than trained errors)
     trained_errors = avg_errors[avg_errors['method'] == 'trained']
@@ -257,30 +232,11 @@ def analyze_model_performance( data: pd.DataFrame, n_folds: int, metric: str )->
     drift_data['drift_detected'] = drift_data['error_difference'] > 0
 
     # Summarize drift detection
-    drift_summary = drift_data[['target','model_label', 'error_difference', 'drift_detected']]
+    drift_summary = drift_data[['target', 'model_label', 'error_difference', 'drift_detected']]
 
     return best_models, drift_summary
 
 
-
-
-def OLD_write_summary(summary: dict):
-    # Collect datagrams
-    datagram = []
-
-    # Iterate through the methods (train, forecast)
-    for method, models in summary.items():
-        for model_label, horizons in models.items():
-            for horizon, metrics in horizons.items():
-                # Create a single entry for each horizon
-                datagram.append({
-                    "method": method,
-                    "model_label": model_label,
-                    "horizon": horizon,
-                    **metrics
-                })
-
-    return datagram
 def write_summary(summary: dict):
     # Collect datagrams
     datagram = []
@@ -502,7 +458,7 @@ def get_average_metrics(metrics:dict)->dict:
 
 class TaskPaths:
 
-    train_forecast = ['trained','forecast']
+    train_forecast = ['trained', 'forecast']
 
     def __init__(self, run_label:str, model_label:str, working_dir:str,verbose:bool):
         self.working_dir = working_dir
@@ -705,7 +661,6 @@ class BaseModelTasks(TaskPaths):
             for target_ in targets_list:
                 result[f"{target_}_actual"] = copy.deepcopy(y_for_model[target_].loc[test_idx])
 
-
             result_detransformed = ds.inverse_transform_targets(copy.deepcopy(result))
 
             if not validate_dataframe_simple(result_detransformed):
@@ -890,16 +845,15 @@ class BaseModelTasks(TaskPaths):
 
     # ----------
 
-
-
     def print_average_metrics(self, prefix:str, metrics:dict):
         for target, metric in metrics.items():
-            logger.info(prefix + f"RMSE={metric['rmse']:.1f} "
+            logger.info(prefix + f"| {target} | RMSE={metric['rmse']:.1f} "
                            f"CI_width={metric['prediction_interval_width']:.1f} "
                            f"sMAPE={metric['smape']:.2f}")
 
 
     def finetune(self, trial:optuna.Trial, cv_metrics_folds:int):
+
         if self.base_ds is None:
             raise ReferenceError("Dataset class is not initialized")
 
@@ -907,6 +861,7 @@ class BaseModelTasks(TaskPaths):
         ds_config = suggest_values_for_ds_pars_optuna(
             self.base_ds.init_pars['feature_engineer'], trial=trial, fixed = self.base_ds.init_pars
         )
+
         ds_config.update(self.base_ds.init_pars)
         self.base_ds.run_preprocess_pipeline(config=ds_config)
 
@@ -919,21 +874,33 @@ class BaseModelTasks(TaskPaths):
             verbose=self.verbose
         )
 
-        if True:
-            self.train_evaluate_out_of_sample(folds = cv_metrics_folds, ds=None, X_train=None, y_train=None, do_fit=True)
-        # except ValueError as e:
-        #     if self.verbose: print(f"ERROR! Optimization iteration run failed! with \n{e}")
-        #     self.forecaster.reset_model()
-        #     gc.collect()
-        #     return np.inf
+        _X, _y = self.train_evaluate_out_of_sample(
+            folds = cv_metrics_folds, ds=None, X_train=None, y_train=None, do_fit=True
+        )
+        _y = self.base_ds.inv_transform_target(_y)
 
-        average_metrics:dict = get_average_metrics(self.metrics)
+        average_metrics: dict = get_average_metrics(self.metrics)
         total = []
+
+        idx = pd.concat([res_cv for t_cv, res_cv in self.results.items()],axis=0).index
+
+        # Compute normalized RMSE
         for target, metric in average_metrics.items():
+            target_mean = np.mean(_y[target][idx])  # Mean of the target variable in training
+            target_std = np.std(_y[target][idx])  # Standard deviation of target variable
+
+            # Normalize RMSE: Relative to the mean OR standard deviation
+            normalized_rmse = metric["rmse"] / (target_std + 1e-8)  # Avoid division by zero
+            relative_rmse = metric["rmse"] / (abs(target_mean) + 1e-8)  # Avoid division by zero
+
             if self.verbose:
-                logger.info(f"Average RMSE for {target}: {metric['rmse']:.2f}")
-            total.append(metric['rmse'])
-        res = float( np.mean(total) if len(total) > 1 else total[0] ) # Average over all CV folds
+                logger.info(f"Normalized RMSE for {target}: {normalized_rmse:.4f} "
+                            f"Relative RMSE for {target}: {relative_rmse:.4f} ")
+
+            total.append(relative_rmse) if len(list(average_metrics.keys())) > 1 else total.append(metric["rmse"])
+
+        # Use mean normalized RMSE as the Optuna optimization target
+        res = float(np.mean(total) if len(total) > 1 else total[0])  # Average across all CV folds
 
         self.forecaster.reset_model()
 
@@ -1056,22 +1023,6 @@ class EnsembleModelTasks(BaseModelTasks):
         self.meta_ds = self._set_load_dataset_from_dir(dir, df_hist, df_forecast)
         self.meta_ds.run_preprocess_pipeline(self.optuna_pars | self.model_dataset_pars)
 
-    # def set_meta_X_y(self, X_meta:pd.DataFrame or None, y_meta:pd.Series or None):
-    #     if ((not X_meta is None) and (not y_meta is None)):
-    #         if self.verbose:
-    #             print(f"Manually setting X_meta={len(X_meta)} and y_meta={len(y_meta)} "
-    #                   f"(While current meta dataset has "
-    #                   f"X_meta={len(self.meta_ds.exog_hist)} and y_meta={len(self.meta_ds.target_hist)}).")
-    #         self.X_meta = X_meta
-    #         self.y_meta = y_meta
-    #     else:
-    #         self.X_meta = self.meta_ds.exog_hist
-    #         self.y_meta = self.meta_ds.target_hist
-    #
-    #     if not len(self.X_meta) == len(self.y_meta):
-    #         raise ValueError(f"Size of X_meta={self.X_meta.shape} and y_meta={self.y_meta.shape} do not match")
-
-
     def set_datasets_for_base_models_from_ds(self, ds:HistForecastDataset):
         for base_model_name, base_model_class in self.base_models.items():
             base_model_class.set_dataset_from_ds(ds)
@@ -1087,7 +1038,6 @@ class EnsembleModelTasks(BaseModelTasks):
     def set_base_models_from_dir(self, dir:str):
         for base_model_name, base_model_class in self.base_models.items():
             base_model_class.set_forecaster_from_dir(dir=dir)
-
 
     def load_base_models_from_dir(self,dir:str):
         for base_model_name, base_model_class in self.base_models.items():
@@ -1202,15 +1152,15 @@ class EnsembleModelTasks(BaseModelTasks):
 
         # check if shapes are correct
         model_names = list(self.base_models.keys())
-        if not X_meta is None:
-            if not (len(X_meta_model_train.columns) ==
-                    len(X_meta.columns) + len(model_names)*len(features_from_base_models)):
-                raise ValueError(f"Expected {len(X_meta.columns)+len(model_names)} columns in "
-                                 f"X_meta_model_train. Got={len(X_meta_model_train.columns)}")
-        else:
-            if not (len(X_meta_model_train.columns) == len(model_names)):
-                raise ValueError(f"Expected {len(model_names)} columns in "
-                                 f"X_meta_model_train. Got={len(X_meta_model_train.columns)}")
+        # if not X_meta is None:
+        #     if not (len(X_meta_model_train.columns) ==
+        #             len(X_meta.columns) + len(model_names)*len(features_from_base_models)):
+        #         raise ValueError(f"Expected {len(X_meta.columns)+len(model_names)} columns in "
+        #                          f"X_meta_model_train. Got={len(X_meta_model_train.columns)}")
+        # else:
+        #     if not (len(X_meta_model_train.columns) == len(model_names)):
+        #         raise ValueError(f"Expected {len(model_names)} columns in "
+        #                          f"X_meta_model_train. Got={len(X_meta_model_train.columns)}")
 
         # self.X_ensemble = X_meta_model_train
         # self.y_ensemble = y_meta_model_train
@@ -1219,11 +1169,6 @@ class EnsembleModelTasks(BaseModelTasks):
             logger.info(f"Trining data for meta-model {self.model_label} is collected")
 
         return X_meta_model_train, y_meta_model_train
-
-    # def cv_train_test_ensemble(self, cv_folds_base:int, do_fit:bool):
-    #     self.train_evaluate_out_of_sample(
-    #         folds=cv_folds_base, X_train=self.X_for_model, y_train=self.y_for_model, ds=self.meta_ds, do_fit=do_fit
-    #     )
 
     def finetune(self, trial:optuna.Trial, cv_metrics_folds:int):
 
@@ -1329,43 +1274,6 @@ class EnsembleModelTasks(BaseModelTasks):
 
 class ForecastingTaskSingleTarget:
 
-    # def __init__(self, target:str, task:dict, outdir:str, verbose:bool):
-    #     # main output directory
-    #     self.verbose = verbose
-    #     if not os.path.isdir(outdir):
-    #         if self.verbose: print(f"Creating {outdir}")
-    #         os.mkdir(outdir)
-    #
-    #     # init dataclass
-    #     self.target = task['target']
-    #     self.outdir_ = outdir
-    #
-    #
-    #     # load dataset
-    #     df_history, df_forecast = load_data(target, verbose=verbose)
-    #     print(f"Loaded dataset has features: {df_history.columns.tolist()}")
-    #     # df_forecast = df_forecast[1:] # remove df_history[-1] hour
-    #
-    #     # restrict to required features
-    #     features = task['features']
-    #     features_to_restrict : list = []
-    #     for feature in features:
-    #         # preprocess some features
-    #         if feature  == 'weather':
-    #             # TODO IMPROVE (USE OPENMETEO CLASS HERE)
-    #             weather_features:list = _get_weather_features(df_history)
-    #             features_to_restrict += weather_features
-    #     if not features:
-    #         if verbose: print(f"No features selected for {target}. Using all features: \n{df_forecast.columns.tolist()}")
-    #         features_to_restrict = df_forecast.columns.tolist()
-    #
-    #     # remove unnecessary features from the dataset
-    #     print(f"Restricting dataframe from {len(df_history.columns)} features to {len(features_to_restrict)}")
-    #     self.df_history = df_history[features_to_restrict + [target]]
-    #     self.df_forecast = df_forecast[features_to_restrict]
-    #     if not validate_dataframe(self.df_forecast):
-    #         raise ValueError("Nans in the df_forecast after restricting. Cannot continue.")
-
     def __init__(self, df_history:pd.DataFrame, df_forecast:pd.DataFrame, task:dict, outdir:str, verbose:bool):
         self.df_history = df_history
         self.df_forecast = df_forecast
@@ -1411,38 +1319,6 @@ class ForecastingTaskSingleTarget:
         # if not validate_dataframe(self.df_forecast):
         #     raise ValueError("Nans in the df_forecast after restricting. Cannot continue.")
 
-
-    # def prepare_dataset_for_task(self, df_history:pd.DataFrame, df_forecast:pd.DataFrame, task:dict):
-    #
-    #     # load dataset
-    #     # df_history, df_forecast = load_data(target,datapath=datapath, verbose=verbose)
-    #     print(f"Loaded dataset has features: {df_history.columns.tolist()}")
-    #     # df_forecast = df_forecast[1:] # remove df_history[-1] hour
-    #
-    #     # restrict to required features
-    #     target = task["target"]
-    #     features = task['features']
-    #     features_to_restrict : list = []
-    #     for feature in features:
-    #         # preprocess some features
-    #         if feature  == 'weather':
-    #             # TODO IMPROVE (USE OPENMETEO CLASS HERE)
-    #             weather_features:list = _get_weather_features(df_history)
-    #             features_to_restrict += weather_features
-    #     if not features:
-    #         if self.verbose: print(f"No features selected for {target}. Using all features: \n{df_forecast.columns.tolist()}")
-    #         features_to_restrict = df_forecast.columns.tolist()
-    #
-    #     # remove unnecessary features from the dataset
-    #     print(f"Restricting dataframe from {len(df_history.columns)} features to {len(features_to_restrict)}")
-    #     df_history = df_history[features_to_restrict + [target]]
-    #     df_forecast = df_forecast[features_to_restrict]
-    #     if not validate_dataframe(df_forecast):
-    #         raise ValueError("Nans in the df_forecast after restricting. Cannot continue.")
-    #
-    #     return df_history, df_forecast
-
-    # ------- FINETUNING ------------
     def process_finetuning_task_ensemble(self, ft_task):
 
         model_label = ft_task['model']
@@ -1524,6 +1400,7 @@ class ForecastingTaskSingleTarget:
         wrapper.clear()
 
     # ------- TRAINING ---------
+
     def process_training_task_ensemble(self, t_task):
         model_label = t_task['model']
         pars = t_task['pars']
@@ -1682,21 +1559,20 @@ class ForecastingTaskSingleTarget:
         task_i = {}
 
         for target in targets:
-            task_i['results'] = [df_result[[col for col in df_result.columns if col.startswith(target)]] for df_result in df_results]
-            task_i['metrics'] = [ metric[target] for date, metric in metrics.items() ]
 
-            df_forecast = pd.read_csv(paths.to_forecast() + 'forecast.csv',index_col=0,parse_dates=True)
-            df_results = df_forecast[[col for col in df_forecast.columns if col.startswith(target)]]
+            task_i[target] = {}
+            task_i[target]['results'] = [df_result[[col for col in df_result.columns if col.startswith(target)]] for df_result in df_results]
+            task_i[target]['metrics'] = [ metric[target] for date, metric in metrics.items() ]
 
-            task_i['forecast'] = df_forecast
-            task_i['metrics'].append(ave_metrics[target])
+            df_forecast_ = pd.read_csv(paths.to_forecast() + 'forecast.csv',index_col=0,parse_dates=True)
+            df_results_ = df_forecast_[[col for col in df_forecast_.columns if col.startswith(target)]]
+
+            task_i[target]['forecast'] = df_forecast_
+            task_i[target]['metrics'].append(ave_metrics[target])
 
         return task_i
 
     def process_task_plot_predict_forecast(self, task):
-
-        if len(self.targets_list) > 1:
-            raise NonexistentTargetError(f"Plotting is not supported for {self.run_label} (multitarget)")
 
         plotting_tasks = []
         for t_task in task['task_plot']:
@@ -1707,12 +1583,18 @@ class ForecastingTaskSingleTarget:
                 train_forecast=t_task['train_forecast'],
                 verbose=self.verbose
             )
+            if len(task_i.keys()) > 1:
+                logger.info('Plotting multi-target forecasting...')
+
+            targets = list(task_i.keys())
+
             n = t_task['n']
-            if n > len(task_i['metrics'])-1:
+            if n > len(task_i[targets[0]]['metrics'])-1:
                 raise ValueError(f"Requested to plot n={n} "
-                                 f"past forecasts while only {len(task_i['metrics'])-1} are avaialble")
-            task_i['results'] = task_i['results'][-n:]
-            task_i['metrics'] = task_i['metrics'][-n-1:]
+                                 f"past forecasts while only {len(task_i[targets[0]]['metrics'])-1} are avaialble")
+            for target in targets:
+                task_i[target]['results'] = task_i[target]['results'][-n:]
+                task_i[target]['metrics'] = task_i[target]['metrics'][-n-1:]
             plotting_tasks.append(task_i | t_task)
 
             # model_label = t_task['model']
@@ -1754,8 +1636,8 @@ class ForecastingTaskSingleTarget:
             # task_i['metrics'].append(ave_metrics)
             #
             # plotting_tasks.append(task_i)
-        plot_time_series_with_residuals(
-            tasks=plotting_tasks, run_label=self.run_label, target=self.targets_list[0], ylabel=task["plot_label"]
+        plot_time_series_with_residuals_multi(
+            tasks=plotting_tasks, run_label=self.run_label, targets=self.targets_list, ylabel=task["plot_label"]
         )
         return plotting_tasks
 
@@ -1787,10 +1669,19 @@ class ForecastingTaskSingleTarget:
         res_models, res_drifts = analyze_model_performance(
             data=df, n_folds=task_['n_folds_best'], metric=task_['summary_metric']
         )
-        res_models = res_models[res_models['method'] == task_['method_for_best']] # train or forecast
-        best_model:str = str(res_models['model_label'].values[0]) # the best performing model
-        with open(outdir + "best_model.txt", 'w') as file:
-            file.write(best_model)
+        targets = df['target'].unique().tolist()
+        best_model = pd.DataFrame()
+        for target in targets:
+            res_models_ = res_models[
+                (res_models['method'] == task_['method_for_best']) & (res_models['target'] == target)
+            ]
+            if best_model is None: best_model = res_models_.copy()
+            else: best_model = pd.concat([best_model, res_models_.copy()],axis=0)
+
+        best_model.set_index('target', inplace=True)
+        best_model.to_json( outdir + "best_model.json", orient='index', indent=4)
+        # with open(outdir + "best_model.json", 'w') as file:
+        #     json.dump(best_model, file)
 
         # plot_metric_evolution(file_path=outdir+"summary_metrics.csv",metric='rmse')
 
@@ -1831,6 +1722,13 @@ class ForecastingTaskSingleTarget:
         # df.to_csv(outdir+t_task['train_forecast']+'summary.csv', index=False)
         #
 
+    def clean(self):
+        del self.df_forecast
+        del self.df_history
+        del self.task
+        self.targets_list = []
+        self.run_label = None
+        self.outdir_ = None
 
 if __name__ == '__main__':
     # add tests

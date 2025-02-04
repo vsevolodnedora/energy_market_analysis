@@ -13,31 +13,30 @@ from data_collection_modules.utils import compare_columns
 from logger import get_logger
 logger = get_logger(__name__)
 
-def preprocess_generation(df_gen:pd.DataFrame, drop_consumption:bool, verbose:bool)->pd.DataFrame:
+entsoe_generation_type_mapping = {
+    # non-renewables
+    "hard_coal": ["Fossil Hard coal Actual Aggregated"],
+    "lignite": ["Fossil Brown coal/Lignite Actual Aggregated"],
+    "gas": ["Fossil Gas Actual Aggregated"],
+    "coal_derived_gas": ["Fossil Coal-derived gas Actual Aggregated"], # Fossil Coal-derived gas Actual Aggregated
+    "oil": ["Fossil Oil Actual Aggregated"],
+    "other_fossil" : ["Other Actual Aggregated"], # Other renewable Actual Aggregated
+    "nuclear": ["Nuclear Actual Aggregated"],
+    # renewables (stable)
+    "biomass": ["Biomass Actual Aggregated"],
+    "waste": ["Waste Actual Aggregated"],
+    "geothermal": ["Geothermal Actual Aggregated"],
+    "other_renewables": ["Other renewable Actual Aggregated"],
+    "pumped_storage": ["Hydro Pumped Storage Actual Aggregated"],
+    "run_of_river": ["Hydro Run-of-river and poundage Actual Aggregated"],
+    "water_reservoir": ["Hydro Water Reservoir Actual Aggregated"],
+    # renewables (highly volatile)
+    "solar": ["Solar Actual Aggregated"],
+    "wind_onshore": ["Wind Onshore Actual Aggregated"],
+    "wind_offshore": ["Wind Offshore Actual Aggregated"],
+}
 
-    generation_type_mapping = {
-        "actual_load": ["Actual Load"],
-        # non-renewables
-        "hard_coal": ["Fossil Hard coal Actual Aggregated"],
-        "lignite": ["Fossil Brown coal/Lignite Actual Aggregated"],
-        "gas": ["Fossil Gas Actual Aggregated"],
-        "coal_derived_gas": ["Fossil Coal-derived gas Actual Aggregated"], # Fossil Coal-derived gas Actual Aggregated
-        "oil": ["Fossil Oil Actual Aggregated"],
-        "other_fossil" : ["Other Actual Aggregated"], # Other renewable Actual Aggregated
-        "nuclear": ["Nuclear Actual Aggregated"],
-        # renewables (stable)
-        "biomass": ["Biomass Actual Aggregated"],
-        "waste": ["Waste Actual Aggregated"],
-        "geothermal": ["Geothermal Actual Aggregated"],
-        "other_renewables": ["Other renewable Actual Aggregated"],
-        "pumped_storage": ["Hydro Pumped Storage Actual Aggregated"],
-        "run_of_river": ["Hydro Run-of-river and poundage Actual Aggregated"],
-        "water_reservoir": ["Hydro Water Reservoir Actual Aggregated"],
-        # renewables (highly volatile)
-        "solar": ["Solar Actual Aggregated"],
-        "wind_onshore": ["Wind Onshore Actual Aggregated"],
-        "wind_offshore": ["Wind Offshore Actual Aggregated"],
-    }
+def preprocess_generation(df_gen:pd.DataFrame, drop_consumption:bool, verbose:bool)->pd.DataFrame:
 
     df_gen.columns = [" ".join(a) for a in df_gen.columns.to_flat_index()]
 
@@ -52,7 +51,7 @@ def preprocess_generation(df_gen:pd.DataFrame, drop_consumption:bool, verbose:bo
         df_gen.drop(list(df_gen.filter(regex="Consumption")), axis=1, inplace=True)
 
     df_gen.interpolate(method="time", axis=0, inplace=True)
-    for joint_category, old_categories in generation_type_mapping.items():
+    for joint_category, old_categories in entsoe_generation_type_mapping.items():
         existing_columns = [col for col in old_categories if col in df_gen.columns]
         if existing_columns:
             # Sum up existing columns and drop them
@@ -189,8 +188,8 @@ def fetch_entsoe_data_from_api(working_dir:str, start_date:pd.Timestamp or None,
                     if verbose: logger.info(f"Collecting load for {region['name']} from {start_date} to {today}")
                     df_load = client.query_load_and_forecast(country_code=region['name'], start=start_date, end=today)
                     df_load.rename(columns={
-                        "Forecasted Load":"load_forecast",
-                        "Actual Load":"load",
+                        "Forecasted Load": "load_forecast",
+                        "Actual Load": "load",
                     }, inplace=True)
                     df_load.index = pd.to_datetime(df_load.index, utc=True).tz_convert(tz="UTC")
                     df_load.index.name = 'date'

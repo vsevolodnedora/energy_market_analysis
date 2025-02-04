@@ -1402,6 +1402,7 @@ class WeatherLoadFE(WeatherBasedFE):
 
         return aggregated_df
 
+    @staticmethod
     def selector_for_optuna(trial: optuna.Trial, fixed: dict) -> dict:
         """
         Example method for hyperparameter selection with Optuna for load forecasting.

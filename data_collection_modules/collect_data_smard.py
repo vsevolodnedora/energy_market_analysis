@@ -94,8 +94,7 @@ class DataEnergySMARD:
     # spot market
     SPOT_MARKET = [8004169]
 
-    # map original quantities to more easily readable ones
-    mapping = {
+    mapping_energy = {
         'Datum':'date',
         'Biomasse [MWh] Originalauflösungen' : "biomass",
         'Kernenergie [MWh] Originalauflösungen': 'nuclear_energy',
@@ -110,16 +109,19 @@ class DataEnergySMARD:
         'Wind Onshore [MWh] Originalauflösungen' : 'wind_onshore',
         'Photovoltaik [MWh] Originalauflösungen' : 'solar',
         'Sonstige [MWh] Berechnete Auflösungen' : 'other',
-        'Sonstige [MWh] Originalauflösungen' : 'other',
-        # load
+        'Sonstige [MWh] Originalauflösungen' : 'other'
+    }
+    mapping_load = {
         'Gesamt (Netzlast) [MWh] Originalauflösungen':'total_grid_load',
         'Gesamt [MWh] Berechnete Auflösungen':'total_load',
         'Gesamt [MWh] Originalauflösungen':'total',
-        'Residuallast [MWh] Originalauflösungen':'residual_load',
-        # prices
+        'Residuallast [MWh] Originalauflösungen':'residual_load'
+    }
+    mapping_prices = {
         'Deutschland/Luxemburg [€/MWh] Berechnete Auflösungen':'spot_price',
-        'Deutschland/Luxemburg [€/MWh] Originalauflösungen':'spot_price',
-        # trade
+        'Deutschland/Luxemburg [€/MWh] Originalauflösungen':'spot_price'
+    }
+    mapping_cross_border = {
         'Nettoexport [MWh] Originalauflösungen' : 'net_export',
         'Frankreich (Export) [MWh] Originalauflösungen':'france_export',
         'Frankreich (Import) [MWh] Originalauflösungen':'france_import',
@@ -142,8 +144,9 @@ class DataEnergySMARD:
         'Luxemburg (Export) [MWh] Originalauflösungen':'luxembourg_export',
         'Luxemburg (Import) [MWh] Originalauflösungen':'luxembourg_import',
         'Österreich (Export) [MWh] Originalauflösungen':'austria_export',
-        'Österreich (Import) [MWh] Originalauflösungen':'austria_import',
-        # wholesale trade
+        'Österreich (Import) [MWh] Originalauflösungen':'austria_import'
+    }
+    mapping_wholesale = {
         'Dänemark 1 [€/MWh] Originalauflösungen' : 'denmark_1',
         'Dänemark 2 [€/MWh] Originalauflösungen' : 'denmark_2',
         'Frankreich [€/MWh] Originalauflösungen' : 'france',
@@ -157,8 +160,75 @@ class DataEnergySMARD:
         'Italien (Nord) [€/MWh] Originalauflösungen' : 'italien_nord',
         'Slowenien [€/MWh] Originalauflösungen' : 'slovenia',
         'Ungarn [€/MWh] Originalauflösungen': 'hungary'
-
     }
+
+    mapping = mapping_energy | mapping_load | mapping_prices | mapping_cross_border | mapping_wholesale
+
+    # map original quantities to more easily readable ones
+    # mapping = {
+    #     'Datum':'date',
+    #     'Biomasse [MWh] Originalauflösungen' : "biomass",
+    #     'Kernenergie [MWh] Originalauflösungen': 'nuclear_energy',
+    #     'Erdgas [MWh] Originalauflösungen': 'natural_gas',
+    #     'Pumpspeicher [MWh] Originalauflösungen': 'pumped_storage',
+    #     'Sonstige Konventionelle [MWh] Originalauflösungen' : 'other_conventional',
+    #     'Braunkohle [MWh] Originalauflösungen' : 'lignite',
+    #     'Steinkohle [MWh] Originalauflösungen' : 'hard_coal',
+    #     'Sonstige Erneuerbare [MWh] Originalauflösungen' : 'other_renewables',
+    #     'Wasserkraft [MWh] Originalauflösungen' : 'hydropower',
+    #     'Wind Offshore [MWh] Originalauflösungen' : 'wind_offshore',
+    #     'Wind Onshore [MWh] Originalauflösungen' : 'wind_onshore',
+    #     'Photovoltaik [MWh] Originalauflösungen' : 'solar',
+    #     'Sonstige [MWh] Berechnete Auflösungen' : 'other',
+    #     'Sonstige [MWh] Originalauflösungen' : 'other',
+    #     # load
+    #     'Gesamt (Netzlast) [MWh] Originalauflösungen':'total_grid_load',
+    #     'Gesamt [MWh] Berechnete Auflösungen':'total_load',
+    #     'Gesamt [MWh] Originalauflösungen':'total',
+    #     'Residuallast [MWh] Originalauflösungen':'residual_load',
+    #     # prices
+    #     'Deutschland/Luxemburg [€/MWh] Berechnete Auflösungen':'spot_price',
+    #     'Deutschland/Luxemburg [€/MWh] Originalauflösungen':'spot_price',
+    #     # trade
+    #     'Nettoexport [MWh] Originalauflösungen' : 'net_export',
+    #     'Frankreich (Export) [MWh] Originalauflösungen':'france_export',
+    #     'Frankreich (Import) [MWh] Originalauflösungen':'france_import',
+    #     'Belgien (Export) [MWh] Originalauflösungen': 'belgium_export',
+    #     'Belgien (Import) [MWh] Originalauflösungen': 'belgium_import',
+    #     'Schweiz (Export) [MWh] Originalauflösungen':'switzerland_export',
+    #     'Schweiz (Import) [MWh] Originalauflösungen':'switzerland_import',
+    #     'Tschechien (Export) [MWh] Originalauflösungen':'czechia_export',
+    #     'Tschechien (Import) [MWh] Originalauflösungen':'czechia_import',
+    #     'Dänemark (Export) [MWh] Originalauflösungen':'denmark_export',
+    #     'Dänemark (Import) [MWh] Originalauflösungen':'denmark_import',
+    #     'Niederlande (Export) [MWh] Originalauflösungen':'netherlands_export',
+    #     'Niederlande (Import) [MWh] Originalauflösungen':'netherlands_import',
+    #     'Norwegen (Export) [MWh] Originalauflösungen':'norway_export',
+    #     'Norwegen (Import) [MWh] Originalauflösungen':'norway_import',
+    #     'Polen (Export) [MWh] Originalauflösungen':'poland_export',
+    #     'Polen (Import) [MWh] Originalauflösungen':'poland_import',
+    #     'Schweden (Export) [MWh] Originalauflösungen':'sweden_export',
+    #     'Schweden (Import) [MWh] Originalauflösungen':'sweden_import',
+    #     'Luxemburg (Export) [MWh] Originalauflösungen':'luxembourg_export',
+    #     'Luxemburg (Import) [MWh] Originalauflösungen':'luxembourg_import',
+    #     'Österreich (Export) [MWh] Originalauflösungen':'austria_export',
+    #     'Österreich (Import) [MWh] Originalauflösungen':'austria_import',
+    #     # wholesale trade
+    #     'Dänemark 1 [€/MWh] Originalauflösungen' : 'denmark_1',
+    #     'Dänemark 2 [€/MWh] Originalauflösungen' : 'denmark_2',
+    #     'Frankreich [€/MWh] Originalauflösungen' : 'france',
+    #     'Niederlande [€/MWh] Originalauflösungen': 'netherlands',
+    #     'Österreich [€/MWh] Originalauflösungen': 'austria',
+    #     'Polen [€/MWh] Originalauflösungen': 'poland',
+    #     'Schweden 4 [€/MWh] Originalauflösungen': 'sweden_4',
+    #     'Schweiz [€/MWh] Originalauflösungen': 'switzerland',
+    #     'Tschechien [€/MWh] Originalauflösungen': 'czechia',
+    #     'DE/AT/LU [€/MWh] Originalauflösungen': 'de_at_lu',
+    #     'Italien (Nord) [€/MWh] Originalauflösungen' : 'italien_nord',
+    #     'Slowenien [€/MWh] Originalauflösungen' : 'slovenia',
+    #     'Ungarn [€/MWh] Originalauflösungen': 'hungary'
+    #
+    # }
 
     def __init__(self, start_date:pd.Timestamp, end_date:pd.Timestamp, verbose:bool):
         self.start_date = start_date#-timedelta(milliseconds=1)

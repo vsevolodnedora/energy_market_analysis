@@ -99,8 +99,10 @@ def _adjust_dataframe_to_divisible_by_N(df, N, verbose:bool):
 
     return df
 
-def suggest_values_for_ds_pars_optuna(feature_engineering_pipeline:str, trial:optuna.Trial, fixed:dict):
+def suggest_values_for_ds_pars_optuna(feature_engineering_pipeline:str or None, trial:optuna.Trial, fixed:dict):
     config = {}
+    if feature_engineering_pipeline is None:
+        return config
 
     if feature_engineering_pipeline == 'WeatherWindPowerFE':
         config.update( WeatherWindPowerFE.selector_for_optuna( trial, fixed )  )
@@ -369,7 +371,7 @@ class HistForecastDataset:
         if 'lags_target' in config.keys() and not config['lags_target'] is None:
             for lag in range(1, self.lags_target+1):
                 for target_ in df_target_.columns:
-                    exog_forecast[f'{target_}_lag_{lag}'] = -1
+                    exog_forecast[f'{target_}_lag_{lag}'] = -1.0
 
         if not validate_dataframe_simple(exog_forecast):
             raise ValueError("Error in validating dataframe with engineered forecasted features")
@@ -401,6 +403,7 @@ class HistForecastDataset:
         df_res = pd.DataFrame()
 
         for type in ["_actual", "_fitted", "_lower", "_upper"]:
+
             df_i = result[[f"{col}{type}" for col in self.targets_list]]
 
             if len(df_i) > 0:
