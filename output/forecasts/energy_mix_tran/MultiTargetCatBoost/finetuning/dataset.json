@@ -1,0 +1,22 @@
+{
+    "log_target": false,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "copy_input": true,
+    "locations": [
+        "Stuttgart",
+        "Karlsruhe",
+        "Mannheim",
+        "Freiburg im Breisgau",
+        "Heidelberg"
+    ],
+    "add_cyclical_time_features": true,
+    "feature_engineer": null,
+    "spatial_agg_method": "mean",
+    "targets": [
+        "hard_coal_tran",
+        "renewables_tran"
+    ],
+    "label": "energy_mix_tran"
+}

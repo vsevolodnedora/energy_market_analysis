@@ -1,0 +1,128 @@
+{
+    "start_date": "2023-03-09T00:00:00+00:00",
+    "end_date": "2025-01-29T23:00:00+00:00",
+    "horizon": 168,
+    "features": [
+        "shortwave_radiation_sol_bottrop",
+        "direct_radiation_sol_bottrop",
+        "diffuse_radiation_sol_bottrop",
+        "direct_normal_irradiance_sol_bottrop",
+        "global_tilted_irradiance_sol_bottrop",
+        "terrestrial_radiation_sol_bottrop",
+        "cloud_cover_fraction_sol_bottrop",
+        "clear_sky_fraction_sol_bottrop",
+        "air_density_moist_sol_bottrop",
+        "diffuse_ratio_sol_bottrop",
+        "shortwave_radiation_sol_krchhellen",
+        "direct_radiation_sol_krchhellen",
+        "diffuse_radiation_sol_krchhellen",
+        "direct_normal_irradiance_sol_krchhellen",
+        "global_tilted_irradiance_sol_krchhellen",
+        "terrestrial_radiation_sol_krchhellen",
+        "cloud_cover_fraction_sol_krchhellen",
+        "clear_sky_fraction_sol_krchhellen",
+        "air_density_moist_sol_krchhellen",
+        "diffuse_ratio_sol_krchhellen",
+        "shortwave_radiation_sol_nettersheim",
+        "direct_radiation_sol_nettersheim",
+        "diffuse_radiation_sol_nettersheim",
+        "direct_normal_irradiance_sol_nettersheim",
+        "global_tilted_irradiance_sol_nettersheim",
+        "terrestrial_radiation_sol_nettersheim",
+        "cloud_cover_fraction_sol_nettersheim",
+        "clear_sky_fraction_sol_nettersheim",
+        "air_density_moist_sol_nettersheim",
+        "diffuse_ratio_sol_nettersheim",
+        "solar_elevation_deg_sol_bottrop",
+        "solar_azimuth_deg_sol_bottrop",
+        "solar_elevation_deg_sol_krchhellen",
+        "solar_azimuth_deg_sol_krchhellen",
+        "solar_elevation_deg_sol_nettersheim",
+        "solar_azimuth_deg_sol_nettersheim",
+        "hour",
+        "dayofweek",
+        "is_holiday",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos",
+        "solar_ampr_lag_1"
+    ],
+    "error_metrics": {
+        "2024-12-26T00:00:00+00:00": {
+            "solar_ampr": {
+                "mse": 76743.17863408297,
+                "rmse": 277.0255920200929,
+                "mae": 134.55847456593906,
+                "mape": 6357906731518.448,
+                "smape": 274.55533939557466,
+                "bias": -53.63046094261095,
+                "variance": 73866.95229316605,
+                "std": 271.784753606905,
+                "r2": 0.8981215281581777,
+                "prediction_interval_coverage": 0.8333333333333334,
+                "prediction_interval_width": 588.4235433538961
+            }
+        },
+        "2025-01-02T00:00:00+00:00": {
+            "solar_ampr": {
+                "mse": 56497.64252906284,
+                "rmse": 237.69232745097776,
+                "mae": 103.54558930791728,
+                "mape": 2848143173751.0586,
+                "smape": 279.165790131948,
+                "bias": -1.0481053293507716,
+                "variance": 56496.544004281415,
+                "std": 237.69001662729005,
+                "r2": 0.8358558840880403,
+                "prediction_interval_coverage": 0.8809523809523809,
+                "prediction_interval_width": 581.5885328292362
+            }
+        },
+        "2025-01-09T00:00:00+00:00": {
+            "solar_ampr": {
+                "mse": 112193.5181331698,
+                "rmse": 334.95300884328503,
+                "mae": 141.9809283311322,
+                "mape": 3327276992356.4043,
+                "smape": 266.72374507535636,
+                "bias": -40.48347089503501,
+                "variance": 110554.60671746066,
+                "std": 332.49752888925457,
+                "r2": 0.8841844772703648,
+                "prediction_interval_coverage": 0.8214285714285714,
+                "prediction_interval_width": 581.1454156360887
+            }
+        },
+        "2025-01-16T00:00:00+00:00": {
+            "solar_ampr": {
+                "mse": 302053.62291332433,
+                "rmse": 549.594052836568,
+                "mae": 246.14537144616077,
+                "mape": 2012843112520.609,
+                "smape": 274.55355773200256,
+                "bias": 243.0239489634006,
+                "variance": 242992.98314355878,
+                "std": 492.9431844985371,
+                "r2": 0.6416792504003808,
+                "prediction_interval_coverage": 0.7797619047619048,
+                "prediction_interval_width": 577.2470602132279
+            }
+        },
+        "2025-01-23T00:00:00+00:00": {
+            "solar_ampr": {
+                "mse": 55280.38730208447,
+                "rmse": 235.11781579047656,
+                "mae": 116.39362914639631,
+                "mape": 3474165260009.219,
+                "smape": 269.6929194264536,
+                "bias": 33.884327529428234,
+                "variance": 54132.2396499629,
+                "std": 232.66336121091973,
+                "r2": 0.9231224709936827,
+                "prediction_interval_coverage": 0.8690476190476191,
+                "prediction_interval_width": 588.7522023299698
+            }
+        }
+    }
+}

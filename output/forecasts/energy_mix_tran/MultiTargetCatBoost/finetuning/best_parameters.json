@@ -1,0 +1,12 @@
+{
+    "iterations": 316,
+    "learning_rate": 0.047082444104478156,
+    "depth": 4,
+    "l2_leaf_reg": 1.9822371690569892e-07,
+    "random_strength": 1.949165804741908e-05,
+    "bagging_temperature": 0.22280281323324402,
+    "border_count": 146,
+    "grow_policy": "SymmetricTree",
+    "leaf_estimation_iterations": 7,
+    "colsample_bylevel": 0.8091941671339024
+}

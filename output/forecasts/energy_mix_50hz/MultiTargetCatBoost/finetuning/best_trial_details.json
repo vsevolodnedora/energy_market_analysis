@@ -1,0 +1,16 @@
+{
+    "trial_id": 11,
+    "best_value": 0.29832396934791905,
+    "params": {
+        "iterations": 808,
+        "learning_rate": 0.04202583895363638,
+        "depth": 10,
+        "l2_leaf_reg": 0.03188846158283274,
+        "random_strength": 1.164152107572585e-06,
+        "bagging_temperature": 0.3319428365760766,
+        "border_count": 41,
+        "grow_policy": "Lossguide",
+        "leaf_estimation_iterations": 3,
+        "colsample_bylevel": 0.9898593776901115
+    }
+}

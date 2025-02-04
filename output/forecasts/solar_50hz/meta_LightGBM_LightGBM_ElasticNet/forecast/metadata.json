@@ -1,0 +1,128 @@
+{
+    "start_date": "2023-03-02T00:00:00+00:00",
+    "end_date": "2025-01-29T23:00:00+00:00",
+    "horizon": 168,
+    "features": [
+        "temperature_2m_agg",
+        "relative_humidity_2m_agg",
+        "surface_pressure_agg",
+        "precipitation_agg",
+        "cloud_cover_agg",
+        "shortwave_radiation_agg",
+        "direct_radiation_agg",
+        "diffuse_radiation_agg",
+        "direct_normal_irradiance_agg",
+        "global_tilted_irradiance_agg",
+        "terrestrial_radiation_agg",
+        "solar_elevation_deg_agg",
+        "solar_azimuth_deg_agg",
+        "air_density_moist_agg",
+        "direct_ratio_agg",
+        "diffuse_ratio_agg",
+        "global_tilted_ratio_agg",
+        "precip_lag_1_agg",
+        "precip_lag_6_agg",
+        "precip_lag_12_agg",
+        "precip_lag_24_agg",
+        "cloud_lag_1_agg",
+        "cloud_lag_3_agg",
+        "cloud_lag_6_agg",
+        "cloud_lag_12_agg",
+        "shortwave_lag_1_agg",
+        "shortwave_lag_3_agg",
+        "shortwave_lag_6_agg",
+        "shortwave_lag_12_agg",
+        "solar_elevation_deg_sol_witznitz",
+        "solar_azimuth_deg_sol_witznitz",
+        "solar_elevation_deg_sol_weesow",
+        "solar_azimuth_deg_sol_weesow",
+        "solar_elevation_deg_sol_meuro",
+        "solar_azimuth_deg_sol_meuro",
+        "solar_elevation_deg_sol_gottesgabe",
+        "solar_azimuth_deg_sol_gottesgabe",
+        "hour",
+        "dayofweek",
+        "is_holiday",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos"
+    ],
+    "error_metrics": {
+        "2024-12-26T00:00:00+00:00": {
+            "solar_50hz": {
+                "mse": 8042.6690840601705,
+                "rmse": 89.68092932201456,
+                "mae": 40.08370788702564,
+                "mape": 2528759022016.0674,
+                "smape": 276.69320080977656,
+                "bias": -3.600286877844173,
+                "variance": 8029.707018457395,
+                "std": 89.60863249965035,
+                "r2": 0.9888518937722114,
+                "prediction_interval_coverage": 0.9940476190476191,
+                "prediction_interval_width": 996.4606102613814
+            }
+        },
+        "2025-01-02T00:00:00+00:00": {
+            "solar_50hz": {
+                "mse": 28002.524131988946,
+                "rmse": 167.33954742376037,
+                "mae": 82.47439043334249,
+                "mape": 4750795859259.426,
+                "smape": 288.5668513259158,
+                "bias": 37.11028771345344,
+                "variance": 26625.350677813654,
+                "std": 163.17276328423705,
+                "r2": 0.9424376236894604,
+                "prediction_interval_coverage": 0.9583333333333334,
+                "prediction_interval_width": 996.4606102613811
+            }
+        },
+        "2025-01-09T00:00:00+00:00": {
+            "solar_50hz": {
+                "mse": 22228.019004220896,
+                "rmse": 149.09064023009927,
+                "mae": 67.78448249563917,
+                "mape": 2606172731703.107,
+                "smape": 275.0782415574783,
+                "bias": 4.217375008768538,
+                "variance": 22210.23275225631,
+                "std": 149.03097916962201,
+                "r2": 0.948377239401375,
+                "prediction_interval_coverage": 0.9880952380952381,
+                "prediction_interval_width": 996.4606102613814
+            }
+        },
+        "2025-01-16T00:00:00+00:00": {
+            "solar_50hz": {
+                "mse": 19131.671945625032,
+                "rmse": 138.31728722623586,
+                "mae": 64.9499565016744,
+                "mape": 4943962182864.484,
+                "smape": 263.688466746144,
+                "bias": 24.110757350879663,
+                "variance": 18550.343325592035,
+                "std": 136.19964510082997,
+                "r2": 0.989263181666962,
+                "prediction_interval_coverage": 0.9880952380952381,
+                "prediction_interval_width": 996.4606102613814
+            }
+        },
+        "2025-01-23T00:00:00+00:00": {
+            "solar_50hz": {
+                "mse": 33931.27298314082,
+                "rmse": 184.20443258277152,
+                "mae": 83.1248857087212,
+                "mape": 3086861381655.099,
+                "smape": 267.70578362930826,
+                "bias": -6.948294823297925,
+                "variance": 33882.99418218935,
+                "std": 184.07333914010837,
+                "r2": 0.9443736706959309,
+                "prediction_interval_coverage": 0.9642857142857143,
+                "prediction_interval_width": 996.4606102613814
+            }
+        }
+    }
+}

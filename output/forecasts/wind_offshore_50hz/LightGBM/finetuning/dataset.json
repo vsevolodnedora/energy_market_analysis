@@ -1,0 +1,17 @@
+{
+    "log_target": false,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "copy_input": true,
+    "locations": [
+        "Wikinger Offshore Wind Farm",
+        "Arkona Wind Farm"
+    ],
+    "add_cyclical_time_features": true,
+    "feature_engineer": "WeatherWindPowerFE",
+    "targets": [
+        "wind_offshore_50hz"
+    ],
+    "label": "wind_offshore_50hz"
+}

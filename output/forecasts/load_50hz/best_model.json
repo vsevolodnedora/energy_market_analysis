@@ -1,0 +1,7 @@
+{
+    "load_50hz":{
+        "method":"trained",
+        "model_label":"LightGBM",
+        "avg_rmse":558.5327250825
+    }
+}

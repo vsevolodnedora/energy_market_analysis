@@ -1,0 +1,17 @@
+{
+    "gas_ampr":{
+        "method":"trained",
+        "model_label":"MultiTargetLGBM",
+        "avg_rmse":806.6053993588
+    },
+    "hard_coal_ampr":{
+        "method":"trained",
+        "model_label":"ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)",
+        "avg_rmse":468.459070028
+    },
+    "lignite_ampr":{
+        "method":"trained",
+        "model_label":"ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)",
+        "avg_rmse":827.0306465162
+    }
+}

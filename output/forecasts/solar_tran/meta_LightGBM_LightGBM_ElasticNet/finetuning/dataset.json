@@ -1,0 +1,18 @@
+{
+    "log_target": false,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "add_cyclical_time_features": true,
+    "locations": [
+        "Ernsthof Solar Park",
+        "Solarpark Erbach",
+        "Solarpark Aalen"
+    ],
+    "feature_engineer": "WeatherSolarPowerFE",
+    "lags_target": null,
+    "copy_input": true,
+    "targets": [
+        "solar_tran"
+    ]
+}

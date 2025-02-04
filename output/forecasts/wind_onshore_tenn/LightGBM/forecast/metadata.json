@@ -1,0 +1,133 @@
+{
+    "start_date": "2023-03-02T00:00:00+00:00",
+    "end_date": "2025-01-29T23:00:00+00:00",
+    "horizon": 168,
+    "features": [
+        "temperature_2m_won_reussenkoege",
+        "relative_humidity_2m_won_reussenkoege",
+        "surface_pressure_won_reussenkoege",
+        "precipitation_won_reussenkoege",
+        "cloud_cover_won_reussenkoege",
+        "wind_speed_10m_won_reussenkoege",
+        "wind_speed_100m_won_reussenkoege",
+        "wind_direction_10m_won_reussenkoege",
+        "wind_gusts_10m_won_reussenkoege",
+        "wind_dir_sin_won_reussenkoege",
+        "wind_dir_cos_won_reussenkoege",
+        "wind_shear_won_reussenkoege",
+        "turbulence_intensity_won_reussenkoege",
+        "dew_point_temperature_won_reussenkoege",
+        "temperature_2m_won_jade",
+        "relative_humidity_2m_won_jade",
+        "surface_pressure_won_jade",
+        "precipitation_won_jade",
+        "cloud_cover_won_jade",
+        "wind_speed_10m_won_jade",
+        "wind_speed_100m_won_jade",
+        "wind_direction_10m_won_jade",
+        "wind_gusts_10m_won_jade",
+        "wind_dir_sin_won_jade",
+        "wind_dir_cos_won_jade",
+        "wind_shear_won_jade",
+        "turbulence_intensity_won_jade",
+        "dew_point_temperature_won_jade",
+        "temperature_2m_won_doerper",
+        "relative_humidity_2m_won_doerper",
+        "surface_pressure_won_doerper",
+        "precipitation_won_doerper",
+        "cloud_cover_won_doerper",
+        "wind_speed_10m_won_doerper",
+        "wind_speed_100m_won_doerper",
+        "wind_direction_10m_won_doerper",
+        "wind_gusts_10m_won_doerper",
+        "wind_dir_sin_won_doerper",
+        "wind_dir_cos_won_doerper",
+        "wind_shear_won_doerper",
+        "turbulence_intensity_won_doerper",
+        "dew_point_temperature_won_doerper",
+        "hour",
+        "dayofweek",
+        "is_holiday",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos"
+    ],
+    "error_metrics": {
+        "2024-12-26T00:00:00+00:00": {
+            "wind_onshore_tenn": {
+                "mse": 571198.954778468,
+                "rmse": 755.77705361996,
+                "mae": 534.305585728231,
+                "mape": 24.821702543925575,
+                "smape": 39.09314425607313,
+                "bias": 347.17567653895657,
+                "variance": 450668.00439818576,
+                "std": 671.318109690321,
+                "r2": 0.985143748808237,
+                "prediction_interval_coverage": 0.9583333333333334,
+                "prediction_interval_width": 3493.6696386342905
+            }
+        },
+        "2025-01-02T00:00:00+00:00": {
+            "wind_onshore_tenn": {
+                "mse": 918057.8848590708,
+                "rmse": 958.1533723048053,
+                "mae": 736.9958914347948,
+                "mape": 9.041975120560517,
+                "smape": 17.961573055368625,
+                "bias": -120.76452777341494,
+                "variance": 903473.8136907349,
+                "std": 950.5123953377646,
+                "r2": 0.960508384330943,
+                "prediction_interval_coverage": 0.9107142857142857,
+                "prediction_interval_width": 3493.6696386342905
+            }
+        },
+        "2025-01-09T00:00:00+00:00": {
+            "wind_onshore_tenn": {
+                "mse": 776747.5607930986,
+                "rmse": 881.3328320181307,
+                "mae": 637.303583157883,
+                "mape": 17.350106163326714,
+                "smape": 30.284394343651094,
+                "bias": -88.0124576002717,
+                "variance": 769001.3681002589,
+                "std": 876.9272307895673,
+                "r2": 0.9175794750843635,
+                "prediction_interval_coverage": 0.9464285714285714,
+                "prediction_interval_width": 3493.6696386342905
+            }
+        },
+        "2025-01-16T00:00:00+00:00": {
+            "wind_onshore_tenn": {
+                "mse": 505821.5203969176,
+                "rmse": 711.2113050260925,
+                "mae": 511.5754325045841,
+                "mape": 33.28150081831845,
+                "smape": 54.22892948670823,
+                "bias": 280.257339602378,
+                "variance": 427277.343995915,
+                "std": 653.6645500529419,
+                "r2": 0.6629298108134748,
+                "prediction_interval_coverage": 0.9702380952380952,
+                "prediction_interval_width": 3493.6696386342905
+            }
+        },
+        "2025-01-23T00:00:00+00:00": {
+            "wind_onshore_tenn": {
+                "mse": 1804576.2779880783,
+                "rmse": 1343.3451819945901,
+                "mae": 1040.9909783259159,
+                "mape": 15.469671842231472,
+                "smape": 31.529410412471588,
+                "bias": -166.73111367401413,
+                "variance": 1776777.0137211015,
+                "std": 1332.957993982219,
+                "r2": 0.8937620202778268,
+                "prediction_interval_coverage": 0.7976190476190477,
+                "prediction_interval_width": 3493.6696386342905
+            }
+        }
+    }
+}

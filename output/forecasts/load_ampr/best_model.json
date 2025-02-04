@@ -1,0 +1,7 @@
+{
+    "load_ampr":{
+        "method":"trained",
+        "model_label":"LightGBM",
+        "avg_rmse":927.1898176868
+    }
+}

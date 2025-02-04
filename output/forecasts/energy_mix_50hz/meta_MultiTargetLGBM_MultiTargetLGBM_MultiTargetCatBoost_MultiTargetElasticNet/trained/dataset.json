@@ -1,0 +1,36 @@
+{
+    "log_target": false,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "add_cyclical_time_features": true,
+    "locations": [
+        "Berlin",
+        "Hamburg",
+        "Leipzig",
+        "Dresden",
+        "Magdeburg"
+    ],
+    "feature_engineer": null,
+    "lags_target": null,
+    "copy_input": true,
+    "targets": [
+        "gas_50hz",
+        "hard_coal_50hz",
+        "lignite_50hz",
+        "renewables_50hz"
+    ],
+    "verbose": true,
+    "n_estimators": 547,
+    "learning_rate": 0.02003311257078428,
+    "num_leaves": 104,
+    "max_depth": 14,
+    "min_child_samples": 11,
+    "subsample": 0.8134567289321677,
+    "colsample_bytree": 0.517673220132107,
+    "reg_alpha": 1.76998077712211e-07,
+    "reg_lambda": 1.4635898848244261e-05,
+    "min_split_gain": 0.22845461643766685,
+    "use_base_models_pred_intervals": false,
+    "cv_folds_base": 40
+}

@@ -1,0 +1,17 @@
+{
+    "gas_50hz":{
+        "method":"trained",
+        "model_label":"ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)",
+        "avg_rmse":407.2187609926
+    },
+    "hard_coal_50hz":{
+        "method":"trained",
+        "model_label":"MultiTargetElasticNet",
+        "avg_rmse":181.2264352373
+    },
+    "lignite_50hz":{
+        "method":"trained",
+        "model_label":"ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)",
+        "avg_rmse":1028.5784212935
+    }
+}

@@ -1,0 +1,12 @@
+{
+    "hard_coal_tran":{
+        "method":"trained",
+        "model_label":"ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)",
+        "avg_rmse":420.2615203836
+    },
+    "renewables_tran":{
+        "method":"trained",
+        "model_label":"ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)",
+        "avg_rmse":243.931325126
+    }
+}

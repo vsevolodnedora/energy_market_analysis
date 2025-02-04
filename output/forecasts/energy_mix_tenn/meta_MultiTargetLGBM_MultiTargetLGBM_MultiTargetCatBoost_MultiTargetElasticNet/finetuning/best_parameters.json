@@ -1,0 +1,14 @@
+{
+    "n_estimators": 978,
+    "learning_rate": 0.01889845367159805,
+    "num_leaves": 98,
+    "max_depth": 13,
+    "min_child_samples": 95,
+    "subsample": 0.5262707333412572,
+    "colsample_bytree": 0.6603047663052906,
+    "reg_alpha": 5.064634133131134e-06,
+    "reg_lambda": 5.631806740671414e-07,
+    "min_split_gain": 0.4833783868436741,
+    "use_base_models_pred_intervals": false,
+    "cv_folds_base": 40
+}

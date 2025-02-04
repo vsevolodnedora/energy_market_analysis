@@ -1,0 +1,19 @@
+{
+    "log_target": false,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "add_cyclical_time_features": true,
+    "locations": [
+        "H\u00fcselitz Wind Farm",
+        "Werder/Kessin Wind Farm",
+        "Uckermark Enertrag Wind Farm",
+        "Feldheim Wind Farm"
+    ],
+    "feature_engineer": "WeatherWindPowerFE",
+    "lags_target": null,
+    "copy_input": true,
+    "targets": [
+        "wind_onshore_50hz"
+    ]
+}

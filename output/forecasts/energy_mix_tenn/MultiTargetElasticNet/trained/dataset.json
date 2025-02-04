@@ -1,0 +1,26 @@
+{
+    "log_target": false,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "copy_input": true,
+    "locations": [
+        "Munich",
+        "Bremen",
+        "Kiel",
+        "Kassel",
+        "Bremerhaven"
+    ],
+    "add_cyclical_time_features": true,
+    "feature_engineer": null,
+    "spatial_agg_method": "mean",
+    "targets": [
+        "gas_tenn",
+        "hard_coal_tenn",
+        "renewables_tenn"
+    ],
+    "label": "energy_mix_tenn",
+    "verbose": true,
+    "l1_ratio": 0.03713380078225045,
+    "alpha": 0.01209870122226215
+}

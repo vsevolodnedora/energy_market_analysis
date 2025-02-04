@@ -1,0 +1,19 @@
+{
+    "log_target": false,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "copy_input": true,
+    "locations": [
+        "Witznitz Solar Farm",
+        "Weesow-Willmersdorf Solar PV Park",
+        "Meuro Solar Park",
+        "Gottesgabe Solar Park"
+    ],
+    "add_cyclical_time_features": true,
+    "feature_engineer": "WeatherSolarPowerFE",
+    "targets": [
+        "solar_50hz"
+    ],
+    "label": "solar_50hz"
+}

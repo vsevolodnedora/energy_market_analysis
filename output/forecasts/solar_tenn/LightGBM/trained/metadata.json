@@ -1,0 +1,121 @@
+{
+    "start_date": "2023-03-02T00:00:00+00:00",
+    "end_date": "2025-01-29T23:00:00+00:00",
+    "horizon": 168,
+    "features": [
+        "shortwave_radiation_agg",
+        "direct_radiation_agg",
+        "diffuse_radiation_agg",
+        "direct_normal_irradiance_agg",
+        "global_tilted_irradiance_agg",
+        "terrestrial_radiation_agg",
+        "clear_sky_fraction_agg",
+        "air_density_agg",
+        "air_density_moist_agg",
+        "direct_ratio_agg",
+        "global_tilted_ratio_agg",
+        "dew_point_temperature_agg",
+        "vapor_pressure_agg",
+        "precip_lag_1_agg",
+        "precip_lag_6_agg",
+        "precip_lag_12_agg",
+        "precip_lag_24_agg",
+        "cloud_lag_1_agg",
+        "cloud_lag_3_agg",
+        "cloud_lag_6_agg",
+        "shortwave_lag_1_agg",
+        "shortwave_lag_3_agg",
+        "shortwave_lag_6_agg",
+        "shortwave_lag_12_agg",
+        "solar_elevation_deg_sol_lauingen",
+        "solar_azimuth_deg_sol_lauingen",
+        "solar_elevation_deg_sol_mengkofen",
+        "solar_azimuth_deg_sol_mengkofen",
+        "solar_elevation_deg_sol_eggebek",
+        "solar_azimuth_deg_sol_eggebek",
+        "hour",
+        "dayofweek",
+        "is_holiday",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos"
+    ],
+    "error_metrics": {
+        "2024-12-26T00:00:00+00:00": {
+            "solar_tenn": {
+                "mse": 384064.83645427716,
+                "rmse": 619.7296478741978,
+                "mae": 260.1893047314307,
+                "mape": 7329659174056.778,
+                "smape": 278.015384670609,
+                "bias": -13.514568754330602,
+                "variance": 383882.1928856616,
+                "std": 619.5822728949414,
+                "r2": 0.8143220454472614,
+                "prediction_interval_coverage": 0.9166666666666666,
+                "prediction_interval_width": 2449.779130603447
+            }
+        },
+        "2025-01-02T00:00:00+00:00": {
+            "solar_tenn": {
+                "mse": 91761.58613040147,
+                "rmse": 302.921749186818,
+                "mae": 144.67545149488947,
+                "mape": 6552305364557.668,
+                "smape": 286.8087061405168,
+                "bias": -47.063107456777416,
+                "variance": 89546.6500469133,
+                "std": 299.243462830708,
+                "r2": 0.8691366459676364,
+                "prediction_interval_coverage": 0.9880952380952381,
+                "prediction_interval_width": 2423.567830624136
+            }
+        },
+        "2025-01-09T00:00:00+00:00": {
+            "solar_tenn": {
+                "mse": 608721.1593170516,
+                "rmse": 780.2058441956531,
+                "mae": 291.1358256223053,
+                "mape": 5998982140101.784,
+                "smape": 276.11994475600534,
+                "bias": -245.4869371310563,
+                "variance": 548457.3230150642,
+                "std": 740.5790457574831,
+                "r2": 0.7877219674750512,
+                "prediction_interval_coverage": 0.9285714285714286,
+                "prediction_interval_width": 2453.2466445157565
+            }
+        },
+        "2025-01-16T00:00:00+00:00": {
+            "solar_tenn": {
+                "mse": 543551.403630717,
+                "rmse": 737.25938693971,
+                "mae": 353.0196286107632,
+                "mape": 8779771210589.938,
+                "smape": 275.17550217099654,
+                "bias": -222.93441656720816,
+                "variance": 493851.64954055543,
+                "std": 702.7457929725055,
+                "r2": 0.8843345942455846,
+                "prediction_interval_coverage": 0.8928571428571429,
+                "prediction_interval_width": 2393.7889073635015
+            }
+        },
+        "2025-01-23T00:00:00+00:00": {
+            "solar_tenn": {
+                "mse": 325290.01768172224,
+                "rmse": 570.3420181625428,
+                "mae": 251.72095005669442,
+                "mape": 6007155456539.267,
+                "smape": 261.72145319770823,
+                "bias": -221.00432130768354,
+                "variance": 276447.10764505237,
+                "std": 525.782376696911,
+                "r2": 0.8406014366903831,
+                "prediction_interval_coverage": 0.9166666666666666,
+                "prediction_interval_width": 2410.8825410526442
+            }
+        }
+    }
+}
