@@ -2,8 +2,6 @@ import copy, re, pandas as pd
 import numpy as np
 import os
 
-from future.utils import raise_
-
 from data_collection_modules.collect_data_openmeteo import OpenMeteo
 from data_collection_modules.german_locations import (
     de_regions,

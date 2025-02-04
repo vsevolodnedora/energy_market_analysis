@@ -1,7 +1,7 @@
 {
     "load_tenn":{
         "method":"trained",
-        "model_label":"XGBoost",
-        "avg_rmse":789.8888663889
+        "model_label":"LightGBM",
+        "avg_rmse":903.8278090367
     }
 }
