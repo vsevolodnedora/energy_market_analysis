@@ -2,16 +2,16 @@
     "gas_tenn":{
         "method":"trained",
         "model_label":"MultiTargetCatBoost",
-        "avg_rmse":706.6177140495
+        "avg_rmse":514.9770939449
     },
     "hard_coal_tenn":{
         "method":"trained",
         "model_label":"MultiTargetCatBoost",
-        "avg_rmse":362.4302571134
+        "avg_rmse":350.1239041295
     },
     "renewables_tenn":{
         "method":"trained",
         "model_label":"ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)",
-        "avg_rmse":215.7969808546
+        "avg_rmse":217.4324587519
     }
 }
