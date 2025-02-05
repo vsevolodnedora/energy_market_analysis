@@ -2,6 +2,6 @@
     "load_tenn":{
         "method":"trained",
         "model_label":"LightGBM",
-        "avg_rmse":903.8278090367
+        "avg_rmse":864.1623162549
     }
 }
