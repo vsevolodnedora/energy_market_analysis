@@ -192,7 +192,6 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                 # {'model':'ElasticNet', 'pars':{'cv_folds':cv_folds_eval}},
                 # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','pars':{'cv_folds':cv_folds_eval}},
                 # {'model':'ensemble[LightGBM](LightGBM,ElasticNet)','pars':{'cv_folds':cv_folds_eval}},
-                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','pars':{'cv_folds':cv_folds_eval}}
             ],
             "task_forecasting":[
                 # {'model':'Prophet'},
@@ -201,7 +200,6 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                 {'model':'ElasticNet', 'past_folds':cv_folds_eval},
                 {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','past_folds':cv_folds_eval},
                 {'model':'ensemble[LightGBM](LightGBM,ElasticNet)','past_folds':cv_folds_eval},
-                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','past_folds':cv_folds_eval}
             ],
             "task_plot":[
                 # {'model':'Prophet', 'n':2, 'name':"Prophet",'lw':0.7,'color':"red",'ci_alpha':0.0},
@@ -225,7 +223,6 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                 {'model':'ElasticNet', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
                 {'model':'ensemble[XGBoost](XGBoost,ElasticNet)', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
                 {'model':'ensemble[LightGBM](LightGBM,ElasticNet)', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
-                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)', 'summary_metric':'rmse'},
             ]
         }
     ]
@@ -401,10 +398,10 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
         # {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'pars':{'cv_folds':cv_folds_eval}}
     ]
     task_list_[0]["task_forecasting"] = [
-        # {'model':'MultiTargetCatBoost', 'past_folds':cv_folds_eval},
-        # {'model':'MultiTargetLGBM', 'past_folds':cv_folds_eval},
-        # {'model':'MultiTargetElasticNet', 'past_folds':cv_folds_eval},
-        # {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'past_folds':cv_folds_eval}
+        {'model':'MultiTargetCatBoost', 'past_folds':cv_folds_eval},
+        {'model':'MultiTargetLGBM', 'past_folds':cv_folds_eval},
+        {'model':'MultiTargetElasticNet', 'past_folds':cv_folds_eval},
+        {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'past_folds':cv_folds_eval}
     ]
     task_list_[0]["task_summarize"] = [
         { 'model':'MultiTargetCatBoost', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
@@ -413,14 +410,14 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
         { 'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'}
     ]
     task_list_[0]["task_plot"] = [
-        {'model':'MultiTargetCatBoost','n':2,  'name':'MultiTargetCatBoost','lw':1.0,
-            'color':"blue", 'ci_alpha':0.2, 'train_forecast':'train'},
-        {'model':'MultiTargetLGBM','n':2,  'name':'MultiTargetLGBM','lw':1.0,
-            'color':"green", 'ci_alpha':0.2, 'train_forecast':'train'},
-        {'model':'MultiTargetElasticNet','n':2,  'name':'MultiTargetElasticNet','lw':1.0,
-         'color':"red", 'ci_alpha':0.2, 'train_forecast':'train'},
-        {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)','n':2,  'name':'ensemble','lw':1.0,
-         'color':"magenta", 'ci_alpha':0.2, 'train_forecast':'train'}
+        # {'model':'MultiTargetCatBoost','n':2,  'name':'MultiTargetCatBoost','lw':1.0,
+        #     'color':"blue", 'ci_alpha':0.2, 'train_forecast':'train'},
+        # {'model':'MultiTargetLGBM','n':2,  'name':'MultiTargetLGBM','lw':1.0,
+        #     'color':"green", 'ci_alpha':0.2, 'train_forecast':'train'},
+        # {'model':'MultiTargetElasticNet','n':2,  'name':'MultiTargetElasticNet','lw':1.0,
+        #  'color':"red", 'ci_alpha':0.2, 'train_forecast':'train'},
+        # {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)','n':2,  'name':'ensemble','lw':1.0,
+        #  'color':"magenta", 'ci_alpha':0.2, 'train_forecast':'train'}
     ]
 
 
