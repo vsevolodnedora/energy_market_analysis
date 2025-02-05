@@ -621,7 +621,10 @@ async function updateChartGeneric(config) {
       dashArray: Array(regionConfigs.length).fill([3, 0, 3]).flat(), // Dynamically set dashArray
     },
 
-    tooltip: { theme: isDarkMode ? 'dark' : 'light' },
+    tooltip: {
+        theme: isDarkMode ? 'dark' : 'light' ,
+        format: 'dd MMM HH:mm', // e.g., "05 Feb 14:00"
+    },
     xaxis: {
       labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } },
       title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } },
@@ -670,17 +673,6 @@ async function updateChartGeneric(config) {
 
 }
 
-/************************************************************
- * =========================================================
- ************************************************************/
-
-const tsoColorMap = {
-  "50Hertz": "#0000FF",  // Blue
-  "TenneT": "#008000",   // Green
-  "TransnetBW": "#FF0000", // Red
-  "Amprion": "#FFFF00",  // Yellow
-  "Total": "#800090"     // Purple
-};
 
 /************************************************************
  * 5) Setup for the first chart
@@ -707,7 +699,7 @@ function getBaseChartOptions() {
                   const dateFormatter = new Intl.DateTimeFormat(currentLang, {
                       month: 'short',
                       day: 'numeric',
-                      // hour: '2-digit',
+                      hour: '2-digit',
                       // minute: '2-digit',
                       // hour12: false,
                   });
@@ -883,6 +875,14 @@ function generateForecastSection({ id, title, dataKey, descriptionFile, buttons 
 document.getElementById("individual-forecasts").innerHTML = forecastData
   .map(generateForecastSection)
   .join("");
+
+const tsoColorMap = {
+  "50Hertz": "#0000FF",  // Blue
+  "TenneT": "#008000",   // Green
+  "TransnetBW": "#FF0000", // Red
+  "Amprion": "#FFFF00",  // Yellow
+  "Total": "#800090"     // Purple
+};
 
 /************************************************************
  * 6.0) Define an array describing each chart
@@ -1181,7 +1181,6 @@ function toggleDarkMode() {
     }
   }
 }
-
 
 
 /************************************************************
