@@ -1793,7 +1793,7 @@ async function updateTotalLineChart(
         labels: {
           style: {
             colors: isDarkMode ? '#e0e0e0' : '#000',
-            fontSize: '13px'  // Correctly set font size
+            fontSize: '12px'  // Correctly set font size
           },
           formatter: function (val, timestamp) {
             const currentLang = i18next.language;
@@ -1810,13 +1810,13 @@ async function updateTotalLineChart(
         min: minYValue,
         title: {
           text: config.yAxisLabel,
-          style: { fontSize: '13px' } // Correct syntax for title font size
+          style: { fontSize: '12px' } // Correct syntax for title font size
         },
         labels: {
           formatter: val => val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(1),
           style: {  // Correct placement inside style
             colors: isDarkMode ? '#e0e0e0' : '#000',
-            fontSize: '13px'
+            fontSize: '12px'
           }
         }
       },
@@ -1904,7 +1904,7 @@ async function updateTotalLineChart2(
         labels: {
           style: {
             colors: isDarkMode ? '#e0e0e0' : '#000',
-            fontSize: '13px'  // Ensure font size is applied
+            fontSize: '12px'  // Ensure font size is applied
           },
           formatter: function (val, timestamp) {
             const currentLang = i18next.language;
@@ -1921,13 +1921,13 @@ async function updateTotalLineChart2(
         min: minYValue,  // Dynamically set based on data
         title: {
           text: 'Carbon Intensity (gCO₂/kWh)',
-          style: { fontSize: '13px' } // Corrected font size application
+          style: { fontSize: '12px' } // Corrected font size application
         },
         labels: {
           formatter: val => val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(1),
           style: {  // Properly applying font size
             colors: isDarkMode ? '#e0e0e0' : '#000',
-            fontSize: '13px'
+            fontSize: '12px'
           }
         }
       },
@@ -2060,14 +2060,14 @@ function updateStackedChart(config, finalSeries, forecastStartTime) {
             labels: {
                 style: {
                     colors: isDarkMode ? '#e0e0e0' : '#000',
-                    fontSize: '13px'  // Ensure font size is applied
+                    fontSize: '12px'  // Ensure font size is applied
                 }
             },
             title: {
                 text: config.xAxisLabel || '', // Ensure a title is set if needed
                 style: {
                     color: isDarkMode ? '#e0e0e0' : '#000',
-                    fontSize: '13px'  // Apply font size to the x-axis title
+                    fontSize: '12px'  // Apply font size to the x-axis title
                 }
             }
         },
@@ -2076,14 +2076,14 @@ function updateStackedChart(config, finalSeries, forecastStartTime) {
             title: {
                 text: config.yAxisLabel,
                 style: {
-                    fontSize: '13px'  // Corrected font size application
+                    fontSize: '12px'  // Corrected font size application
                 }
             },
             labels: {
                 formatter: val => val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(1),
                 style: {
                     colors: isDarkMode ? '#e0e0e0' : '#000',
-                    fontSize: '13px'  // Correctly applying font size
+                    fontSize: '12px'  // Correctly applying font size
                 }
             }
         },
