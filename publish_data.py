@@ -1053,7 +1053,7 @@ TODO: add general analysis
 
 class TargetData:
 
-    def __init__(self, results_root_dir:str, verbose:bool):
+    def __init__(self, results_root_dir:str, verbose:bool, positive_floor:float or None):
 
         self.results_root_dir = results_root_dir
 
@@ -1076,6 +1076,8 @@ class TargetData:
         self.additional_metrics: dict = {}
 
         self.verbose = verbose
+
+        self.positive_floor = positive_floor
 
     def load_summary(self, target_label:str, de_reg:dict):
 
@@ -1123,7 +1125,9 @@ class TargetData:
             index_col=0, parse_dates=True)
         self.df_train_res.columns = [ col.replace(suffix, '') for col in self.df_train_res.columns ]
         self.df_train_res = self.df_train_res[[f'{target}_{key}' for key in ['actual', 'fitted', 'lower', 'upper']]]
+        if not self.positive_floor is None: self.df_train_res[self.df_train_res < 0.] = 0.
 
+        # load past forecasts
         self.df_forecast_res = pd.read_csv(
             f"{self.results_root_dir}{var}/{best_model}/{'forecast'}/result.csv",
             index_col=0, parse_dates=True)
@@ -1131,6 +1135,7 @@ class TargetData:
         self.df_forecast_res = self.df_forecast_res[[
             f'{target}_{key}' for key in ['actual', 'fitted', 'lower', 'upper']
         ]]
+        if not self.df_forecast_res is None: self.df_forecast_res[self.df_forecast_res < 0.] = 0.
 
         # load forecast
         self.df_forecast = pd.read_csv(
@@ -1138,6 +1143,7 @@ class TargetData:
             index_col=0, parse_dates=True)
         self.df_forecast.columns = [ col.replace(suffix, '') for col in self.df_forecast.columns ]
         self.df_forecast = self.df_forecast[[f'{target}_{key}' for key in ['actual', 'fitted', 'lower', 'upper']]]
+        if not self.df_forecast is None: self.df_forecast[self.df_forecast < 0.] = 0.
 
         # load timestamp when the model was last trained and forecasted
         with open(f"{self.results_root_dir}{var}/{best_model}/{'finetuning'}/datetime.json", "r") as file:
@@ -1735,9 +1741,9 @@ class PublishGenerationLoad:
         self.output_dir_for_figs = output_dir_for_figs
         self.output_dir_for_api = output_dir_for_api
 
-    def set_load_output_results(self, de_reg:dict, target_label:str):
+    def set_load_output_results(self, de_reg:dict, target_label:str, positive_floor:float):
 
-        dt = TargetData(self.results_root_dir, self.verbose)
+        dt = TargetData(self.results_root_dir, self.verbose, positive_floor)
         dt.load_summary(target_label, de_reg) # load sumamry for target(s)
         # d = TargetData(self.results_root_dir, self.verbose)
         # dts_tarets = {}
@@ -1748,7 +1754,7 @@ class PublishGenerationLoad:
         for target, target_dict in dt.best_models.items():
             target_dict = dt.best_models[target]
             target = target.replace(de_reg['suffix'], '')
-            dts[target] = TargetData(self.results_root_dir, self.verbose)
+            dts[target] = TargetData(self.results_root_dir, self.verbose, positive_floor)
             dts[target].load_summary(target_label, de_reg) # load sumamry for target(s)
             dts[target].load_target_data(target_label, target, de_reg=de_reg, best_model=target_dict['model_label']) # load target
             logger.info(f"Added {target} data for {de_reg['suffix']} (model {target_dict['model_label']})")
@@ -1788,7 +1794,7 @@ class PublishGenerationLoad:
                     logger.warning(f"Missing directory {self.results_root_dir}{target_+suffix}/")
                     continue
                 # logger.info(f"Adding {target_} to total {target}")
-                dts[target_] = TargetData( self.results_root_dir, self.verbose )
+                dts[target_] = TargetData( self.results_root_dir, self.verbose, positive_floor )
                 dts[target_].load_summary( target_, de_reg ) # load sumamry for target(s)
                 dts[target_].load_target_data( target_, target_, de_reg=de_reg, best_model=None )
                 # dts_tarets[target_] = copy.deepcopy(dt)
@@ -1796,7 +1802,7 @@ class PublishGenerationLoad:
 
         # add total generation
         if target_label == 'energy_mix':
-            dts['generation'] = TargetData(self.results_root_dir, self.verbose)
+            dts['generation'] = TargetData(self.results_root_dir, self.verbose, positive_floor)
             logger.info(f"Added generation data (summing all contributions) for {target_label}")
             for target, dt_ in dts.items():
                 if target == 'generation': continue
@@ -1810,7 +1816,7 @@ class PublishGenerationLoad:
             if not os.path.exists(f'{self.results_root_dir}{target_+suffix}/'):
                 logger.warning(f"Missing directory {self.results_root_dir}{target_+suffix}/")
                 raise KeyError("Missing load")
-            dts['load'] = TargetData( self.results_root_dir, self.verbose )
+            dts['load'] = TargetData( self.results_root_dir, self.verbose, positive_floor)
             dts[target_].load_summary( target_, de_reg ) # load sumamry for target(s)
             dts[target_].load_target_data( target_, target_, de_reg=de_reg, best_model=None )
 
@@ -2054,7 +2060,7 @@ For a detailed breakdown of forecast error metrics, see the **'Individual Foreca
 
         # return report
 
-    def process(self, target_label:str, avail_regions:tuple):
+    def process(self, target_label:str, avail_regions:tuple,positive_floor:float or None):
         # compute forecast error over the past N horizons
         if target_label == 'energy_mix':
             target = 'generation'
@@ -2073,10 +2079,13 @@ For a detailed breakdown of forecast error metrics, see the **'Individual Foreca
                 continue
 
             dt_tso[region_dict['TSO']], dts_tso[region_dict['TSO']], metadatas_tso[region_dict['TSO']] = \
-                self.set_load_output_results( de_reg=region_dict, target_label=target_label )
+                self.set_load_output_results(
+                    de_reg=region_dict, target_label=target_label, positive_floor=positive_floor
+                )
 
             for target_, dt in dts_tso[region_dict['TSO']].items():
-                if not target_ in dts_total: dts_total[target_] = TargetData(self.results_root_dir, self.verbose)
+                if not target_ in dts_total: dts_total[target_] = \
+                    TargetData(self.results_root_dir, self.verbose, positive_floor)
                 dts_total[target_] = add_datas(dts_total[target_], dt, target_, target_, False)
 
 
@@ -2195,16 +2204,17 @@ def publish_main():
         verbose=True
     )
     target_settings = [
-        {'label' : 'wind_offshore', 'target' : 'wind_offshore', "regions" : ('DE_50HZ', 'DE_TENNET')},
-        {'label' : 'wind_onshore', 'target' : 'wind_onshore', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')},
-        {'label' : 'solar', 'target' : 'solar', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')},
-        {'label' : 'load', 'target' : 'load', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')},
-        {'label' : 'energy_mix', 'target' : 'energy_mix', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')}
+        {'label' : 'wind_offshore', 'target' : 'wind_offshore', "regions" : ('DE_50HZ', 'DE_TENNET'), 'positive_floor':0},
+        {'label' : 'wind_onshore', 'target' : 'wind_onshore', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0},
+        {'label' : 'solar', 'target' : 'solar', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0},
+        {'label' : 'load', 'target' : 'load', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0},
+        {'label' : 'energy_mix', 'target' : 'energy_mix', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0}
     ]
     for target_dict in target_settings:
         publisher.process(
             target_label=target_dict['label'],
-            avail_regions=target_dict['regions']
+            avail_regions=target_dict['regions'],
+            positive_floor=target_dict['positive_floor']
         )
 
 
