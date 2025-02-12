@@ -1,0 +1,7 @@
+{
+    "wind_onshore_tenn": {
+        "method": "trained",
+        "model_label": "ensemble[LightGBM](LightGBM,ElasticNet)",
+        "avg_rmse": 1089.864867610954
+    }
+}

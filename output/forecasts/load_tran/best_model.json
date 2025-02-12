@@ -1,7 +1,7 @@
 {
-    "load_tran":{
-        "method":"trained",
-        "model_label":"XGBoost",
-        "avg_rmse":467.5488179873
+    "load_tran": {
+        "method": "trained",
+        "model_label": "XGBoost",
+        "avg_rmse": 335.54549478352016
     }
 }
