@@ -2108,6 +2108,7 @@ function getForecastAnnotations(forecastStartTime, withText, withNow) {
      * Generates forecast annotations for charts.
      * @param {number|null} forecastStartTime - Timestamp where the forecast starts.
      * @param {boolean} withText - Determines if labels should be shown.
+     * @param {boolean} withNow - Determines if the "now" annotation should have a label.
      * @returns {Array} Annotations array for the chart.
      */
 
@@ -2115,10 +2116,12 @@ function getForecastAnnotations(forecastStartTime, withText, withNow) {
     const nowAnnotation = {
         x: now.getTime(),
         borderColor: '#FF0000',
-        label: {
-            text: withNow ? i18next.t('now-label') : null,
-            style: { color: '#FFF', background: '#FF0000' }
-        }
+        ...(withNow && { // Only add the label property if withNow is true
+            label: {
+                text: i18next.t('now-label'),
+                style: { color: '#FFF', background: '#FF0000' }
+            }
+        })
     };
 
     if (!forecastStartTime) return [nowAnnotation];
@@ -2167,6 +2170,7 @@ function getForecastAnnotations(forecastStartTime, withText, withNow) {
         nowAnnotation
     ];
 }
+
 
 // Insert all figures into #energy-mix
 //document.getElementById("energy-mix").innerHTML =
