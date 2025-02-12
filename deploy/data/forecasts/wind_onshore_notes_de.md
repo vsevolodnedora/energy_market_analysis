@@ -5,6 +5,6 @@ Die SMARD __Tagesprognose__ weist eine durchschnittliche Genauigkeit von __1940_
 | ÜNB/Region   | Trainingsdatum   |   Anzahl der Merkmale | Bestes Modell   |   RMSE |   TSO RMSE |
 |:-------------|:-----------------|----------------------:|:----------------|-------:|-----------:|
 | Amprion      | 2025-02-09       |                    28 | LightGBM        |    813 |        505 |
-| 50Hertz      | 2025-02-09       |                    71 | Ensemble        |   1140 |        986 |
+| 50Hertz      | 2025-02-09       |                    71 | Ensemble        |   1141 |        986 |
 | TenneT       | 2025-02-09       |                    23 | Ensemble        |   1509 |        933 |
 | TransnetBW   | 2025-02-09       |                    49 | LightGBM        |    159 |        156 |
