@@ -2,6 +2,6 @@
     "solar_ampr": {
         "method": "trained",
         "model_label": "ensemble[LightGBM](LightGBM,ElasticNet)",
-        "avg_rmse": 325.06715937320564
+        "avg_rmse": 332.1075784753716
     }
 }

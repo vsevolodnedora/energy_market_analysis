@@ -2,6 +2,6 @@
     "solar_50hz": {
         "method": "trained",
         "model_label": "XGBoost",
-        "avg_rmse": 439.4077153440534
+        "avg_rmse": 468.776743284375
     }
 }
