@@ -1,10 +1,10 @@
 
-Our __week-ahead__ forecast has average RMSE of __2964__.  
-SMARD __day-ahead__ forecast has average accuracy of __3467__. 
+Our __week-ahead__ forecast has average RMSE of __3896__.  
+SMARD __day-ahead__ forecast has average accuracy of __4173__. 
     
-| TSO/Region   | Train Date   |   N Features | Best Model          |   RMSE |   TSO RMSE |
-|:-------------|:-------------|-------------:|:--------------------|-------:|-----------:|
-| Amprion      | 2025-02-04   |           28 | MultiTargetCatBoost |   1445 |       1676 |
-| 50Hertz      | 2025-02-04   |           44 | MultiTargetCatBoost |   1529 |       4374 |
-| TenneT       | 2025-02-04   |           33 | MultiTargetCatBoost |   1558 |       1398 |
-| TransnetBW   | 2025-02-04   |           32 | Ensemble            |    574 |       1222 |
+| TSO/Region   | Train Date   |   N Features | Best Model            |   RMSE |   TSO RMSE |
+|:-------------|:-------------|-------------:|:----------------------|-------:|-----------:|
+| Amprion      | 2025-02-09   |           28 | MultiTargetLGBM       |   1666 |       1526 |
+| 50Hertz      | 2025-02-09   |           44 | MultiTargetLGBM       |   1887 |       4312 |
+| TenneT       | 2025-02-09   |           33 | MultiTargetElasticNet |   1873 |       1541 |
+| TransnetBW   | 2025-02-09   |           70 | MultiTargetLGBM       |    821 |       1328 |

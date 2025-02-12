@@ -15,12 +15,15 @@
     "feature_engineer": null,
     "spatial_agg_method": "mean",
     "targets": [
+        "biomass_tenn",
         "gas_tenn",
         "hard_coal_tenn",
-        "renewables_tenn"
+        "oil_tenn",
+        "renewables_tenn",
+        "waste_tenn"
     ],
     "label": "energy_mix_tenn",
     "verbose": true,
-    "l1_ratio": 0.03713380078225045,
-    "alpha": 0.01209870122226215
+    "l1_ratio": 0.5169165797768622,
+    "alpha": 0.012965622786696558
 }

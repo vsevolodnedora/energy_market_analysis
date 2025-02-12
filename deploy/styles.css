@@ -1368,3 +1368,42 @@ body.dark-mode .toggle-button {
 body.dark-mode .toggle-button:hover {
   background-color: #1c163d;
 }
+
+/* ============================================= */
+/* =============== ENERGY MIX =============== */
+/* ============================================= */
+
+.chart-stack-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.lineChart2-container,
+.lineChart-container,
+.stackedChart-container {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  display: block;
+  position: relative;
+}
+
+.lineChart2-container {
+  margin-bottom: -20px; /* Ensures tight stacking */
+}
+
+.lineChart-container {
+  margin-bottom: -10px; /* Ensures tight stacking */
+}
+
+.stackedChart-container {
+  margin-top: -10px; /* Ensures no gaps between charts */
+}
+
+
+/* For example, if your forecast sub-series is given a name containing "Forecast" */
+.apexcharts-series[data-series-name*="Forecast"] .apexcharts-line {
+  stroke-dasharray: 5 !important;
+}

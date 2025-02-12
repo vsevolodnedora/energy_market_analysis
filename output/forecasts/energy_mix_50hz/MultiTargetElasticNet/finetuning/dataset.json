@@ -15,10 +15,14 @@
     "feature_engineer": null,
     "spatial_agg_method": "mean",
     "targets": [
+        "biomass_50hz",
         "gas_50hz",
         "hard_coal_50hz",
         "lignite_50hz",
-        "renewables_50hz"
+        "oil_50hz",
+        "other_fossil_50hz",
+        "renewables_50hz",
+        "waste_50hz"
     ],
     "label": "energy_mix_50hz"
 }

@@ -15,13 +15,17 @@
     "feature_engineer": null,
     "spatial_agg_method": "mean",
     "targets": [
+        "biomass_ampr",
+        "coal_derived_gas_ampr",
         "gas_ampr",
         "hard_coal_ampr",
         "lignite_ampr",
-        "renewables_ampr"
+        "other_fossil_ampr",
+        "renewables_ampr",
+        "waste_ampr"
     ],
     "label": "energy_mix_ampr",
     "verbose": true,
-    "l1_ratio": 0.9832701230432744,
-    "alpha": 0.4276666314891246
+    "l1_ratio": 0.5288230266872994,
+    "alpha": 0.012989413531863121
 }

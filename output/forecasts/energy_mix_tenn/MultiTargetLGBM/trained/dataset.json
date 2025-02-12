@@ -15,20 +15,23 @@
     "feature_engineer": null,
     "spatial_agg_method": "mean",
     "targets": [
+        "biomass_tenn",
         "gas_tenn",
         "hard_coal_tenn",
-        "renewables_tenn"
+        "oil_tenn",
+        "renewables_tenn",
+        "waste_tenn"
     ],
     "label": "energy_mix_tenn",
     "verbose": true,
-    "n_estimators": 555,
-    "learning_rate": 0.05914655033730062,
-    "num_leaves": 64,
-    "max_depth": 10,
-    "min_child_samples": 6,
-    "subsample": 0.7382901317918728,
-    "colsample_bytree": 0.6924878396188049,
-    "reg_alpha": 0.000264716045642468,
-    "reg_lambda": 1.9499556244659796e-08,
-    "min_split_gain": 0.4973218541996427
+    "n_estimators": 349,
+    "learning_rate": 0.010343883448616378,
+    "num_leaves": 11,
+    "max_depth": 3,
+    "min_child_samples": 11,
+    "subsample": 0.9999779179195494,
+    "colsample_bytree": 0.6595576409415354,
+    "reg_alpha": 0.0008736405810698905,
+    "reg_lambda": 4.897316715456219e-07,
+    "min_split_gain": 0.49173511125361946
 }

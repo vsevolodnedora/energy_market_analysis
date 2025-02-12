@@ -164,13 +164,27 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
         target_cols =  df_entsoe[[
             target_ for target_ in targets if not target_ in list(aggregations.keys()) and target_ in df_entsoe.columns
         ]]
+        dropped_cols = []
         for col in target_cols:
-            if len(df_entsoe[col].unique()) < len(df_entsoe[col])*.1:
+            if len(df_entsoe[col].unique()) < len(df_entsoe[col])*.01:
                 if verbose: logger.warning(
                     f"Dropping target column {col} as there are only { len(df_entsoe[col].unique()) } unique values. "
-                    f"Sum={pd.Series(df_entsoe[col]).sum():.1f}."
+                    f"Sum={pd.Series(df_entsoe[col]).sum():.1e}."
                 )
                 target_cols = target_cols.drop(columns=[col])
+                dropped_cols.append(col)
+        dropped_data = {col: df_entsoe[col].sum()/target_cols.sum().sum() for col in dropped_cols}
+        for col, val in dropped_data.items():
+            if val > 0.1:
+                logger.error(
+                    f"Dropped column {col} has {val:.2f} fraction of power for TSO={tso_name} in all columns to forecast. "
+                    f"Adding it back."
+                )
+                target_cols = pd.merge(target_cols, df_entsoe[col], left_index=True, right_index=True, how='left')
+
+                # import matplotlib.pyplot as plt
+                # plt.plot(target_cols.index, target_cols[col])
+                # plt.show()
 
         # add aggregations if any
         for key in targets:

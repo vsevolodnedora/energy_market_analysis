@@ -15,9 +15,13 @@
     "lags_target": null,
     "copy_input": true,
     "targets": [
+        "biomass_ampr",
+        "coal_derived_gas_ampr",
         "gas_ampr",
         "hard_coal_ampr",
         "lignite_ampr",
-        "renewables_ampr"
+        "other_fossil_ampr",
+        "renewables_ampr",
+        "waste_ampr"
     ]
 }

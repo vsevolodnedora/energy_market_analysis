@@ -15,11 +15,14 @@
     "feature_engineer": null,
     "spatial_agg_method": "mean",
     "targets": [
+        "biomass_tran",
+        "gas_tran",
         "hard_coal_tran",
+        "oil_tran",
         "renewables_tran"
     ],
     "label": "energy_mix_tran",
     "verbose": true,
-    "l1_ratio": 0.5790226122442442,
-    "alpha": 0.013348824693491787
+    "l1_ratio": 0.38478011436338866,
+    "alpha": 0.3066052808079468
 }

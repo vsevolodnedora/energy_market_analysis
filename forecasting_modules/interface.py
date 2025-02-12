@@ -1,4 +1,4 @@
-import copy, gc, re, pandas as pd, numpy as np, matplotlib.pyplot as plt
+import time, copy, gc, re, pandas as pd, numpy as np, matplotlib.pyplot as plt
 import os.path; from datetime import datetime, timedelta
 
 from data_collection_modules import OpenMeteo
@@ -90,8 +90,7 @@ def main_forecasting_pipeline(task_list:list, outdir:str, database:str, verbose:
 def update_forecast_production(database:str, outdir:str, variable:str, verbose:bool):
     cv_folds_ft = 3
     cv_folds_eval = 5
-    task_list = [
-        {
+    task_list = [{
             "label":["wind_offshore_tenn"],
             "targets": "wind_offshore_tenn",
             "region": "DE_TENNET",
@@ -224,8 +223,7 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                 {'model':'ensemble[XGBoost](XGBoost,ElasticNet)', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
                 {'model':'ensemble[LightGBM](LightGBM,ElasticNet)', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
             ]
-        }
-    ]
+    }]
 
     ''' -------------- OFFSHORE WIND POWER GENERATION (2 TSOs) ------------- '''
 
@@ -325,8 +323,107 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
 
     ''' -------------- MIX (4 TSOs) ------------- '''
 
-    task_list_ = copy.deepcopy(task_list)
-    task_list_[0]['task_fine_tuning'] = [
+    task_list = [{
+        "label":["energy_mix_tenn"],
+        "targets": "energy_mix_tenn",
+        "region": "DE_TENNET",
+        "plot_label": "Energy Mix (TenneT) [MW]",
+        "aggregations": {},
+        "task_fine_tuning":[
+            # {'model':'MultiTargetCatBoost',
+            #  'dataset_pars':{
+            #      'log_target':False,
+            #      # 'lags_target': None,
+            #      'forecast_horizon':None,
+            #      'target_scaler':'StandardScaler',
+            #      'feature_scaler':'StandardScaler',
+            #      'copy_input':True,
+            #      'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
+            #      'add_cyclical_time_features':True,
+            #      'feature_engineer':None,#'WeatherLoadPowerFE',
+            #      'spatial_agg_method': 'mean' # fix
+            #
+            #  },
+            #  'finetuning_pars':{'n_trials':20,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+            # {'model':'MultiTargetLGBM',
+            #  'dataset_pars':{
+            #      'log_target':False,
+            #      # 'lags_target': None,
+            #      'forecast_horizon':None,
+            #      'target_scaler':'StandardScaler',
+            #      'feature_scaler':'StandardScaler',
+            #      'copy_input':True,
+            #      'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
+            #      'add_cyclical_time_features':True,
+            #      'feature_engineer':None,#'WeatherLoadPowerFE',
+            #      'spatial_agg_method': 'mean' # fix
+            #
+            #  },
+            #  'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+            # {'model':'MultiTargetElasticNet',
+            #  'dataset_pars':{
+            #      'log_target':False,
+            #      # 'lags_target': None,
+            #      'forecast_horizon':None,
+            #      'target_scaler':'StandardScaler',
+            #      'feature_scaler':'StandardScaler',
+            #      'copy_input':True,
+            #      'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
+            #      'add_cyclical_time_features':True,
+            #      'feature_engineer':None,#'WeatherLoadPowerFE',
+            #      'spatial_agg_method': 'mean' # fix
+            #
+            #  },
+            #  'finetuning_pars':{'n_trials':50,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+            # {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)',
+            #  'dataset_pars': {
+            #      'log_target':False,
+            #      'forecast_horizon':None,
+            #      'target_scaler':'StandardScaler',
+            #      'feature_scaler':'StandardScaler',
+            #      'add_cyclical_time_features':True,
+            #      'locations':[loc for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
+            #      'feature_engineer': None,#'WeatherWindPowerFE',
+            #      'lags_target': None,
+            #      'copy_input':True
+            #  },
+            #  'finetuning_pars':{'n_trials':40,
+            #                     'optim_metric':'rmse',
+            #                     'cv_folds':cv_folds_ft,
+            #                     'cv_folds_base':40,#35, # at least cv_folds_eval + 1
+            #                     'use_base_models_pred_intervals':False}}
+
+        ],
+        "task_training":[
+            # {'model':'MultiTargetCatBoost', 'pars':{'cv_folds':cv_folds_eval}},
+            # {'model':'MultiTargetLGBM', 'pars':{'cv_folds':cv_folds_eval}},
+            # {'model':'MultiTargetElasticNet', 'pars':{'cv_folds':cv_folds_eval}},
+            # {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'pars':{'cv_folds':cv_folds_eval}}
+        ],
+        "task_forecasting":[
+            # {'model':'MultiTargetCatBoost', 'past_folds':cv_folds_eval},
+            {'model':'MultiTargetLGBM', 'past_folds':cv_folds_eval},
+            {'model':'MultiTargetElasticNet', 'past_folds':cv_folds_eval},
+            # {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'past_folds':cv_folds_eval}
+        ],
+        "task_summarize":[
+            # { 'model':'MultiTargetCatBoost', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
+            { 'model':'MultiTargetLGBM', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
+            { 'model':'MultiTargetElasticNet', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
+            # { 'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'}
+        ],
+        "task_plot":[
+            # {'model':'MultiTargetCatBoost','n':2,  'name':'MultiTargetCatBoost','lw':1.0,
+            #  'color':"blue", 'ci_alpha':0.2, 'train_forecast':'train'},
+            # {'model':'MultiTargetLGBM','n':2,  'name':'MultiTargetLGBM','lw':1.0,
+            #  'color':"green", 'ci_alpha':0.2, 'train_forecast':'train'},
+            # {'model':'MultiTargetElasticNet','n':2,  'name':'MultiTargetElasticNet','lw':1.0,
+            #  'color':"red", 'ci_alpha':0.2, 'train_forecast':'train'},
+            # {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)','n':2,  'name':'ensemble','lw':1.0,
+            #  'color':"magenta", 'ci_alpha':0.2, 'train_forecast':'train'}
+        ]
+    }]
+    # task_list_[0]['task_fine_tuning'] = [
     #     {'model':'MultiTargetCatBoost',
     #      'dataset_pars':{
     #          'log_target':False,
@@ -356,7 +453,7 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
     #          'spatial_agg_method': 'mean' # fix
     #
     #      },
-    #      'finetuning_pars':{'n_trials':20,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+    #      'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
     #     {'model':'MultiTargetElasticNet',
     #      'dataset_pars':{
     #          'log_target':False,
@@ -371,7 +468,7 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
     #          'spatial_agg_method': 'mean' # fix
     #
     #      },
-    #      'finetuning_pars':{'n_trials':20,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+    #      'finetuning_pars':{'n_trials':50,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
     #     {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)',
     #      'dataset_pars': {
     #          'log_target':False,
@@ -384,44 +481,43 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
     #          'lags_target': None,
     #          'copy_input':True
     #      },
-    #      'finetuning_pars':{'n_trials':20,
+    #      'finetuning_pars':{'n_trials':40,
     #                         'optim_metric':'rmse',
     #                         'cv_folds':cv_folds_ft,
     #                         'cv_folds_base':40,#35, # at least cv_folds_eval + 1
     #                         'use_base_models_pred_intervals':False}}
+    #
+    # ]
+    # task_list_[0]["task_training"] = [
+    #     {'model':'MultiTargetCatBoost', 'pars':{'cv_folds':cv_folds_eval}},
+    #     {'model':'MultiTargetLGBM', 'pars':{'cv_folds':cv_folds_eval}},
+    #     {'model':'MultiTargetElasticNet', 'pars':{'cv_folds':cv_folds_eval}},
+    #     {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'pars':{'cv_folds':cv_folds_eval}}
+    # ]
+    # task_list_[0]["task_forecasting"] = [
+    #     {'model':'MultiTargetCatBoost', 'past_folds':cv_folds_eval},
+    #     {'model':'MultiTargetLGBM', 'past_folds':cv_folds_eval},
+    #     {'model':'MultiTargetElasticNet', 'past_folds':cv_folds_eval},
+    #     {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'past_folds':cv_folds_eval}
+    # ]
+    # task_list_[0]["task_summarize"] = [
+    #     { 'model':'MultiTargetCatBoost', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
+    #     { 'model':'MultiTargetLGBM', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
+    #     { 'model':'MultiTargetElasticNet', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
+    #     { 'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'}
+    # ]
+    # task_list_[0]["task_plot"] = [
+    #     {'model':'MultiTargetCatBoost','n':2,  'name':'MultiTargetCatBoost','lw':1.0,
+    #         'color':"blue", 'ci_alpha':0.2, 'train_forecast':'train'},
+    #     {'model':'MultiTargetLGBM','n':2,  'name':'MultiTargetLGBM','lw':1.0,
+    #         'color':"green", 'ci_alpha':0.2, 'train_forecast':'train'},
+    #     {'model':'MultiTargetElasticNet','n':2,  'name':'MultiTargetElasticNet','lw':1.0,
+    #      'color':"red", 'ci_alpha':0.2, 'train_forecast':'train'},
+    #     {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)','n':2,  'name':'ensemble','lw':1.0,
+    #      'color':"magenta", 'ci_alpha':0.2, 'train_forecast':'train'}
+    # ]
 
-    ]
-    task_list_[0]["task_training"] = [
-        # {'model':'MultiTargetCatBoost', 'pars':{'cv_folds':cv_folds_eval}},
-        # {'model':'MultiTargetLGBM', 'pars':{'cv_folds':cv_folds_eval}},
-        # {'model':'MultiTargetElasticNet', 'pars':{'cv_folds':cv_folds_eval}},
-        # {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'pars':{'cv_folds':cv_folds_eval}}
-    ]
-    task_list_[0]["task_forecasting"] = [
-        {'model':'MultiTargetCatBoost', 'past_folds':cv_folds_eval},
-        {'model':'MultiTargetLGBM', 'past_folds':cv_folds_eval},
-        {'model':'MultiTargetElasticNet', 'past_folds':cv_folds_eval},
-        {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'past_folds':cv_folds_eval}
-    ]
-    task_list_[0]["task_summarize"] = [
-        { 'model':'MultiTargetCatBoost', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
-        { 'model':'MultiTargetLGBM', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
-        { 'model':'MultiTargetElasticNet', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
-        { 'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'}
-    ]
-    task_list_[0]["task_plot"] = [
-        # {'model':'MultiTargetCatBoost','n':2,  'name':'MultiTargetCatBoost','lw':1.0,
-        #     'color':"blue", 'ci_alpha':0.2, 'train_forecast':'train'},
-        # {'model':'MultiTargetLGBM','n':2,  'name':'MultiTargetLGBM','lw':1.0,
-        #     'color':"green", 'ci_alpha':0.2, 'train_forecast':'train'},
-        # {'model':'MultiTargetElasticNet','n':2,  'name':'MultiTargetElasticNet','lw':1.0,
-        #  'color':"red", 'ci_alpha':0.2, 'train_forecast':'train'},
-        # {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)','n':2,  'name':'ensemble','lw':1.0,
-        #  'color':"magenta", 'ci_alpha':0.2, 'train_forecast':'train'}
-    ]
-
-
-
+    task_list_ = copy.deepcopy(task_list)
     if variable == "energy_mix":
         avail_regions = [ "DE_50HZ", "DE_TENNET", "DE_AMPRION", "DE_TRANSNET" ] # [ "DE_50HZ", "DE_TENNET", "DE_AMPRION", "DE_TRANSNET" ]
         for tso_reg in de_regions:
@@ -429,7 +525,9 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                 task_list_ = copy.deepcopy(task_list_)
                 for t in task_list_:
                     t['label'] = f"energy_mix{tso_reg['suffix']}"
-                    t['targets'] = [key+tso_reg['suffix'] for key in ["hard_coal", "lignite", "coal_derived_gas", "oil", "other_fossil", "gas", "renewables","biomass","waste"]]
+                    t['targets'] = [key+tso_reg['suffix'] for key in [
+                        "hard_coal", "lignite", "coal_derived_gas", "oil", "other_fossil", "gas", "renewables","biomass","waste"]
+                                    ]
                     t['aggregations'] = {f"renewables{tso_reg['suffix']}": [
                         key+tso_reg['suffix'] for key in
                                 ["geothermal","pumped_storage","run_of_river","water_reservoir","other_renewables"]
@@ -441,8 +539,17 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                         # tt['dataset_pars']['feature_engineer']  = 'WeatherLoadFE'
                         tt['dataset_pars']['locations'] = \
                             [loc['name'] for loc in loc_cities if loc['TSO']==tso_reg['TSO']]
-                main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
 
+                start_time = time.time()  # Start the timer
+                main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+                end_time = time.time()  # End the timer
+                elapsed_time = end_time - start_time
+                hours, minutes = divmod(elapsed_time // 60, 60)
+                _tasks = [key for key in task_list_[0].keys() if len(task_list_[0][key]) > 0 and key.startswith('task')]
+                logger.info(
+                    f"Tasks: {_tasks} region: {tso_reg['name']} \n"
+                    f"\tRuntime: {int(hours)} hr. & {int(minutes)} min."
+                )
 
 if __name__ == '__main__':
     # todo add tests

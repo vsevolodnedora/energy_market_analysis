@@ -1,16 +1,16 @@
 {
     "trial_id": 0,
-    "best_value": 0.5203553501189737,
+    "best_value": 0.3550369026248851,
     "params": {
-        "iterations": 540,
-        "learning_rate": 0.05511919629705897,
-        "depth": 4,
-        "l2_leaf_reg": 9.709309322489579e-08,
-        "random_strength": 0.5464290561998569,
-        "bagging_temperature": 0.7721844949046954,
-        "border_count": 188,
+        "iterations": 918,
+        "learning_rate": 0.010053141995068949,
+        "depth": 8,
+        "l2_leaf_reg": 9.706653004703853e-06,
+        "random_strength": 0.1406183431808091,
+        "bagging_temperature": 0.3318344793317798,
+        "border_count": 95,
         "grow_policy": "SymmetricTree",
-        "leaf_estimation_iterations": 10,
-        "colsample_bylevel": 0.6037453568023736
+        "leaf_estimation_iterations": 3,
+        "colsample_bylevel": 0.6724268132917544
     }
 }

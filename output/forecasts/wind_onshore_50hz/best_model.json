@@ -1,7 +1,7 @@
 {
     "wind_onshore_50hz":{
         "method":"trained",
-        "model_label":"LightGBM",
-        "avg_rmse":899.9736838609
+        "model_label":"ensemble[XGBoost](XGBoost,ElasticNet)",
+        "avg_rmse":1140.6241210836
     }
 }

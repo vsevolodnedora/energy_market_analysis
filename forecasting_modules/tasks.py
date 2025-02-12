@@ -1,4 +1,4 @@
-import copy, re, pandas as pd, numpy as np, matplotlib.pyplot as plt
+import time, copy, re, pandas as pd, numpy as np, matplotlib.pyplot as plt
 import os.path
 
 from lightgbm.basic import LightGBMError
@@ -200,7 +200,7 @@ def get_ensemble_name_and_model_names(model_name:str):
 
     return meta_model, model_names
 
-def analyze_model_performance( data: pd.DataFrame, n_folds: int, metric: str )->tuple[pd.DataFrame, pd.DataFrame]:
+def analyze_model_performance( data: pd.DataFrame, n_folds: int, metric: str )->tuple[dict, dict]:
 
     # targets = list(data['target'].unique())
 
@@ -208,33 +208,83 @@ def analyze_model_performance( data: pd.DataFrame, n_folds: int, metric: str )->
     if metric not in ['mse', 'rmse', 'mae', 'mape']:
         raise ValueError(f"Invalid metric '{metric}'. Choose from 'mse', 'rmse', 'mae', 'mape'.")
 
-    # Filter data by the number of folds
-    data['horizon'] = pd.to_datetime(data['horizon'])
-    data = data.sort_values(by=['method', 'model_label', 'horizon'], ascending=[True, True, False])
-    recent_data = data.groupby(['method', 'model_label']).head(n_folds)
+    targets = data['target'].unique()
+    horizons = []
+    for target in targets:
+        horizons_ = data.loc[data['target']==target]['horizon'].unique().tolist()
+        if horizons == []: horizons = horizons_
+        else:
+            if not horizons_ == horizons_:
+                raise ValueError("All horizons must have same number of horizons.")
 
-    # Compute the average error for each model and method
-    avg_errors = (recent_data
-                  .groupby(['target', 'method', 'model_label'])[metric]
-                  .mean()
-                  .reset_index()
-                  .rename(columns={metric: f'avg_{metric}'}))
+    # select last n_folds
+    latest_timestamps = pd.Series(
+        [pd.Timestamp(d,tz='UTC') for d in horizons],
+    ).nlargest(n_folds).tolist()
 
-    # Determine the best model for each method (trained and forecast)
-    best_models = avg_errors.loc[avg_errors.groupby(['target','method'])[f'avg_{metric}'].idxmin()]
+    data['horizon'] = pd.to_datetime(data["horizon"])
+    data = data[data["horizon"].isin(latest_timestamps)]
+    ave_metric = data.groupby(by=['target', 'method', 'model_label'])[metric].mean().reset_index()
+    trained_metrics = ave_metric[ave_metric['method'] == 'trained'].drop(columns=['method'],inplace=False)
+    forecast_metrics = ave_metric[ave_metric['method'] == 'forecast'].drop(columns=['method'],inplace=False)
 
-    # Check for model drift (forecast errors systematically larger than trained errors)
-    trained_errors = avg_errors[avg_errors['method'] == 'trained']
-    forecast_errors = avg_errors[avg_errors['method'] == 'forecast']
+    # Finding the best model for each target based on the lowest RMSE
+    best_models_train = trained_metrics.loc[trained_metrics.groupby("target")[metric].idxmin()]
+    # Creating the JSON structure
+    json_output_train = {
+        row["target"]: {
+            "method": "trained",
+            "model_label": row["model_label"],
+            "avg_rmse": row[metric],
+        } for _, row in best_models_train.iterrows()
+    }
 
-    drift_data = pd.merge(trained_errors, forecast_errors, on=['target','model_label'], suffixes=('_trained', '_forecast'))
-    drift_data['error_difference'] = drift_data[f'avg_{metric}_forecast'] - drift_data[f'avg_{metric}_trained']
-    drift_data['drift_detected'] = drift_data['error_difference'] > 0
+    # Finding the best model for each target based on the lowest RMSE
+    best_models_forecast = forecast_metrics.loc[forecast_metrics.groupby("target")[metric].idxmin()]
+    # Creating the JSON structure
+    json_output_forecast = {
+        row["target"]: {
+            "method": "trained",
+            "model_label": row["model_label"],
+            "avg_rmse": row[metric],
+        } for _, row in best_models_forecast.iterrows()
+    }
 
-    # Summarize drift detection
-    drift_summary = drift_data[['target', 'model_label', 'error_difference', 'drift_detected']]
+    return json_output_train, json_output_forecast
 
-    return best_models, drift_summary
+
+
+
+    # # Converting to JSON format
+    # json_str = json.dumps(json_output, indent=4)
+    #
+    # # Filter data by the number of folds
+    # data['horizon'] = pd.to_datetime(data['horizon'])
+    # data = data.sort_values(by=['method', 'model_label', 'horizon'], ascending=[True, True, False])
+    # recent_data = data.groupby(['method', 'model_label'])
+    #
+    # # Compute the average error for each model and method
+    # avg_errors = (recent_data
+    #               .group(['target', 'method', 'model_label'])[metric]
+    #               .mean()
+    #               .reset_index()
+    #               .rename(columns={metric: f'avg_{metric}'}))
+    #
+    # # Determine the best model for each method (trained and forecast)
+    # best_models = avg_errors.loc[avg_errors.groupby(['target','method'])[f'avg_{metric}'].idxmin()]
+    #
+    # # Check for model drift (forecast errors systematically larger than trained errors)
+    # trained_errors = avg_errors[avg_errors['method'] == 'trained']
+    # forecast_errors = avg_errors[avg_errors['method'] == 'forecast']
+    #
+    # drift_data = pd.merge(trained_errors, forecast_errors, on=['target','model_label'], suffixes=('_trained', '_forecast'))
+    # drift_data['error_difference'] = drift_data[f'avg_{metric}_forecast'] - drift_data[f'avg_{metric}_trained']
+    # drift_data['drift_detected'] = drift_data['error_difference'] > 0
+    #
+    # # Summarize drift detection
+    # drift_summary = drift_data[['target', 'model_label', 'error_difference', 'drift_detected']]
+    #
+    # return best_models, drift_summary
 
 
 def write_summary(summary: dict):
@@ -545,8 +595,11 @@ class BaseModelTasks(TaskPaths):
             self, folds:int, X_train: pd.DataFrame or None, y_train: pd.DataFrame or None,
             ds: HistForecastDataset or None, do_fit:bool)->tuple[pd.DataFrame,pd.DataFrame]:
 
+        start_time = time.time()  # Start the timer
+
+
         if ds is None:
-            ds = self.base_ds
+                ds = self.base_ds
         else:
             if self.verbose:
                 logger.info(f"Using external dataset for {self.model_label}")
@@ -689,10 +742,16 @@ class BaseModelTasks(TaskPaths):
 
             # exit(1)
         # print averaged over all CV folds error metrics
+        end_time = time.time()  # End the timer
+        elapsed_time = end_time - start_time
+        hours, minutes = divmod(elapsed_time // 60, 60)
+        runtime_formatted = f"{int(hours):02}:{int(minutes):02}"
+
         if self.verbose:
             self.print_average_metrics(
                 f"Average over {len(self.metrics)} folds | {self.model_label} | ",
-                get_average_metrics(self.metrics))
+                get_average_metrics(self.metrics),
+            suffix=f" | Runtime: {runtime_formatted}")
 
         # self.X_for_model = X_for_model
         # self.y_for_model = y_for_model
@@ -845,11 +904,11 @@ class BaseModelTasks(TaskPaths):
 
     # ----------
 
-    def print_average_metrics(self, prefix:str, metrics:dict):
+    def print_average_metrics(self, prefix:str, metrics:dict, suffix:str=''):
         for target, metric in metrics.items():
             logger.info(prefix + f"| {target} | RMSE={metric['rmse']:.1f} "
                            f"CI_width={metric['prediction_interval_width']:.1f} "
-                           f"sMAPE={metric['smape']:.2f}")
+                           f"sMAPE={metric['smape']:.2f}" + suffix)
 
 
     def finetune(self, trial:optuna.Trial, cv_metrics_folds:int):
@@ -1171,7 +1230,6 @@ class EnsembleModelTasks(BaseModelTasks):
         return X_meta_model_train, y_meta_model_train
 
     def finetune(self, trial:optuna.Trial, cv_metrics_folds:int):
-
         cv_folds_base = len(self.base_models[list(self.base_models.keys())[-1]].results)
         # if not (cv_folds_base > cv_metrics_folds+3):
         #     raise ValueError("There should be more CV folds for base models then for ensemble model. "
@@ -1666,20 +1724,33 @@ class ForecastingTaskSingleTarget:
         # determine the best model in train run (over the last n_folds_best forecasts)
         task_ = task['task_summarize'][0] # same for all
         df = pd.read_csv( outdir + "summary_metrics.csv" )
-        res_models, res_drifts = analyze_model_performance(
+        best_models_train, best_models_forecast = analyze_model_performance(
             data=df, n_folds=task_['n_folds_best'], metric=task_['summary_metric']
         )
-        targets = df['target'].unique().tolist()
-        best_model = pd.DataFrame()
-        for target in targets:
-            res_models_ = res_models[
-                (res_models['method'] == task_['method_for_best']) & (res_models['target'] == target)
-            ]
-            if best_model is None: best_model = res_models_.copy()
-            else: best_model = pd.concat([best_model, res_models_.copy()],axis=0)
+        with open(outdir + "best_model.json", "w") as json_file:
+            json.dump(best_models_train, json_file, indent=4)
+        with open(outdir + "best_model_forecast.json", "w") as json_file:
+            json.dump(best_models_forecast, json_file, indent=4)
 
-        best_model.set_index('target', inplace=True)
-        best_model.to_json( outdir + "best_model.json", orient='index', indent=4)
+
+        # with open(outdir + "best_model.json", 'w') as file:
+        #     json.dumps(best_models_train, indent=4)
+
+        # best_models_train.to_json( outdir + "best_model.json", orient='index', indent=4)
+        # best_models_forecast.to_json( outdir + "best_model_forecast.json", orient='index', indent=4)
+
+        # z = 1
+        # targets = df['target'].unique().tolist()
+        # best_model = pd.DataFrame()
+        # for target in targets:
+        #     res_models_ = res_models[
+        #         (res_models['method'] == task_['method_for_best']) & (res_models['target'] == target)
+        #     ]
+        #     if best_model is None: best_model = res_models_.copy()
+        #     else: best_model = pd.concat([best_model, res_models_.copy()],axis=0)
+        #
+        # best_model.set_index('target', inplace=True)
+        # best_model.to_json( outdir + "best_model.json", orient='index', indent=4)
         # with open(outdir + "best_model.json", 'w') as file:
         #     json.dump(best_model, file)
 
