@@ -1,7 +1,7 @@
  
 ### Energy Generation Forecast: Error Analysis
 
-The total energy generation week-ahead forecast has a RMSE of **3896**, compared to **4172** for the SMARD reference forecast.  
+The total energy generation week-ahead forecast has a RMSE of **3896**, compared to **3424** for the SMARD reference forecast.  
 
 The largest contributor to the forecast error is **50Hertz**, with an RMSE of **1886**.  
 
