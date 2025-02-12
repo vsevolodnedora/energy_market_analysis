@@ -1307,7 +1307,7 @@ function generateEnergyMixSection({ id, title, dataKey, descriptionFile, buttons
       <div class="control-area">
         <div class="controls">
           <div class="slider-container">
-            <label for="past-data-slider-${id}">Historic Data:</label>
+            <label for="past-data-slider-${id}" data-i18n="historic-data">Historic Data:</label>
             <input
               type="range"
               id="past-data-slider-${id}"
@@ -1718,28 +1718,28 @@ async function updateTotalLineChart(
   // Convert actual and fitted series to timestamp format
   const formattedLoadActualSeries = loadActualSeries.map(series => ({
     ...series,
-    name: 'Load',
+    name: i18next.t('load-mw'),
     color: '#FF0000',
     data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
   }));
 
   const formattedLoadSeries = loadSeries.map(series => ({
     ...series,
-    name: 'Load',
+    name: i18next.t('load-mw'),
     color: '#FF0000',
     data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
   }));
 
   const formattedGenerationActualSeries = generationActualSeries.map(series => ({
     ...series,
-    name: 'Generation',
+    name: i18next.t('generation-mw'),//'Generation',
     color: '#00CC00',
     data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
   }));
 
   const formattedGenerationSeries = generationSeries.map(series => ({
     ...series,
-    name: 'Generation',
+    name: i18next.t('generation-mw'),
     color: '#00CC00',
     data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
   }));
@@ -1781,7 +1781,7 @@ async function updateTotalLineChart(
   // Update chart options
     lineChart.updateOptions({
       theme: { mode: isDarkMode ? 'dark' : 'light' },
-      annotations: { xaxis: getForecastAnnotations(forecastStartTime, false) },
+      annotations: { xaxis: getForecastAnnotations(forecastStartTime, false, true) },
       stroke: {
         width: 2,
         dashArray: finalSeries.map(series =>
@@ -1892,7 +1892,7 @@ async function updateTotalLineChart2(
     // Update chart options
     lineChart2.updateOptions({
       theme: { mode: isDarkMode ? 'dark' : 'light' },
-      annotations: { xaxis: getForecastAnnotations(forecastStartTime, false) },
+      annotations: { xaxis: getForecastAnnotations(forecastStartTime, false, false) },
       stroke: {
         width: 2,
         dashArray: finalSeries.map(series =>
@@ -2089,7 +2089,7 @@ function updateStackedChart(config, finalSeries, forecastStartTime) {
         },
         stroke: { curve: 'smooth', width: 2 },
         fill: { type: 'solid' },
-        annotations: { xaxis: getForecastAnnotations(forecastStartTime, true) }
+        annotations: { xaxis: getForecastAnnotations(forecastStartTime, true, false) }
     });
 
 
@@ -2103,28 +2103,39 @@ async function updateStackedChartGeneric(config) {
     updateStackedChart(config, finalSeries, forecastStartTime, isDarkMode);
 }
 
-function getForecastAnnotations(x, withText) {
+function getForecastAnnotations(forecastStartTime, withText, withNow) {
     /**
      * Generates forecast annotations for charts.
-     * @param {number|null} x - Timestamp for forecast annotation line.
+     * @param {number|null} forecastStartTime - Timestamp where the forecast starts.
      * @param {boolean} withText - Determines if labels should be shown.
      * @returns {Array} Annotations array for the chart.
      */
-    if (!x) return [];
 
-    const baseAnnotation = {
-        x: x,
+    const now = new Date(); // Ensure 'now' is defined properly
+    const nowAnnotation = {
+        x: now.getTime(),
+        borderColor: '#FF0000',
+        label: {
+            text: withNow ? i18next.t('now-label') : null,
+            style: { color: '#FFF', background: '#FF0000' }
+        }
+    };
+
+    if (!forecastStartTime) return [nowAnnotation];
+
+    const forecastAnnotation = {
+        x: forecastStartTime,
         borderColor: "#555",
         strokeDashArray: 5,
     };
 
     if (!withText) {
-        return [baseAnnotation];
+        return [forecastAnnotation, nowAnnotation];
     }
 
     return [
         {
-            ...baseAnnotation,
+            ...forecastAnnotation,
             label: {
                 borderColor: "#777777",
                 position: "top",
@@ -2139,7 +2150,7 @@ function getForecastAnnotations(x, withText) {
             },
         },
         {
-            ...baseAnnotation,
+            ...forecastAnnotation,
             label: {
                 borderColor: "#777777",
                 position: "top",
@@ -2153,9 +2164,9 @@ function getForecastAnnotations(x, withText) {
                 },
             },
         },
+        nowAnnotation
     ];
 }
-
 
 // Insert all figures into #energy-mix
 //document.getElementById("energy-mix").innerHTML =
@@ -2437,31 +2448,6 @@ async function getCombinedLoadSeries(
     }
   };
 }
-//async function getCombinedLoadSeries(var_label, pastFileActual,
-//    pastForecastFile, currentForecastFile, config) {
-//
-//  const prevActualData = await getCachedData(var_label, pastForecastFile, config.errorElementId);
-//  const prevFittedData = await getCachedData(var_label, pastForecastFile, config.errorElementId);
-//  const currFittedData = await getCachedData(var_label, currentForecastFile, config.errorElementId);
-//
-//  if (!prevFittedData && !currFittedData) return null;
-//
-//  const combinedData = [];
-//  const pastDataRatio = document.getElementById(config.pastDataSliderId)?.value / 100 || 1;
-//
-//  if (prevFittedData) {
-//    combinedData.push(...prevFittedData.slice(-Math.floor(prevFittedData.length * pastDataRatio)));
-//  }
-//  if (currFittedData) {
-//    combinedData.push(...currFittedData);
-//  }
-//
-//  return {
-//    name: `${var_label}`,
-//    data: combinedData,
-//    color: '#008080'
-//  };
-//}
 
 /**
  * Main function that wires up all the event listeners and global functions for a given chart configuration.
