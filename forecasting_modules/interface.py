@@ -401,13 +401,13 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
             # {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'pars':{'cv_folds':cv_folds_eval}}
         ],
         "task_forecasting":[
-            # {'model':'MultiTargetCatBoost', 'past_folds':cv_folds_eval},
+            {'model':'MultiTargetCatBoost', 'past_folds':cv_folds_eval},
             {'model':'MultiTargetLGBM', 'past_folds':cv_folds_eval},
             {'model':'MultiTargetElasticNet', 'past_folds':cv_folds_eval},
             # {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'past_folds':cv_folds_eval}
         ],
         "task_summarize":[
-            # { 'model':'MultiTargetCatBoost', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
+            { 'model':'MultiTargetCatBoost', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
             { 'model':'MultiTargetLGBM', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
             { 'model':'MultiTargetElasticNet', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
             # { 'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'}

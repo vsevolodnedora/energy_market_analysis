@@ -1906,7 +1906,17 @@ class PublishGenerationLoad:
         logger.info(f'Loaded ENTSO-E with file {len(self.df_entsoe)} entries')
 
     def load_smard_data(self):
+        def print_nans(df):
+            nan_counts = df.isna().sum()
+            nan_cols = nan_counts[nan_counts > 0]
+            if not nan_cols.empty:
+                logger.error(f"SMARD has nans in columns: {nan_cols}")
+                raise ValueError("Nans in SMARD data")
         self.df_smard = pd.read_parquet(self.db_path + 'smard/' + 'history.parquet')
+
+        if not isinstance(self.df_smard.index, pd.DatetimeIndex):
+            self.df_smard = self.df_smard.set_index(pd.to_datetime(self.df_smard.index))
+
         self.df_smard = validate_dataframe(self.df_smard, 'df_entsoe', logger.warning, self.verbose)
         self.df_smard.rename(columns={
             "total_gen_forecasted":"generation_forecast",
@@ -1924,7 +1934,8 @@ class PublishGenerationLoad:
             # Replace 0 values with NaN
             self.df_smard[target].replace(0, np.nan, inplace=True)
             # Interpolate NaN values using time series interpolation (backward direction)
-            self.df_smard[target].interpolate(method='time', limit_direction='backward', inplace=True)
+            self.df_smard[target].interpolate(method='time', limit_direction='both', inplace=True)
+        print_nans(self.df_smard)
         logger.info(f'Loaded SMARD with file {len(self.df_smard)} entries')
 
     def write_notes_for_energy_mix(

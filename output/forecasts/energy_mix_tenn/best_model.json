@@ -2,31 +2,31 @@
     "biomass_tenn": {
         "method": "trained",
         "model_label": "MultiTargetElasticNet",
-        "avg_rmse": 55.53262873260392
+        "avg_rmse": 62.244147573733244
     },
     "gas_tenn": {
         "method": "trained",
-        "model_label": "MultiTargetLGBM",
-        "avg_rmse": 505.477074377868
+        "model_label": "MultiTargetCatBoost",
+        "avg_rmse": 647.2006179143849
     },
     "hard_coal_tenn": {
         "method": "trained",
-        "model_label": "MultiTargetLGBM",
-        "avg_rmse": 341.0355708127326
+        "model_label": "MultiTargetCatBoost",
+        "avg_rmse": 320.0151700073547
     },
     "oil_tenn": {
         "method": "trained",
         "model_label": "MultiTargetElasticNet",
-        "avg_rmse": 1.823151629072682
+        "avg_rmse": 7.972136653604278
     },
     "renewables_tenn": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-        "avg_rmse": 244.3596295716336
+        "avg_rmse": 232.92317139665855
     },
     "waste_tenn": {
         "method": "trained",
-        "model_label": "MultiTargetLGBM",
-        "avg_rmse": 68.15673084269761
+        "model_label": "MultiTargetCatBoost",
+        "avg_rmse": 63.04570560236072
     }
 }

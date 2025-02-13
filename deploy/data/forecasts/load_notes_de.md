@@ -1,10 +1,10 @@
 
-Unsere __Wochenprognose__ hat einen durchschnittlichen RMSE von __2072__.  
-Die SMARD __Tagesprognose__ weist eine durchschnittliche Genauigkeit von __1689__ auf.
+Unsere __Wochenprognose__ hat einen durchschnittlichen RMSE von __2319__.  
+Die SMARD __Tagesprognose__ weist eine durchschnittliche Genauigkeit von __1913__ auf.
     
 | ÜNB/Region   | Trainingsdatum   |   Anzahl der Merkmale | Bestes Modell   |   RMSE |   TSO RMSE |
 |:-------------|:-----------------|----------------------:|:----------------|-------:|-----------:|
-| Amprion      | 2025-02-09       |                    37 | LightGBM        |    999 |       1003 |
-| 50Hertz      | 2025-02-09       |                    36 | Ensemble        |    632 |        861 |
-| TenneT       | 2025-02-09       |                    39 | Ensemble        |    759 |        765 |
-| TransnetBW   | 2025-02-09       |                    41 | XGBoost         |    468 |        281 |
+| Amprion      | 2025-02-13       |                    46 | Ensemble        |   1254 |       1111 |
+| 50Hertz      | 2025-02-13       |                    36 | Ensemble        |    552 |        936 |
+| TenneT       | 2025-02-13       |                    39 | Ensemble        |    666 |        776 |
+| TransnetBW   | 2025-02-13       |                   182 | Ensemble        |    611 |        285 |
