@@ -1,7 +1,7 @@
 {
     "load_ampr": {
         "method": "trained",
-        "model_label": "ensemble[LightGBM](LightGBM,ElasticNet)",
-        "avg_rmse": 1253.8790698870869
+        "model_label": "XGBoost",
+        "avg_rmse": 983.2987918629568
     }
 }

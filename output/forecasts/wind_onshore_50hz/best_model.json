@@ -2,6 +2,6 @@
     "wind_onshore_50hz": {
         "method": "trained",
         "model_label": "ensemble[XGBoost](XGBoost,ElasticNet)",
-        "avg_rmse": 1043.106354045071
+        "avg_rmse": 1128.6271677373195
     }
 }
