@@ -1,12 +1,12 @@
 {
-    "iterations": 918,
-    "learning_rate": 0.010053141995068949,
-    "depth": 8,
-    "l2_leaf_reg": 9.706653004703853e-06,
-    "random_strength": 0.1406183431808091,
-    "bagging_temperature": 0.3318344793317798,
-    "border_count": 95,
-    "grow_policy": "SymmetricTree",
-    "leaf_estimation_iterations": 3,
-    "colsample_bylevel": 0.6724268132917544
+    "iterations": 933,
+    "learning_rate": 0.015339952834189282,
+    "depth": 9,
+    "l2_leaf_reg": 4.0691035785462756e-05,
+    "random_strength": 7.191232926003409e-05,
+    "bagging_temperature": 0.41839188764078283,
+    "border_count": 197,
+    "grow_policy": "Lossguide",
+    "leaf_estimation_iterations": 8,
+    "colsample_bylevel": 0.6107408448705873
 }
