@@ -2,41 +2,41 @@
     "biomass_50hz": {
         "method": "trained",
         "model_label": "MultiTargetCatBoost",
-        "avg_rmse": 136.7665911588525
+        "avg_rmse": 106.6900620223839
     },
     "gas_50hz": {
         "method": "trained",
         "model_label": "MultiTargetCatBoost",
-        "avg_rmse": 345.53290366837217
+        "avg_rmse": 229.10112539749733
     },
     "hard_coal_50hz": {
         "method": "trained",
         "model_label": "MultiTargetCatBoost",
-        "avg_rmse": 318.66820658807166
+        "avg_rmse": 341.94332719599925
     },
     "lignite_50hz": {
         "method": "trained",
         "model_label": "MultiTargetCatBoost",
-        "avg_rmse": 948.4054266407666
+        "avg_rmse": 975.3721222919404
     },
     "oil_50hz": {
         "method": "trained",
-        "model_label": "MultiTargetElasticNet",
-        "avg_rmse": 23.85826776307289
+        "model_label": "MultiTargetCatBoost",
+        "avg_rmse": 24.922262781937807
     },
     "other_fossil_50hz": {
         "method": "trained",
         "model_label": "MultiTargetElasticNet",
-        "avg_rmse": 53.6342236493518
+        "avg_rmse": 39.65871340764609
     },
     "renewables_50hz": {
         "method": "trained",
         "model_label": "MultiTargetCatBoost",
-        "avg_rmse": 299.5799831477827
+        "avg_rmse": 292.7710992094236
     },
     "waste_50hz": {
         "method": "trained",
         "model_label": "MultiTargetElasticNet",
-        "avg_rmse": 150.2491505123138
+        "avg_rmse": 51.02257476551252
     }
 }

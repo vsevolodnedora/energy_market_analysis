@@ -1,7 +1,7 @@
 {
     "wind_onshore_ampr": {
         "method": "trained",
-        "model_label": "ensemble[XGBoost](XGBoost,ElasticNet)",
-        "avg_rmse": 546.2933036604036
+        "model_label": "ensemble[LightGBM](LightGBM,ElasticNet)",
+        "avg_rmse": 715.7540719583382
     }
 }

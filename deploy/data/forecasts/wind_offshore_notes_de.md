@@ -1,6 +1,6 @@
 
 Unsere __Wochenprognose__ hat einen durchschnittlichen RMSE von __687__.  
-Die SMARD __Tagesprognose__ weist eine durchschnittliche Genauigkeit von __878__ auf.
+Die SMARD __Tagesprognose__ weist eine durchschnittliche Genauigkeit von __839__ auf.
     
 | ÜNB/Region   | Trainingsdatum   |   Anzahl der Merkmale | Bestes Modell   |   RMSE |   TSO RMSE |
 |:-------------|:-----------------|----------------------:|:----------------|-------:|-----------:|

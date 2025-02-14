@@ -1,6 +1,6 @@
 
 Our __week-ahead__ forecast has average RMSE of __687__.  
-SMARD __day-ahead__ forecast has average accuracy of __878__. 
+SMARD __day-ahead__ forecast has average accuracy of __839__. 
     
 | TSO/Region   | Train Date   |   N Features | Best Model   |   RMSE |   TSO RMSE |
 |:-------------|:-------------|-------------:|:-------------|-------:|-----------:|
