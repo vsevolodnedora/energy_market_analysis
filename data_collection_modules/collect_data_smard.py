@@ -284,7 +284,9 @@ class DataEnergySMARD:
 
         })
         if verbose:
-            logger.info("\tStatus Code:", data.status_code)
+            logger.info(f"\tStatus Code: {int(data.status_code)} "
+                        f"for modulID: {modulIDs} region: {region} from {int(timestamp_from_in_milliseconds)} "
+                        f"to {int(timestamp_to_in_milliseconds)} type: {type} language: {language}")
         # print("Response Text:", data.text)
 
         # create pandas dataframe out of response string (csv)
@@ -317,8 +319,8 @@ class DataEnergySMARD:
                 timestamp_to_in_milliseconds=int(end_date.timestamp()*1000),
                 verbose=self.verbose
             )
-        pass
 
+        # Process collected data
         if ('Datum bis' in df.columns):
             # fix wrong decimal
             df = df.replace('-', '', regex=False)
@@ -340,9 +342,12 @@ class DataEnergySMARD:
                                       .dt.tz_convert('UTC'))
                 df['date'] = df['datetime_utc']
                 df.drop('datetime_utc', axis=1, inplace=True)
-
+                df.set_index('date', inplace=True)
                 return df
+
+            df.set_index('date', inplace=True)
             return df
+
         raise ConnectionError("SMARD API call has failed for " +
                               f"\tSMARD api request for {modules} data for "
                               f"{start_date} ({int(start_date.timestamp()*1000)}) to "
@@ -384,13 +389,50 @@ class DataEnergySMARD:
 
     ''' ------------------------------------------------------------- '''
 
-    def get_international_flow(self)->pd.DataFrame:
+    def _check_freq(self, df:pd.DataFrame, freq:str, place:str, type_:str='sum')->pd.DataFrame:
+
+        if freq=='hourly':
+            if type_=='sum':
+                df = df.resample('h').sum()
+            elif type_=='mean':
+                df = df.resample('h').mean()
+            else:
+                raise NotImplementedError(f"Aggregation type {type_} not implemented")
+
+        elif freq == 'minutely_15':
+            pass # assuming 15 min is the default data frequency
+
+        else:
+            raise NotImplementedError(f"Frequency {freq} not implemented. "
+                                        f"Available frequencies: 'hourly', 'minutely_15'")
+
+        # df.reset_index(names=['date'], inplace=True)
+        # Ensure the index is sorted
+        df.sort_index(inplace=True)
+        # Compute the time difference between consecutive timestamps
+        time_diffs = df.index.to_series().diff().dropna()
+        if (freq == 'minutely_15'):
+
+            # Check if all differences are exactly 15 minutes
+            if not (time_diffs == pd.Timedelta(minutes=15)).all():
+
+                # for DA price, if it is not 15 min -- resample using forward-fill
+                if type_ == 'mean' and 'spot_price' in df.columns.tolist():
+                    df = df.resample('15min').ffill()
+                else:
+                    raise ValueError(
+                        f"Dataframe in {place} contains irregular time intervals:\n{time_diffs.value_counts()}"
+                    )
+
+        return df
+
+    def get_international_flow(self, freq:str)->pd.DataFrame:
         if self.verbose: logger.info(f"Collecting cross-border flows for {self.start_date} to {self.end_date} "
                                f"for {list(self.country_map.keys())}")
         df = pd.DataFrame()
         for country in self.country_map.keys():
             df_country = self.request_data(modules_id=DataEnergySMARD.country_map[country])
-            if df.empty: df['date'] = df_country['date']
+            if df.empty: df.index = df_country.index
             # create total flow (note Import is always Negative, export is always positive)
             df[f'{country}_export'] = df_country[f'{country}_export'].fillna(0)
             df[f'{country}_import'] = df_country[f'{country}_import'].fillna(0)
@@ -398,27 +440,53 @@ class DataEnergySMARD:
             #         df_country[f'{country}_export'].fillna(0)
             #         + df_country[f'{country}_import'].fillna(0)
             # )
-        df = df.resample('h', on='date').sum()
-        df.reset_index(names=['date'], inplace=True)
+        # df = df.resample('h', on='date').sum()
+        # df.reset_index(names=['date'], inplace=True)
+        df = self._check_freq(df, freq, 'international_flows')
+
         return df
 
-    def get_forecasted_generation(self)->pd.DataFrame:
+    def get_forecasted_generation(self, freq:str)->pd.DataFrame:
         if self.verbose: logger.info(f"Collecting forecaster generation for {self.start_date} to {self.end_date}")
         # o_smard = DataEnergySMARD(start_date=start_date, end_date=end_date)
         df = self.request_data(modules_id=DataEnergySMARD.FORECASTED_POWER_GENERATION)
         df.rename(columns={'total':'total_gen'}, inplace=True)
         df.rename(columns={'other':'other_gen'}, inplace=True)
-        df = df.resample('h', on='date').sum()
-        df.reset_index(names=['date'], inplace=True)
+        # if freq=='hourly': df = df.resample('h', on='date').sum()
+        # elif freq == 'minutely_15': pass # assuming 15 min is the default data frequency
+        # else: raise NotImplementedError(f"Frequency {freq} not implemented. "
+        #                                 f"Available frequencies: 'hourly', 'minutely_15'")
+        # df.reset_index(names=['date'], inplace=True)
+        # # Ensure the index is sorted
+        # df.sort_index(inplace=True)
+        # # Compute the time difference between consecutive timestamps
+        # time_diffs = df.index.to_series().diff().dropna()
+        # if (freq == 'minutely_15'):
+        #     # Check if all differences are exactly 15 minutes
+        #     if not (time_diffs == pd.Timedelta(minutes=15)).all():
+        #         raise ValueError(f"Dataframe contains irregular time intervals:\n{time_diffs.value_counts()}")
+        df = self._check_freq(df, freq, 'forecasted_generation')
         return df
 
-    def get_forecasted_consumption(self)->pd.DataFrame:
+    def get_forecasted_consumption(self,freq:str)->pd.DataFrame:
         if self.verbose: logger.info(f"Collecting forecaster consumption for {self.start_date} to {self.end_date}")
         df = self.request_data(modules_id=DataEnergySMARD.FORECASTED_POWER_CONSUMPTION)
         # df.rename(columns={'total':'total_gen'}, inplace=True)
         # df.rename(columns={'other':'other_gen'}, inplace=True)
-        df = df.resample('h', on='date').sum()
-        df.reset_index(names=['date'], inplace=True)
+        # if freq=='hourly': df = df.resample('h', on='date').sum()
+        # elif freq == 'minutely_15': pass # assuming 15 min is the default data frequency
+        # else: raise NotImplementedError(f"Frequency {freq} not implemented. "
+        #                                 f"Available frequencies: 'hourly', 'minutely_15'")
+        # df.reset_index(names=['date'], inplace=True)
+        # # Ensure the index is sorted
+        # df.sort_index(inplace=True)
+        # # Compute the time difference between consecutive timestamps
+        # time_diffs = df.index.to_series().diff().dropna()
+        # if (freq == 'minutely_15'):
+        #     # Check if all differences are exactly 15 minutes
+        #     if not (time_diffs == pd.Timedelta(minutes=15)).all():
+        #         raise ValueError(f"Dataframe contains irregular time intervals:\n{time_diffs.value_counts()}")
+        df = self._check_freq(df, freq, 'forecasted_consumption')
         return df
 
 
@@ -600,102 +668,113 @@ class DataEnergySMARD:
 #     gc.collect()
 
 
-def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datadir:str, verbose:bool):
+def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datadir:str, freq:str, verbose:bool):
     datadir += 'tmp_smard/'
     if not os.path.isdir(datadir):
         os.mkdir(datadir)
 
-    if verbose: logger.info(f"Updating SMARD data from {start_date} to {end_date}")
+    if verbose: logger.info(f"Updating SMARD data from {start_date} to {end_date} for freq: {freq} ")
     o_smard = DataEnergySMARD( start_date=start_date,  end_date=end_date, verbose=verbose)
 
     # collect cross-border flows
     fname0 = datadir+'/smard_smard_flow.parquet'
     if os.path.isfile(fname0):
         df_smard_flow = pd.read_parquet(fname0)
-        if verbose: logger.info(f"Loading file {fname0}")
+        if verbose: logger.info(f"Loading file {fname0} for freq: {freq} ")
     else:
-        df_smard_flow = o_smard.get_international_flow()
-        df_smard_flow.set_index('date',inplace=True)
+        df_smard_flow = o_smard.get_international_flow(freq)
         df_smard_flow.to_parquet(fname0)
-        if verbose: logger.info(f"Saving file {fname0}")
+        if verbose: logger.info(f"Saving file {fname0} for freq: {freq} ")
 
 
     # collect forecasted generation and load
     fname1 = datadir+'/smard_gen_forecasted.parquet'
     if os.path.isfile(fname1):
         df_smard_gen_forecasted = pd.read_parquet(fname1)
-        if verbose: logger.info(f"Loading file {fname1}")
+        if verbose: logger.info(f"Loading file {fname1} for freq: {freq} ")
     else:
-        df_smard_gen_forecasted:pd.DataFrame = o_smard.get_forecasted_generation()
+        df_smard_gen_forecasted:pd.DataFrame = o_smard.get_forecasted_generation(freq)
         df_smard_gen_forecasted = df_smard_gen_forecasted.rename(
             columns={col: col + "_forecasted" for col in df_smard_gen_forecasted.columns if col != 'date'}
         )
-        df_smard_gen_forecasted = df_smard_gen_forecasted.resample('h', on='date').sum()
+        # df_smard_gen_forecasted = df_smard_gen_forecasted.resample('h', on='date').sum()
         df_smard_gen_forecasted.to_parquet(fname1)
-        if verbose: logger.info(f"Saving file {fname1}")
+        if verbose: logger.info(f"Saving file {fname1} for freq: {freq} ")
 
     # collecting forecasted consumption
     fname2 = datadir+'/smard_con_forecasted.parquet'
     if os.path.isfile(fname2):
         df_smard_con_forecasted = pd.read_parquet(fname2)
-        if verbose: logger.info(f"Loading file {fname2}")
+        if verbose: logger.info(f"Loading file {fname2} for freq: {freq} ")
     else:
-        if verbose: logger.info(f"Collecting forecasted power consumption for {start_date} to {end_date}")
-        df_smard_con_forecasted = o_smard.get_forecasted_consumption()
+        if verbose: logger.info(
+            f"Collecting forecasted power consumption for {start_date} to {end_date} for freq: {freq} "
+        )
+        df_smard_con_forecasted = o_smard.get_forecasted_consumption(freq)
         df_smard_con_forecasted = df_smard_con_forecasted.rename(
             columns={col: col + "_forecasted" for col in df_smard_con_forecasted.columns if col != 'date'}
         )
-        df_smard_con_forecasted = df_smard_con_forecasted.resample('h', on='date').sum()
+        # df_smard_con_forecasted = df_smard_con_forecasted.resample('h', on='date').sum()
         df_smard_con_forecasted.to_parquet(fname2)
-        if verbose: logger.info(f"Saving file {fname2}")
+        if verbose: logger.info(f"Saving file {fname2} for freq: {freq} ")
+
+
 
     # collect actual realized generation and load
     fname3 = datadir+'/smard_gen_realized.parquet'
     if os.path.isfile(fname3):
         df_smard_gen_realized = pd.read_parquet(fname3)
-        if verbose: logger.info(f"Loading file {fname3}")
+        if verbose: logger.info(f"Loading file {fname3} for freq: {freq} ")
     else:
-        if verbose: logger.info(f"Collecting realized power generation for {start_date} to {end_date}")
+        if verbose: logger.info(
+            f"Collecting realized power generation for {start_date} to {end_date} for freq: {freq} "
+        )
         df_smard_gen_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_GENERATION)
-        df_smard_gen_realized = df_smard_gen_realized.resample('h', on='date').sum()
+        df_smard_gen_realized = o_smard._check_freq(df_smard_gen_realized, freq, 'realized_generation')
+        # df_smard_gen_realized = df_smard_gen_realized.resample('h', on='date').sum()
         df_smard_gen_realized.to_parquet(fname3)
-        if verbose: logger.info(f"Saving file {fname3}")
+        if verbose: logger.info(f"Saving file {fname3} for freq: {freq} ")
 
     # collect realized consumption
     fname4 = datadir+'/smard_con_realized.parquet'
     if os.path.isfile(fname4):
         df_smard_con_realized = pd.read_parquet(fname4)
-        if verbose: logger.info(f"Loading file {fname4}")
+        if verbose: logger.info(f"Loading file {fname4} for freq: {freq} ")
     else:
-        if verbose: print(f"Collecting realized power consumption for {start_date} to {end_date}")
+        if verbose: print(f"Collecting realized power consumption for {start_date} to {end_date} for freq: {freq} ")
         df_smard_con_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_CONSUMPTION)
-        df_smard_con_realized = df_smard_con_realized.resample('h', on='date').sum()
+        df_smard_con_realized = o_smard._check_freq(df_smard_con_realized, freq, 'realized_consumption')
+        # df_smard_con_realized = df_smard_con_realized.resample('h', on='date').sum()
         df_smard_con_realized.to_parquet(fname4)
-        if verbose: logger.info(f"Saving file {fname4}")
+        if verbose: logger.info(f"Saving file {fname4} for freq: {freq} ")
 
     # collect realize consumption residual
     fname5 = datadir+'/smard_con_res_realized.parquet'
     if os.path.isfile(fname5):
         df_smard_con_res_realized = pd.read_parquet(fname5)
-        if verbose: logger.info(f"Loading file {fname5}")
+        if verbose: logger.info(f"Loading file {fname5} for freq: {freq} ")
     else:
-        if verbose: logger.info(f"Collecting realized power consumption residual for {start_date} to {end_date}")
+        if verbose: logger.info(
+            f"Collecting realized power consumption residual for {start_date} to {end_date} for freq: {freq} "
+        )
         df_smard_con_res_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_CONSUMPTION_RESIDUAL)
-        df_smard_con_res_realized = df_smard_con_res_realized.resample('h', on='date').sum()
+        # df_smard_con_res_realized = df_smard_con_res_realized.resample('h', on='date').sum()
+        df_smard_con_res_realized = o_smard._check_freq(df_smard_con_res_realized, freq, 'realized_consumption_residual')
         df_smard_con_res_realized.to_parquet(fname5)
-        if verbose: logger.info(f"Saving file {fname5}")
+        if verbose: logger.info(f"Saving file {fname5} for freq: {freq} ")
 
     # collect DA prices
     fname6 = datadir+'/smard_da_prices.parquet'
     if os.path.isfile(fname6):
         df_da_prices = pd.read_parquet(fname6)
-        if verbose: logger.info(f"Loading file {fname6}")
+        if verbose: logger.info(f"Loading file {fname6} for freq: {freq} ")
     else:
-        if verbose: logger.info(f"Collecting DA prices for {start_date} to {end_date}")
+        if verbose: logger.info(f"Collecting DA prices for {start_date} to {end_date} for freq: {freq} ")
         df_da_prices = o_smard.request_data(modules_id=DataEnergySMARD.SPOT_MARKET)
-        df_da_prices = df_da_prices.resample('h', on='date').mean()
+        # df_da_prices = df_da_prices.resample('h', on='date').mean()
+        df_da_prices = o_smard._check_freq(df_da_prices, freq, 'spot_market_price', 'mean')
         df_da_prices.to_parquet(fname6)
-        if verbose: logger.info(f"Saving file {fname6}")
+        if verbose: logger.info(f"Saving file {fname6} for freq: {freq} ")
 
 
     # merge data
@@ -706,7 +785,7 @@ def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datad
     df_smard = pd.merge(left=df_smard,right=df_smard_con_res_realized,left_index=True,right_index=True,how='outer')
     df_smard = pd.merge(left=df_smard,right=df_da_prices,left_index=True,right_index=True,how='outer')
 
-    if verbose: logger.info(f"Deleting temporary files")
+    if verbose: logger.info(f"Deleting temporary files for freq: {freq} ")
     for f in [fname0, fname1, fname2, fname3, fname4, fname5, fname6]:
         if os.path.isfile(f):
             os.remove(f)
@@ -714,7 +793,7 @@ def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datad
     return df_smard
 
 
-def update_smard_from_api(today:pd.Timestamp,data_dir:str,verbose:bool):
+def update_smard_from_api(today:pd.Timestamp,data_dir:str,freq:str,verbose:bool):
     if verbose: logger.info(f"Updating SMARD data up to {today}")
     fname = data_dir + 'history.parquet'
     df_hist = pd.read_parquet(fname)
@@ -722,14 +801,18 @@ def update_smard_from_api(today:pd.Timestamp,data_dir:str,verbose:bool):
     start_date_ = last_timestamp - timedelta(hours=72) # account for weekends where no data is published
     end_date_ = today + timedelta(hours=24)
     df_smard = collect_smard_from_api(
-        start_date=start_date_, end_date=end_date_, datadir=data_dir, verbose=verbose
+        start_date=start_date_, end_date=end_date_, datadir=data_dir, freq=freq, verbose=verbose
     )
     # check columns
     for col in df_hist.columns:
         if not col in df_smard.columns:
-            raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
+            raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue. ")
 
-    df_hist = pd.concat([df_hist[:start_date_-timedelta(hours=1)], df_smard[start_date_:]], axis=0)
+    if freq == 'hourly':
+        df_hist = pd.concat([df_hist[:start_date_-timedelta(hours=1)], df_smard[start_date_:]], axis=0)
+    elif freq == 'minutely_15':
+        df_hist = pd.concat([df_hist[:start_date_-timedelta(minutes=15)], df_smard[start_date_:]], axis=0)
+    else: raise NotImplementedError(f"freq={freq} not implemented")
     df_hist.sort_index(inplace=True)
     # df_hist = df_smard.combine_first(df_hist[:start_date_])
 
@@ -740,19 +823,21 @@ def update_smard_from_api(today:pd.Timestamp,data_dir:str,verbose:bool):
     # df_hist = df_hist[:last_timestamp].combine_first(df_smard[last_timestamp:today])
     # save
     df_hist.to_parquet(fname)
-    if verbose:logger.info(f"SMARD data is successfully saved to {fname} with shape {df_hist.shape}")
+    if verbose:logger.info(f"SMARD data for freq: {freq} is successfully saved to {fname} with shape {df_hist.shape}")
     gc.collect()
 
 
-def create_smard_from_api(start_date:pd.Timestamp or None, today:pd.Timestamp,data_dir:str,verbose:bool):
+def create_smard_from_api(start_date:pd.Timestamp or None, today:pd.Timestamp,data_dir:str,freq:str,verbose:bool):
     if verbose: logger.info(f"Collecting SMARD data for {start_date} - {today}")
     fname = data_dir + 'history.parquet'
     end_date = today + timedelta(hours=24)
     start_date_ = start_date - timedelta(hours=24)
-    df_smard = collect_smard_from_api(start_date=start_date_, end_date=end_date, datadir=data_dir, verbose=verbose)
+    df_smard = collect_smard_from_api(
+        start_date=start_date_, end_date=end_date, datadir=data_dir, freq=freq, verbose=verbose
+    )
     df_smard = df_smard[start_date:today]
     df_smard.to_parquet(fname)
-    if verbose:logger.info(f"SMARD data is successfully saved to {fname} with shape {df_smard.shape}")
+    if verbose:logger.info(f"SMARD data for freq: {freq} is successfully saved to {fname} with shape {df_smard.shape}")
 
 # def update_create_smard_from_api(start_date:pd.Timestamp or None, today:pd.Timestamp,data_dir:str,verbose):
 #
@@ -801,29 +886,35 @@ if __name__ == '__main__':
     #                         end_date=today+timedelta(days=1))
     # df = smard.get_international_flow()[['france_export','france_import']]
 
-    start_date = pd.Timestamp(datetime(year=2024, month=1, day=1), tz='UTC')
+    start_date = pd.Timestamp(datetime(year=2024, month=2, day=1), tz='UTC')
     today = pd.Timestamp(datetime.today()).tz_localize(tz='UTC')
     today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
     end_date = today
+
+
+    create_smard_from_api(start_date, today, '../database_15min/', freq='minutely_15', verbose=True)
+
+    exit(0)
+
     # ---------- UPDATE SMARD -------------
     print(f"Updating SMARD data from {start_date} to {end_date}")
     o_smard = DataEnergySMARD( start_date=start_date,  end_date=end_date, verbose=True)
 
     # collect cross-border flows
-    df_smard_flow = o_smard.get_international_flow()
+    df_smard_flow = o_smard.get_international_flow(freq='minutely_15')
     # df_smard_flow = df_smard_flow.resample('h', on='date').sum()
-    df_smard_flow.set_index('date',inplace=True)
+    # df_smard_flow.set_index('date',inplace=True)
 
 
     # collect forecasted generation and load
-    df_smard_gen_forecasted = o_smard.get_forecasted_generation()
+    df_smard_gen_forecasted = o_smard.get_forecasted_generation(freq='minutely_15')
     df_smard_gen_forecasted = df_smard_gen_forecasted.rename(
         columns={col: col + "_forecasted" for col in df_smard_gen_forecasted.columns if col != 'date'}
     )
     df_smard_gen_forecasted = df_smard_gen_forecasted.resample('h', on='date').sum()
     # df_smard_gen_forecasted.set_index('date',inplace=True)
 
-    df_smard_con_forecasted = o_smard.get_forecasted_consumption()
+    df_smard_con_forecasted = o_smard.get_forecasted_consumption(freq='minutely_15')
     df_smard_con_forecasted = df_smard_con_forecasted.rename(
         columns={col: col + "_forecasted" for col in df_smard_con_forecasted.columns if col != 'date'}
     )
@@ -882,7 +973,7 @@ if __name__ == '__main__':
     # print(smard.request_data(modules_id=DataEnergySMARD.WHOLESALE_PRICES).columns)
     # print(smard.request_data(modules_id=DataEnergySMARD.WHOLESALE_PRICES))
 
-    print(df_smard.columns)
-    print(df_smard.head())
+    # print(df_smard.columns)
+    # print(df_smard.head())
 
-    pass
+    # pass

@@ -12,6 +12,8 @@ logger = get_logger(__name__)
 
 class OpenMeteo:
 
+    # ---------- HOURLY DATA (hourly) ---------------
+
     vars_basic = (
         "temperature_2m", # degrees, Celsius
         "relative_humidity_2m", # percentage
@@ -36,6 +38,34 @@ class OpenMeteo:
     )
     vars = vars_basic + vars_wind + vars_radiation
 
+    # ----------- 15 MIN DATA (minutely_15) ---------------
+
+    vars_basic_15min = (
+        "temperature_2m", # degrees, Celsius
+        "relative_humidity_2m",  # percentage
+        # "dew_point_2m",
+        "apparent_temperature",
+        "precipitation"
+        # No cloud_cover !
+    )
+    vars_wind_15min = (
+        "wind_speed_10m", # velocity, km/h
+        # "wind_speed_100m" No data for 100m !
+        "wind_speed_80m", # velocity, km/h
+        "wind_direction_10m", # velocity, km/h
+        "wind_direction_80m", # velocity, km/h
+        "wind_gusts_10m"# velocity, km/h
+    )
+
+    vars_radiation_15min = (
+        "shortwave_radiation",  # W/m^2
+        "direct_radiation",  # W/m^2
+        "diffuse_radiation",  # W/m^2
+        "direct_normal_irradiance",  # W/m^2
+        "global_tilted_irradiance",  # W/m^2
+        "terrestrial_radiation" # W/m^2
+    )
+
     phys_limits = {
         "temperature_2m": (-45., 50.),  # Extreme global temperature range; robust for outliers.
         "relative_humidity_2m": (0, 100),  # Physical constraint of humidity percentage.
@@ -45,8 +75,10 @@ class OpenMeteo:
 
         # wind
         "wind_speed_10m": (0., 200),  # km/h Conservative; rare globally, but robust for outliers.
+        "wind_speed_80m": (0., 200),  # km/h Conservative; rare globally, but robust for outliers.
         "wind_speed_100m": (0., 200),  # km/h Same as 10m; aligns with rare global extremes.
         "wind_direction_10m": (0., 360),  # Wind direction inherently constrained to this range.
+        "wind_direction_80m": (0., 360),  # Wind direction inherently constrained to this range.
         "wind_direction_100m": (0., 360),  # Same as 10m; inherent constraint.
         "wind_gusts_10m": (0., 300),  # km/h Conservative for error filtering; rare globally.
 
@@ -59,7 +91,6 @@ class OpenMeteo:
         "terrestrial_radiation": (200., 2000.),  # W/m^2 Typical range for Earth's surface.
     }
 
-
     vars_radiation_instant = (
         "shortwave_radiation_instant", # W/m^2
         "direct_radiation_instant", # W/m^2
@@ -69,18 +100,29 @@ class OpenMeteo:
         "terrestrial_radiation_instant" # W/m^2
     )
 
-    def __init__(self, start_date: pd.Timestamp, location_list: list, variable_list, verbose: bool = False):
+    def __init__(self, start_date: pd.Timestamp, location_list: list, variable_list:tuple, freq:str, verbose: bool = False):
         self.start_date = start_date
         self.location_list = location_list
         self.verbose = verbose
         self.variable_list = variable_list
+        self.freq = freq
+        if not self.freq in ['hourly', 'minutely_15']:
+            raise NotImplementedError(f'Frequency {self.freq} is not implemented. Use "hourly" or "minutely_15"')
 
         # check if it is a variable from the list
-        for variable in self.variable_list:
-            if (not variable in self.vars_basic) and \
-                    (not variable in self.vars_wind) and \
-                    (not variable in self.vars_radiation):
-                raise Exception(f"{variable} is not a valid variable")
+        if self.freq == 'hourly':
+            for variable in self.variable_list:
+                if (not variable in self.vars_basic) and \
+                        (not variable in self.vars_wind) and \
+                        (not variable in self.vars_radiation):
+                    raise Exception(f"{variable} is not a valid variable for frequency {self.freq}")
+        elif self.freq == 'minutely_15':
+            for variable in self.variable_list:
+                if (not variable in self.vars_basic_15min) and \
+                        (not variable in self.vars_wind_15min) and \
+                        (not variable in self.vars_radiation_15min):
+                    raise Exception(f"{variable} is not a valid variable for frequency {self.freq}")
+
 
         today = pd.Timestamp(datetime.today()).tz_localize(tz='UTC')
         self.today = today.normalize() + pd.DateOffset(hours=today.hour)  # leave only hours
@@ -93,7 +135,62 @@ class OpenMeteo:
         tomorrow = today.normalize() + pd.DateOffset(days=1)
         self.tomorrow_first_hour = tomorrow
 
-    def make_request(self, url: str, params: dict) -> pd.DataFrame:
+    def make_request_15min(self, url: str, params: dict) -> pd.DataFrame:
+        # No caching session, just a regular retry session
+        retry_session = retry(requests.Session(), retries=5, backoff_factor=0.2)
+        openmeteo = openmeteo_requests.Client(session=retry_session)
+
+        minutely_15 = []
+        for i in range(5):
+            try:
+                responses = openmeteo.weather_api(url, params=params)
+                minutely_15 = []
+                for response in responses:
+                    minutely_15.append( response.Minutely15() )
+            except Exception as e:
+                if self.verbose: logger.error(f"Failed to fetch 15 minute weather data from openmeteo {i}/{5} "
+                                       f"for {params.get('start_date', 'N/A')} -> {params.get('end_date', 'N/A')} "
+                                       f"with Error:\n{e}")
+                time.sleep(20*i)  # in case API is overloaded
+                continue
+            break
+
+        if len(minutely_15) == 0:
+            raise ConnectionError(
+                f"Failed to fetch 15 min weather data from OpenMeteo 5 times for"
+                f" {params.get('start_date', 'N/A')} -> {params.get('end_date', 'N/A')}"
+            )
+        if not len(minutely_15) == len(self.location_list):
+            raise ValueError(
+                f"Requesting 15 min data for {len(self.location_list)} locations, got {len(minutely_15)} 15 min data."
+            )
+
+        df = pd.DataFrame()
+        for minutely_15ly, loc in zip(minutely_15, self.location_list):
+            minutely_15_data = {
+                "date": pd.date_range(
+                    start=pd.to_datetime(minutely_15ly.Time(), unit="s", utc=True),
+                    end=pd.to_datetime(minutely_15ly.TimeEnd(), unit="s", utc=True),
+                    freq=pd.Timedelta(seconds=minutely_15ly.Interval()),
+                    inclusive="left"
+                )
+            }
+
+            for i, var in enumerate(self.variable_list):
+                data = minutely_15ly.Variables(i).ValuesAsNumpy()
+                minutely_15_data[var] = data
+            minutely_15_dataframe = pd.DataFrame(data=minutely_15_data)
+            minutely_15_dataframe.set_index('date', inplace=True)
+
+            # add suffix
+            mapping = {name : name + loc['suffix'] for name in minutely_15_dataframe.columns if name != 'date'}
+            minutely_15_dataframe.rename(columns=mapping, inplace=True)
+
+            if df.empty:df = minutely_15_dataframe
+            else: df = pd.merge(df, minutely_15_dataframe, left_index=True, right_index=True, how='left')
+
+        return df
+    def make_request_hourly(self, url: str, params: dict) -> pd.DataFrame:
         # No caching session, just a regular retry session
         retry_session = retry(requests.Session(), retries=5, backoff_factor=0.2)
         openmeteo = openmeteo_requests.Client(session=retry_session)
@@ -107,8 +204,8 @@ class OpenMeteo:
                     hourly.append( response.Hourly() )
             except Exception as e:
                 if self.verbose: logger.error(f"Failed to fetch weather data from openmeteo {i}/{5} "
-                                       f"for {params.get('start_date', 'N/A')} -> {params.get('end_date', 'N/A')} "
-                                       f"with Error:\n{e}")
+                                              f"for {params.get('start_date', 'N/A')} -> {params.get('end_date', 'N/A')} "
+                                              f"with Error:\n{e}")
                 time.sleep(20*i)  # in case API is overloaded
                 continue
             break
@@ -149,7 +246,7 @@ class OpenMeteo:
 
         return df
 
-    def collect(self, data_dir:str) -> pd.DataFrame:
+    def _collect_hourly(self, data_dir:str) -> pd.DataFrame:
         '''
             Openmeteo data is available as follows:
             - Historic data is up to the end of the previous day.
@@ -172,12 +269,14 @@ class OpenMeteo:
         url = "https://archive-api.open-meteo.com/v1/archive"
         lats = [loc['lat'] for loc in self.location_list]
         lons = [loc['lon'] for loc in self.location_list]
+
+
         params = {
             "latitude": lats,
             "longitude": lons,
             "start_date": start_date.strftime('%Y-%m-%d'),
             "end_date": end_date.strftime('%Y-%m-%d'),
-            "hourly": ''.join([var + ',' for var in self.variable_list])[:-1],
+            'hourly': ''.join([var + ',' for var in self.variable_list])[:-1], # "hourly" or "minutely_15"
         }
         # making heavy-duty API call (it might overload API so we need to be able to fail and load)
         fname = data_dir  + '/' + "tmp_hist.parquet"
@@ -185,7 +284,7 @@ class OpenMeteo:
             if self.verbose: logger.info(f"Loading temporary file: {fname}")
             hist_data = pd.read_parquet(fname)
         else:
-            hist_data = self.make_request(url, params)
+            hist_data = self.make_request_hourly(url, params)
             time.sleep(30)
 
 
@@ -198,7 +297,7 @@ class OpenMeteo:
             if self.verbose: logger.info(f"Loading temporary file: {fname}")
             hist_forecast_data = pd.read_parquet(fname)
         else:
-            hist_forecast_data = self.make_request(url, params)
+            hist_forecast_data = self.make_request_hourly(url, params)
             time.sleep(30)
 
 
@@ -212,7 +311,7 @@ class OpenMeteo:
             if self.verbose: logger.info(f"Loading temporary file: {fname}")
             forecast_data = pd.read_parquet(fname)
         else:
-            forecast_data = self.make_request(url, params)
+            forecast_data = self.make_request_hourly(url, params)
             time.sleep(30)
 
         # combine all data to form a continuous dataset
@@ -221,11 +320,12 @@ class OpenMeteo:
 
         df.sort_index(inplace=True)
         if not pd.infer_freq(df.index) == 'h':
-            raise ValueError("Dataframe must have 'h' frequency for openmeteo")
+            raise ValueError("Dataframe must have 'h' frequency for hourly openmeteo")
 
         # delete temporary files if present
         if self.verbose:
-            logger.info(f"Openmeteo data from {start_date} to {end_date} is collected successfully (df={df.shape})."
+            logger.info(
+                f"Openmeteo data from {start_date} to {end_date} hourly is collected successfully (df={df.shape})."
                   f"Removing temporary files...")
             tmp_files = [
                 data_dir  + '/' + "tmp_hist.parquet",
@@ -238,8 +338,91 @@ class OpenMeteo:
 
         return df
 
+    def _collect_15_min_forecasts(self, data_dir:str) -> pd.DataFrame:
+        '''
+            Openmeteo data is available as follows:
+            - Forecast data is available from the start of the next day
+            - Historic forecast is available from the past till future dates.
+
+            We collect them all to create continuous and accurate time-series data as follows:
+            [start_date ... end_of_today][start_of_tomorrow ... end_date]
+            [   historic forecasted data    ][  actual forecasted data      ]
+
+            We acknoledge that using historic forecast is not optimal. However, openmeteo does not provide
+            15 min actual historic data
+        '''
+
+        # collect historic data
+        start_date = self.start_date
+        end_date = self.day_before_yesterday  # after that it returns nans
+        lats = [loc['lat'] for loc in self.location_list]
+        lons = [loc['lon'] for loc in self.location_list]
+
+
+        params = {
+            "latitude": lats,
+            "longitude": lons,
+            "start_date": start_date.strftime('%Y-%m-%d'),
+            "end_date": end_date.strftime('%Y-%m-%d'),
+            'minutely_15': ''.join([var + ',' for var in self.variable_list])[:-1], # "hourly" or "minutely_15"
+        }
+
+        # collect historic forecast (to bridge the data till forecasts starts)
+        params['start_date'] = start_date.strftime('%Y-%m-%d')
+        params['end_date'] = self.today.strftime('%Y-%m-%d')
+        url = "https://historical-forecast-api.open-meteo.com/v1/forecast"
+        fname = data_dir  + '/' + "tmp_hist_forecast.parquet"
+        if os.path.exists(fname):
+            if self.verbose: logger.info(f"Loading temporary file: {fname}")
+            hist_forecast_data = pd.read_parquet(fname)
+        else:
+            hist_forecast_data = self.make_request_15min(url, params)
+            time.sleep(30)
+
+
+        # collect forecast
+        url = "https://api.open-meteo.com/v1/forecast"
+        params['forecast_days'] = 14
+        del params['start_date']
+        del params['end_date']
+        fname = data_dir  + '/' + "tmp_forecast.parquet"
+        if os.path.exists(fname):
+            if self.verbose: logger.info(f"Loading temporary file: {fname}")
+            forecast_data = pd.read_parquet(fname)
+        else:
+            forecast_data = self.make_request_15min(url, params)
+            time.sleep(30)
+
+        # combine all data to form a continuous dataset
+        df = forecast_data.combine_first(hist_forecast_data)
+
+        df.sort_index(inplace=True)
+        time_diffs = df.index.to_series().diff().dropna()
+        if not (time_diffs == pd.Timedelta(minutes=15)).all():
+            raise ValueError(f"Dataframe contains irregular time intervals:\n{time_diffs.value_counts()}")
+
+        # delete temporary files if present
+        if self.verbose:
+            logger.info(
+                f"Openmeteo 15min data from {start_date} to {end_date} is collected successfully (df={df.shape})."
+                f"Removing temporary files...")
+            tmp_files = [
+                data_dir  + '/' + "tmp_hist_forecast.parquet",
+                data_dir  + '/' + "tmp_forecast.parquet"
+            ]
+            for tmp_file in tmp_files:
+                if os.path.exists(tmp_file):
+                    os.remove(tmp_file)
+
+        return df
+
+    def collect(self, data_dir:str):
+        if self.freq == 'hourly': return self._collect_hourly(data_dir)
+        elif self.freq == 'minutely_15': return self._collect_15_min_forecasts(data_dir)
+        else: raise NotImplementedError(f"Data collection for freq={self.freq} not implemented")
 
 def add_solar_elevation_and_azimuth(df: pd.DataFrame, locations, verbose=False):
+
     # add static features (location dependent)
     for i, loc in enumerate(locations):
         lat, lon, suffix = loc['lat'], loc['lon'], loc['suffix']
@@ -261,11 +444,12 @@ def add_solar_elevation_and_azimuth(df: pd.DataFrame, locations, verbose=False):
         df[f"solar_azimuth_deg{suffix}"] = azimuth_list
     return df
 
-def create_openmeteo_from_api(fpath:str, locations:list, variables:list, start_date:pd.Timestamp, verbose:bool):
+def create_openmeteo_from_api(fpath:str, locations:list, variables:tuple, start_date:pd.Timestamp, freq:str, verbose:bool):
+
     if verbose: logger.info(f"Collecting historical data from OpenMeteo from {start_date} ({len(locations)})"
                      f"{[loc['name'] for loc in locations]} locations")
 
-    om = OpenMeteo(start_date, locations, variables, verbose=verbose)
+    om = OpenMeteo(start_date, locations, variables, freq=freq, verbose=verbose)
     df_hist = om.collect(data_dir=os.path.dirname(fpath))
     if 'solar' in fpath:
         df_hist = add_solar_elevation_and_azimuth(df_hist, locations, verbose=verbose)
@@ -273,20 +457,26 @@ def create_openmeteo_from_api(fpath:str, locations:list, variables:list, start_d
     df_hist = df_hist[start_date:]
     idx = df_hist.index[-1]-timedelta(days=14) # separate historic and forecasted data
     df_hist[:idx].to_parquet(fpath,engine='pyarrow')
-    df_hist[idx+timedelta(hours=1):].to_parquet( fpath.replace('history','forecast'),engine='pyarrow' )
-    if verbose: logger.info(f"OpenMeteo data updated. "
-                      f"Collected df_hist={df_hist[:idx].shape} and df_forecast={df_hist[idx+timedelta(hours=1):].shape}. ")
+    if freq=='hourly':
+        df_hist[idx+timedelta(hours=1):].to_parquet( fpath.replace('history','forecast'),engine='pyarrow' )
+    elif freq=='minutely_15':
+        df_hist[idx+timedelta(minutes=15):].to_parquet( fpath.replace('history','forecast'),engine='pyarrow' )
+    else: raise NotImplementedError(f"Frequency {freq} not implemented. Use 'hourly' or 'minutely_15' instead.")
+    if verbose: logger.info(
+        f"OpenMeteo data updated. Freq: {freq} "
+        f"Collected df_hist={df_hist[:idx].shape} and df_forecast={df_hist[idx+timedelta(hours=1):].shape}. ")
 
-def update_openmeteo_from_api(fpath:str, verbose:bool, locations:list, variables:list, ):
+def update_openmeteo_from_api(fpath:str, verbose:bool, locations:list, variables:tuple, freq:str):
     df_hist = pd.read_parquet(fpath)
     if (df_hist.index[-1] >= pd.Timestamp.today(tz='UTC')):
         raise ValueError(f"Cannot update df_hist as its idx[-1]={df_hist.index[-1]} File={fpath}")
+
     last_timestamp = pd.Timestamp(df_hist.dropna(how='all', inplace=False).last_valid_index())
     start_date = last_timestamp - timedelta(days=3) # overwrite previous historic forecast with actual data
     if verbose: logger.info(f"Updating openmeteo {fpath} with {len(variables)} variables from {start_date}. "
                       f"Current data has shape {df_hist.shape}")
 
-    om = OpenMeteo(start_date, locations, variables, verbose=verbose)
+    om = OpenMeteo(start_date, locations, variables, freq=freq, verbose=verbose)
     df_om = om.collect(data_dir=os.path.dirname(fpath))
 
     if 'solar' in fpath:
@@ -305,10 +495,15 @@ def update_openmeteo_from_api(fpath:str, verbose:bool, locations:list, variables
     df_om.sort_index(inplace=True)
     idx = df_om.index[-1]-timedelta(days=14) # separate historic and forecasted data
     df_om[:idx].to_parquet(fpath,engine='pyarrow')
-    df_om[idx+timedelta(hours=1):].to_parquet( fpath.replace('history', 'forecast'), engine='pyarrow' )
 
-    if verbose: logger.info(f"OpenMeteo file {fpath} updated with {len(variables)} variables.\n"
-                      f"Collected df_hist={df_om[:idx].shape} and df_forecast={df_om[idx+timedelta(hours=1):].shape}. ")
+    # save forecast that strates at the next timestep
+    if freq == 'hourly': idx_1 = idx + timedelta(hours=1)
+    elif freq == 'minutely_15': idx_1 = idx + timedelta(minutes=15)
+    else: raise NotImplementedError(f"Frequency {freq} not implemented. Use 'hourly' or 'minutely_15' instead.")
+    df_om[idx_1:].to_parquet( fpath.replace('history', 'forecast'), engine='pyarrow' )
+
+    if verbose: logger.info(f"OpenMeteo file {fpath} updated with {len(variables)} variables (freq: {freq}).\n"
+                      f"Collected df_hist={df_om[:idx].shape} and df_forecast={df_om[idx_1:].shape}. ")
 
 
 if __name__ == '__main__':
@@ -320,9 +515,16 @@ if __name__ == '__main__':
     from data_collection_modules.german_locations import loc_cities
 
     om = OpenMeteo(
-        start_date=today - timedelta(days=30),
-        location_list=loc_cities, variable_list=OpenMeteo.vars_radiation, verbose=True
+        start_date=today - timedelta(days=1),
+        location_list=loc_cities,
+        variable_list=OpenMeteo.vars_basic_15min,
+        freq='minutely_15',
+        verbose=True
     )
+
+    df = om.collect('../datababase_15min/openmeteo/')
+    df.to_parquet('./tmp_om.parquet')
+
     # df = om.collect()
     # df = check_phys_limits_in_data(df)
     # df:pd.DataFrame = df.interpolate(method='linear')
