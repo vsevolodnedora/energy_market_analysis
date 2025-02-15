@@ -2,6 +2,6 @@
     "wind_onshore_tenn": {
         "method": "trained",
         "model_label": "ensemble[XGBoost](XGBoost,ElasticNet)",
-        "avg_rmse": 1220.4927370378207
+        "avg_rmse": 1401.4010627156727
     }
 }
