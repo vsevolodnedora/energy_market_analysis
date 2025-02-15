@@ -77,33 +77,37 @@ def main(task:str, freq:str, verbose:bool = True):
         )
 
     if task == "update_epexspot" or task == "all":
-        update_epexspot_from_files(today=today, data_dir=db_path + 'epexspot/', verbose=verbose)
+        update_epexspot_from_files(today=today, data_dir=db_path + 'epexspot/', freq=freq, verbose=verbose)
 
     if task == "update_openmeteo_windfarms_offshore" or task == "all":
         update_openmeteo_from_api(
             fpath=db_path + 'openmeteo/offshore_history.parquet',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind),
+            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind) if freq == 'hourly' else
+                        (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min),
             locations = loc_offshore_windfarms, freq=freq, verbose = verbose
         )
 
     if task == "update_openmeteo_windfarms_onshore" or task == "all":
         update_openmeteo_from_api(
             fpath=db_path + 'openmeteo/onshore_history.parquet',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind),
+            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind) if freq == 'hourly' else
+                        (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min),
             locations = loc_onshore_windfarms, freq=freq, verbose = verbose
         )
 
     if task == "update_openmeteo_solarfarms" or task == "all":
         update_openmeteo_from_api(
             fpath=db_path + 'openmeteo/solar_history.parquet',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_radiation),
+            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_radiation) if freq == 'hourly' else
+                        (OpenMeteo.vars_basic_15min + OpenMeteo.vars_radiation_15min),
             locations = loc_solarfarms, freq=freq, verbose = verbose
         )
 
     if task == "update_openmeteo_cities" or task == "all":
         update_openmeteo_from_api(
             fpath=db_path + 'openmeteo/cities_history.parquet',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind + OpenMeteo.vars_radiation),
+            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind + OpenMeteo.vars_radiation) if freq == 'hourly' else
+                        (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min + OpenMeteo.vars_radiation_15min),
             locations = loc_cities, freq=freq, verbose = verbose
         )
 

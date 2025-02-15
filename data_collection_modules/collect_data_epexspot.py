@@ -8,7 +8,15 @@ from .utils import validate_dataframe_simple
 from logger import get_logger
 logger = get_logger(__name__)
 
-def update_epexspot_from_files(today:pd.Timestamp,data_dir:str,verbose:bool,raw_data_dir='./data/DE-LU/DayAhead_MRC/'):
+def update_epexspot_from_files(
+        today:pd.Timestamp,data_dir:str,verbose:bool,freq:str,raw_data_dir='./data/DE-LU/DayAhead_MRC/'
+):
+
+    if not freq in ['hourly','minutely_15']:
+        raise ValueError(f'freq must be hourly or minutely_15. Got {freq}')
+    if freq != 'hourly':
+        logger.warning(f'EPEXSPOT data collection for frequency {freq} is not implemented yet. Skipping...')
+        return
 
     fname = data_dir + 'history.parquet'
     df_hist = pd.read_parquet(fname)
@@ -49,7 +57,7 @@ def update_epexspot_from_files(today:pd.Timestamp,data_dir:str,verbose:bool,raw_
         if not col in df_da_upd.columns:
             raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue")
 
-        # combine
+    # combine
     df_hist = df_hist.combine_first(df_da_upd)
     if not validate_dataframe_simple(df_hist, text="Updated epexspot df_hist"):
         raise ValueError(f"Failed to validate the updated dataframe for {data_dir}")
