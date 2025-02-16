@@ -1,26 +1,57 @@
-# MLOps-Driven Energy Forecasting: Week-Ahead Insights for a Sustainable Future
+# Predictive Analytics for the German Energy Market
 
-This project leverages advanced MLOps pipelines to deliver accurate week-ahead forecasts of renewable energy generation, electricity load, and prices. By combining robust data engineering, state-of-the-art machine learning models, and scalable automation, it empowers stakeholders to optimize operations, enhance trading strategies, and support sustainable energy integration in a dynamic market environment.
+Live version: [Energy Market Analysis](https://vsevolodnedora.github.io/energy_market_analysis/)  
+<img src="data/sample_mwp.png" alt="Predictions displayed using ApexCharts" style="zoom:50%;" />
 
-Live version: https://vsevolodnedora.github.io/energy_market_analysis/ 
+## MLOps Forecasting and Analysis Portfolio Project 
 
-## MWP and Value Proposition
+This portfolio project explores data collection from industry-standard APIs, developing 
+custom ETL solutions, implementing multi-step and multi-target forecasting models, and 
+reporting results on web-based dashboards, as well as providing data through APIs.  
 
-<img src="data/sample_mwp.png"  alt="Predictions displayed using ApexCharts" style="zoom:50%;" />
+### Motivation
 
-## Value Proposition
+Energy market participants rely on accurate and regularly updated forecasts of energy generation, load, 
+and market indicators to optimize operations, schedule maintenance, and improve bidding strategies. These forecasts help minimize disruptions, reduce costs, and mitigate financial risks.  
 
-__Week-ahead accurate forecasts of renewable energy generation, load, and electricity prices__ empower energy market participants to:
+The high penetration of renewable energy in the German grid makes it particularly vulnerable to harmful events such as _Dunkelflaute_, where low availability of solar and wind generation leads to extreme price volatility and operational disruptions. Forecasting such events sufficiently in advance enables market participants, especially storage asset operators, to mitigate their negative impacts. 
 
-- **Optimize Operations and Maintenance**: Schedule maintenance and operational changes efficiently, minimizing disruptions and costs.
-- **Enhance Trading and Risk Management**: Improve bidding strategies, reduce financial risks, and align operations with market conditions for increased profitability.
-- **Support Grid Stability and Renewable Integration**: Balance supply and demand effectively, enabling seamless integration of variable renewable energy sources.
-- **Drive Sustainability and Long-term Planning**: Provide actionable insights for decarbonization goals, policy design, and grid modernization efforts.
+### Solution Proposition
 
-This project delivers practical tools and insights for utilities, grid operators, energy traders, and policymakers, fostering a more efficient, reliable, and sustainable energy system.
+By leveraging weather data and energy market data, this project aims to create a predictive analytics framework that regularly provides up-to-date forecasts for the German energy market.  
+
+**Core technology:** Supervised learning models using historical and forecasted weather data as features, and energy data (generation, load, market signals) as targets.  
+**Deployment:** A static webpage with interactive charts and tables, along with a basic API for querying displayed data.  
+**Automation & Deployment:** GitHub Actions for automation, GitHub Pages for deployment.  
+
+### Current Project Structure
+
+- `./data/` — Contains data scraped from EPEX for Day-Ahead and Intraday market signals.  
+- `./data_collection_modules/` — Scripts for collecting and updating databases with weather and energy data.  
+- `./database/` — Weather and energy database with _hourly_ time-series data.  
+- `./database_15min/` [Experimental] — Contains weather forecasts and energy data for _15-minute_ time-series data.  
+- `./deploy/` — Files for the static webpage. The webpage is deployed in the `gh-pages` branch instead of the main branch.  
+- `./forecasting_modules/` — Scripts for supervised learning multi-step forecasting models (Prophet, gradient boosting, and elastic net) and their wrappers.  
+- `./output/` — Trained models and hyperparameter settings for different targets and models.  
+- `publish_data.py` — Parses results from databases and `output/` for the webpage and API in `./deploy/`.  
+- `update_database.py` — Collects weather and energy data from APIs and updates databases (starting from the last available data).  
+- `update_forecasts.py` — Runs the forecasting pipeline to generate new forecasts, with results stored in `./output/`.  
+
+### Project Workflows
+
+1. **Database Update** — Data is collected from APIs by calling `update_database.py` (see `collect_data.yml`) and from external repositories (see `sync_new_file.yml`).  
+2. **Forecast Update** — Forecasts for all targets are updated by running `update_forecasts.py` (see `update_forecasts.yml`), and the latest forecasts are saved in `./output/`.  
+3. **Publish Update** — Updated database data and forecasts are processed by `publish_data.py`, with results saved in `./deploy/data/`.  
+4. **Webpage Refresh** — The webpage is updated with the latest data.  
+
+The workflow executes automatically whenever a new file from the _Eterman_ repository (EPEX data) is synced, which occurs once per day.  
+
+The project is available under MIT licence. 
+
+## Detailed Project Explanation
 
 
-## Core Features and Workflow
+### Core Features and Workflow
 
 ---
 
@@ -47,21 +78,21 @@ This project delivers practical tools and insights for utilities, grid operators
 
 
 
-## Project Development Roadmap
+### Project Development Roadmap
 
 ---
 
 The project was initiated as a _personal portfolio project_ in the summer of 2024 with the goal of gaining experience in working with time-series data, forecasting, API and data engineering, machine learning and predictive analytics, MLOps and DataOps, and front-end development (HTML, JavaScript).
 
-### Proof of Concept (POC)
+#### Proof of Concept (POC)  
 A multi-step electricity load forecasting model was released on [Kaggle](https://www.kaggle.com/code/vsevolodnedora/multi-output-electrical-load-forecasting) in September 2024.
 
-### Minimum Viable Product (MVP)
+#### Minimum Viable Product (MVP)  
 The MVP, featuring a fully automated pipeline for data collection, preprocessing, forecasting, and serving, along with a front-end deployed on GitHub Pages, was released in January 2025.
 
 ---
 
-### Stage 1: [Data Collection](https://medium.com/@vsevolod.nedora/mlops-electricity-price-forecasting-project-2-ad1012350067)
+#### Stage 1: [Data Collection](https://medium.com/@vsevolod.nedora/mlops-electricity-price-forecasting-project-2-ad1012350067)  
 
 In this stage, I prototyped data collection and scraping scripts and pipelines:
 - Approximately 10 years of hourly data were collected from SMARD, Open-Meteo, and EPEX SPOT. For technical reasons, web-scraping techniques were used in addition to APIs. For instance, a [scraper](https://github.com/vsevolodnedora/energy_charts_collector) was developed for [energy-charts](https://energy-charts.info/?l=en&c=DE) to pull data via ApexCharts.
@@ -72,7 +103,7 @@ In this stage, I prototyped data collection and scraping scripts and pipelines:
 
 ---
 
-### Stage 2: [Baseline Forecasting](https://medium.com/@vsevolod.nedora/mlops-electricity-price-forecasting-project-2-ad1012350067)
+#### Stage 2: [Baseline Forecasting](https://medium.com/@vsevolod.nedora/mlops-electricity-price-forecasting-project-2-ad1012350067)  
 
 Once regularly updated energy and weather data were available, I began constructing forecasting models:
 - **SARIMAX**: A classical forecasting model applied to forecast _electricity load_ using raw weather features as exogenous variables. Training was prohibitively slow, and performance was moderate at best.
@@ -87,7 +118,7 @@ After observing that single models underperformed against TSO forecasts, I devel
 
 ---
 
-### Stage 3: [Automated Fine-Tuning and Training](https://medium.com/@vsevolod.nedora/building-a-modular-forecasting-framework-fine-tuning-and-predicting-offshore-wind-generation-c668e343f6c2)
+#### Stage 3: [Automated Fine-Tuning and Training](https://medium.com/@vsevolod.nedora/building-a-modular-forecasting-framework-fine-tuning-and-predicting-offshore-wind-generation-c668e343f6c2)  
 
 Forecasting various targets necessitated a systematic approach to fine-tuning, training, and applying models:
 - **Method**: Iterating over combinations of model and dataset parameters, evaluating performance metrics to determine the optimal setup.
@@ -105,7 +136,7 @@ This split enables computationally intensive tasks (fine-tuning and training) on
 
 ---
 
-### Stage 4: Static Webpage Display (MVP Release) [_In Progress_]
+#### Stage 4: Static Webpage Display (MVP Release) [_In Progress_]  
 
 With a database updated daily and a forecasting pipeline ready for cloud inference, I focused on serving the data via a static webpage. This required HTML and JavaScript engineering due to the limitations of static pages. A modular structure with interactive dashboards was implemented to handle future enhancements.
 
@@ -140,18 +171,25 @@ For collaboration, additional features, or functionality, feel free to reach out
    ```
    The following API keys are needed:
    - `ENTSOE_API_KEY` (it is given for free, when creating account on [ENTSOE](https://transparency.entsoe.eu/)) 
-3. Run the pipeline:
+3. Create database if not cloned from the repo (see 'create_database.py'): 
    ```bash
-   python main.py
+   python create_database.py create_entsoe hourly 
+   ```
+4. Update forecasts: 
+   ```bash
+   python update_forecasts.py 
+   ```
+5. Publish data: 
+   ```bash
+   python publish.py 
    ```
 
 
-
-## Contributing
+### Contributing
 
 Contributions are welcome! Please create an issue or submit a pull request with your suggestions or enhancements.
 
-## License
+### License
 
 This project codebase is licensed under the MIT License. See the `LICENSE` file for details.  
 Datasets collected and used in this project may be subjected to additional licencing. 
