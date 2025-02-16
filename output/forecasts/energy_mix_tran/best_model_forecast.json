@@ -7,7 +7,7 @@
     "gas_tran": {
         "method": "trained",
         "model_label": "MultiTargetCatBoost",
-        "avg_rmse": 56.89582138851673
+        "avg_rmse": 56.89610379970906
     },
     "hard_coal_tran": {
         "method": "trained",
@@ -22,6 +22,6 @@
     "renewables_tran": {
         "method": "trained",
         "model_label": "MultiTargetCatBoost",
-        "avg_rmse": 232.98938079279105
+        "avg_rmse": 232.50908573003548
     }
 }
