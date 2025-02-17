@@ -11,7 +11,7 @@
         "model_label": "MultiTargetCatBoost",
         "finetune_datetime": "2025-02-12T22:00:00Z",
         "train_datetime": "2025-02-13T08:00:00Z",
-        "forecast_datetime": "2025-02-16T12:00:00Z",
+        "forecast_datetime": "2025-02-17T10:00:00Z",
         "source": "https://vsevolodnedora.github.io/energy_market_analysis/",
         "forecast_horizon_hours": 168,
         "units": "MW",
@@ -7007,7 +7007,7 @@
         {
             "index": 998,
             "datetime": "2025-02-21T14:00:00Z",
-            "forecast": 13241.744723850321,
+            "forecast": 13241.74472385032,
             "ci_lower": 12413.445133265837,
             "ci_upper": 14500.864933065994
         },
