@@ -18,11 +18,13 @@ from data_modules.data_loaders import (
 from logger import get_logger
 logger = get_logger(__name__)
 
-def main_forecasting_pipeline(task_list:list, outdir:str, database:str, verbose:bool):
+def main_forecasting_pipeline(task_list:list, outdir:str, database:str, freq:str, verbose:bool):
 
     if not os.path.isdir(outdir):
         if verbose: logger.info("Creating output directory {}".format(outdir))
         os.mkdir(outdir)
+    if not freq in ['hourly', 'minutely_15']:
+        raise ValueError(f"freq must be one of 'hourly', 'minutely_15' Given {freq}")
 
     for task in task_list:
         run_label = task['label']
@@ -31,7 +33,7 @@ def main_forecasting_pipeline(task_list:list, outdir:str, database:str, verbose:
 
         # get features + target (historic) and features (forecast) from database
         df_hist, df_forecast = extract_from_database(
-            main_pars=task, db_path=database, outdir=outdir, verbose=verbose, n_horizons=100, horizon=7*24
+            main_pars=task, db_path=database, outdir=outdir, verbose=verbose, freq=freq,
         )
         if len(df_hist.columns) - len(df_forecast.columns) < len(task['targets']):
             logger.warning(f"ETL returned dataframe with less targets then requested. "
@@ -87,7 +89,7 @@ def main_forecasting_pipeline(task_list:list, outdir:str, database:str, verbose:
 
         gc.collect()
 
-def update_forecast_production(database:str, outdir:str, variable:str, verbose:bool):
+def update_forecast_production(database:str, outdir:str, variable:str, freq:str, verbose:bool):
     cv_folds_ft = 3
     cv_folds_eval = 5
     task_list = [{
@@ -241,7 +243,9 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                         tt['dataset_pars']['feature_engineer'] = 'WeatherWindPowerFE'
                         tt['dataset_pars']['locations'] = \
                             [loc['name'] for loc in loc_offshore_windfarms if loc['TSO']==tso_reg['TSO']]
-                main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+                main_forecasting_pipeline(
+                    task_list=task_list_, outdir=outdir, database=database, freq=freq, verbose=verbose
+                )
 
     ''' -------------- ONSHORE WIND POWER GENERATION (4 TSOs) ------------- '''
 
@@ -259,7 +263,9 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                         tt['dataset_pars']['feature_engineer']  = 'WeatherWindPowerFE'
                         tt['dataset_pars']['locations'] = \
                             [loc['name'] for loc in loc_onshore_windfarms if loc['TSO']==tso_reg['TSO']]
-                main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+                main_forecasting_pipeline(
+                    task_list=task_list_, outdir=outdir, database=database, freq=freq, verbose=verbose
+                )
 
     ''' -------------- SOLAR POWER GENERATION (4 TSOs) ------------- '''
 
@@ -278,7 +284,9 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                         tt['dataset_pars']['feature_engineer']  = 'WeatherSolarPowerFE'
                         tt['dataset_pars']['locations'] = \
                             [loc['name'] for loc in loc_solarfarms if loc['TSO']==tso_reg['TSO']]
-                main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+                main_forecasting_pipeline(
+                    task_list=task_list_, outdir=outdir, database=database, freq=freq, verbose=verbose
+                )
 
     ''' -------------- LOAD (4 TSOs) ------------- '''
 
@@ -296,7 +304,9 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                         tt['dataset_pars']['feature_engineer']  = 'WeatherLoadFE'
                         tt['dataset_pars']['locations'] = \
                             [loc['name'] for loc in loc_cities if loc['TSO'] == tso_reg['TSO']]
-                main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+                main_forecasting_pipeline(
+                    task_list=task_list_, outdir=outdir, database=database, freq=freq, verbose=verbose
+                )
 
 
     ''' ------------------ OTHER RENEWABLES (4 TSOs) ------------- '''
@@ -318,7 +328,9 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                         tt['dataset_pars']['feature_engineer']  = 'WeatherLoadFE'
                         tt['dataset_pars']['locations'] = \
                             [loc['name'] for loc in loc_cities if loc['TSO']==tso_reg['TSO']]
-                main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+                main_forecasting_pipeline(
+                    task_list=task_list_, outdir=outdir, database=database, freq=freq, verbose=verbose
+                )
 
 
     ''' -------------- MIX (4 TSOs) ------------- '''
@@ -541,7 +553,9 @@ def update_forecast_production(database:str, outdir:str, variable:str, verbose:b
                             [loc['name'] for loc in loc_cities if loc['TSO']==tso_reg['TSO']]
 
                 start_time = time.time()  # Start the timer
-                main_forecasting_pipeline(task_list=task_list_, outdir=outdir, database=database, verbose=verbose)
+                main_forecasting_pipeline(
+                    task_list=task_list_, outdir=outdir, database=database, freq=freq, verbose=verbose
+                )
                 end_time = time.time()  # End the timer
                 elapsed_time = end_time - start_time
                 hours, minutes = divmod(elapsed_time // 60, 60)

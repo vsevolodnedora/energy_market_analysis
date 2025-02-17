@@ -12,9 +12,13 @@ import logging
 import holidays
 from prophet import Prophet
 from catboost import CatBoostRegressor
+from xgboost import XGBRegressor
+from lightgbm import LGBMRegressor
 
 from logger import get_logger
 logger = get_logger(__name__)
+
+
 
 def detect_outliers_zscore(values, z_thresh: float = 3.0):
     """
@@ -596,3 +600,39 @@ class ElasticNetMapieRegressor(BaseForecaster):
     #     feature_importance = pd.Series(avg_coefficients, index=self.features)
     #     feature_importance = feature_importance.abs().sort_values(ascending=False)
     #     return feature_importance
+
+
+def instantiate_base_singletarget_forecaster(model_name:str, targets:list, model_pars:dict, verbose:bool)->BaseForecaster:
+    # if 'l1_ratio' in model_pars: del model_pars['l1_ratio']
+    # train the forecasting model several times to evaluate its performance, get all results
+    if model_name == 'XGBoost':
+        if len(targets) > 1: raise ValueError("XGBoost does not support multiple targets")
+        return XGBoostMapieRegressor(
+            model=MapieRegressor(
+                xgb.XGBRegressor(**model_pars),
+                method='naive', cv='prefit'#TimeSeriesSplit(n_splits=5)
+            ), target=targets[0], alpha=0.05, verbose=verbose)
+
+    if model_name == 'LightGBM':
+        extra_pars = {'importance_type': 'gain', "verbose":-1} # Use 'gain' importance for feature selection
+        if len(targets) > 1: raise ValueError("LightGBM does not support multiple targets")
+        return LGBMMapieRegressor(
+            model=MapieRegressor(
+                LGBMRegressor(**(model_pars | extra_pars)),
+                method='naive', cv='prefit'#TimeSeriesSplit(n_splits=5)
+            ), target=targets[0], alpha=0.05, verbose=verbose)
+
+    elif model_name == 'ElasticNet':
+        if len(targets) > 1: raise ValueError("ElasticNet does not support multiple targets")
+        return ElasticNetMapieRegressor(
+            model=MapieRegressor(
+                ElasticNet(**(model_pars | { 'max_iter':1e6, 'tol':1e-8 })),
+                method='naive', cv='prefit'#TimeSeriesSplit(n_splits=5)
+            ), target=targets[0], alpha=0.05, verbose=verbose)
+
+    elif model_name == 'Prophet':
+        if len(targets) > 1: raise ValueError("Prophet does not support multiple targets")
+        return ProphetForecaster( params = model_pars, target=targets[0], alpha=0.05, verbose=verbose)
+
+    else:
+        raise NotImplementedError(f"Fine-tuning parameter set for {model_name} not implemented")

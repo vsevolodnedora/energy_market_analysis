@@ -13,10 +13,11 @@ logger = get_logger(__name__)
 
 if __name__ == '__main__':
 
-    freq='minutely_15'
+    # freq='hourly'
+    # freq='minutely_15'
 
-    db_path = './database/'
-    # db_path = './database_15min/'
+    # db_path = './database/'
+    # db_path_15min = './database_15min/'
 
     targets = ['wind_offshore', 'wind_onshore', 'solar', 'load', 'energy_mix']
     # targets = ['wind_offshore']
@@ -29,8 +30,19 @@ if __name__ == '__main__':
 
     for target in targets:
         update_forecast_production(
-            database=db_path, variable=target, outdir='./output/forecasts/', freq=freq, verbose=True
+            database='./database/',
+            variable=target,
+            outdir='./output/forecasts/',
+            freq='hourly',
+            verbose=True
         )
+        # update_forecast_production(
+        #     database='./database_15min/',
+        #     variable=target,
+        #     outdir='./output/forecasts/',
+        #     freq='minutely_15',
+        #     verbose=True
+        # )
 
     end_time = time.time()  # End the timer
     elapsed_time = end_time - start_time

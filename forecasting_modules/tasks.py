@@ -1,40 +1,28 @@
 import time, copy, re, pandas as pd, numpy as np, matplotlib.pyplot as plt
 import os.path
 
-from lightgbm.basic import LightGBMError
-from numba import NonexistentTargetError
-from sklearn.model_selection import TimeSeriesSplit
-from sklearn.linear_model import ElasticNetCV, ElasticNet, Ridge
-
-import xgboost as xgb
-from lightgbm import LGBMRegressor
-from catboost import CatBoostRegressor
-from sklearn.multioutput import MultiOutputRegressor
-import shap
-from datetime import datetime, timedelta
-import holidays
-from sklearn.decomposition import PCA
-import matplotlib.dates as mdates
-from mapie.regression import MapieRegressor
 import json
 import csv
 import gc
 import inspect
 import optuna
 import joblib
-import pickle
-from prophet import Prophet
-from sklearn.preprocessing import StandardScaler
+
 
 from sklearn.utils.validation import check_is_fitted
-
-from scipy.stats import friedmanchisquare
 
 from data_collection_modules.utils import validate_dataframe_simple
 from forecasting_modules.utils import (
     compute_timeseries_split_cutoffs,
+    save_datetime_now,
+    save_optuna_results,
+    get_ensemble_name_and_model_names,
+)
+from forecasting_modules.model_evaluator_utils import (
     compute_error_metrics,
-    save_datetime_now
+    analyze_model_performance,
+    write_summary,
+    get_average_metrics
 )
 from data_modules.data_classes import (
     HistForecastDataset,
@@ -46,14 +34,11 @@ from data_modules.data_vis import (
 )
 from forecasting_modules.base_models import (
     BaseForecaster,
-    XGBoostMapieRegressor,
-    LGBMMapieRegressor,
-    ElasticNetMapieRegressor,
-    ProphetForecaster
+    instantiate_base_singletarget_forecaster
 )
 from forecasting_modules.base_models_multitarget import (
-    MultiTargetCatBoostRegressor,
-    MultiTargetLGBMMultiTargetForecaster
+    BaseMultiTargetForecaster,
+    instantiate_base_multitarget_forecaster
 )
 from forecasting_modules.hyperparameters_for_optuna import (
     get_parameters_for_optuna_trial
@@ -63,449 +48,16 @@ from logger import get_logger
 logger = get_logger(__name__)
 
 
-def save_optuna_results(study:optuna.Study, extra_pars:dict, outdir:str):
-    """
-    Save all results from an Optuna study to multiple formats.
-
-    Args:
-        study (optuna.study.Study): The completed Optuna study to save.
-        outdir (str): Outdir for the files to create.
-
-    Files created:
-        - {outdir}_best_parameters.json: Best parameters in JSON format.
-        - {outdir}_best_trial_details.json: Details of the best trial in JSON format.
-        - {outdir}_best_parameters.csv: Best parameters in CSV format.
-        - {outdir}_complete_study_results.csv: Full study results in CSV format.
-    """
-
-    if not os.path.isdir(outdir):
-        os.makedirs(outdir)
-
-    # Save best parameters to JSON
-    best_params = study.best_params
-    if extra_pars: best_params = best_params | extra_pars
-    with open(f'{outdir}best_parameters.json', 'w') as f:
-        json.dump(best_params, f, indent=4)
-
-    # Save details of the best trial to JSON
-    best_trial = study.best_trial
-    best_trial_details = {
-        'trial_id': best_trial.number,
-        'best_value': study.best_value,
-        'params': best_params
-    }
-    with open(f'{outdir}best_trial_details.json', 'w') as f:
-        json.dump(best_trial_details, f, indent=4)
-
-    # Save best parameters to CSV
-    with open(f'{outdir}best_parameters.csv', 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(['Parameter', 'Value'])
-        for key, value in best_params.items():
-            writer.writerow([key, value])
-
-    # Convert the complete study results to a DataFrame and save to CSV
-    results_df = study.trials_dataframe(attrs=('number', 'value', 'params', 'state'))
-    results_df.to_csv(f'{outdir}complete_study_results.csv', index=False)
-
-    save_datetime_now(outdir) # save when the training was done
-
-
+# Initialize the regressor using parameter dict
 def instantiate_base_forecaster(model_name:str, targets:list, model_pars:dict, verbose:bool)\
-        ->BaseForecaster | MultiTargetCatBoostRegressor | MultiTargetLGBMMultiTargetForecaster:
-    # if 'l1_ratio' in model_pars: del model_pars['l1_ratio']
-    # train the forecasting model several times to evaluate its performance, get all results
-    if model_name == 'XGBoost':
-        if len(targets) > 1: raise ValueError("XGBoost does not support multiple targets")
-        return XGBoostMapieRegressor(
-            model=MapieRegressor(
-                xgb.XGBRegressor(**model_pars),
-                method='naive', cv='prefit'#TimeSeriesSplit(n_splits=5)
-            ), target=targets[0], alpha=0.05, verbose=verbose)
-
-    if model_name == 'LightGBM':
-        extra_pars = {'importance_type': 'gain', "verbose":-1} # Use 'gain' importance for feature selection
-        if len(targets) > 1: raise ValueError("LightGBM does not support multiple targets")
-        return LGBMMapieRegressor(
-            model=MapieRegressor(
-                LGBMRegressor(**(model_pars | extra_pars)),
-                method='naive', cv='prefit'#TimeSeriesSplit(n_splits=5)
-            ), target=targets[0], alpha=0.05, verbose=verbose)
-
-    elif model_name == 'ElasticNet':
-        if len(targets) > 1: raise ValueError("ElasticNet does not support multiple targets")
-        return ElasticNetMapieRegressor(
-            model=MapieRegressor(
-                ElasticNet(**(model_pars | { 'max_iter':1e6, 'tol':1e-8 })),
-                method='naive', cv='prefit'#TimeSeriesSplit(n_splits=5)
-            ), target=targets[0], alpha=0.05, verbose=verbose)
-
-    elif model_name == 'Prophet':
-        if len(targets) > 1: raise ValueError("Prophet does not support multiple targets")
-        return ProphetForecaster( params = model_pars, target=targets[0], alpha=0.05, verbose=verbose)
-
-    elif model_name == 'MultiTargetElasticNet':
-        extra_pars = {}
-        return MultiTargetLGBMMultiTargetForecaster(
-            model=MultiOutputRegressor(ElasticNet(**(model_pars | extra_pars))),
-            targets=targets, alpha=0.05, verbose=verbose
-        )
-
-    elif model_name == 'MultiTargetCatBoost':
-        if len(targets) > 1: extra_pars =  {
-            'loss_function': 'MultiRMSE', 'eval_metric': 'MultiRMSE',
-            "allow_writing_files":False,"silent":True
-        }
-        else: extra_pars = {
-            'loss_function': 'RMSE', 'eval_metric': 'RMSE',
-            "allow_writing_files":False,"silent":True
-        }
-        return MultiTargetCatBoostRegressor(
-            model=CatBoostRegressor(**(model_pars | extra_pars)),  # Multivariate regression objective}),
-            targets=targets, alpha=0.05, verbose=verbose
-        )
-
-    elif model_name == 'MultiTargetLGBM':
-        extra_pars = {'importance_type': 'gain', "verbose":-1} # Use 'gain' importance for feature selection
-        return MultiTargetLGBMMultiTargetForecaster(
-            model=MultiOutputRegressor(LGBMRegressor(**(model_pars | extra_pars))),
-            targets=targets, alpha=0.05, verbose=verbose
-        )
-
+        ->BaseForecaster | BaseMultiTargetForecaster:
+    if model_name.__contains__('MultiTarget'):
+        return instantiate_base_multitarget_forecaster(model_name, targets, model_pars, verbose)
     else:
-        raise NotImplementedError(f"Fine-tuning parameter set for {model_name} not implemented")
-
-# def get_ts_cutoffs(ds:HistForecastDataset,folds:int)->tuple[list[pd.Timestamp], list[tuple[pd.DatetimeIndex, pd.DatetimeIndex]]]:
-#     if ds is None:
-#         raise ReferenceError("Dataset class is not initialized")
-#     horizon = len(ds.forecast_idx) # number of timesteps to forecast
-#     if not horizon % 24 == 0:
-#         raise ValueError(f"Horizon must be divisible by 24 (at least one day). Given {horizon}")
-#     return compute_timeseries_split_cutoffs(
-#         ds.hist_idx,
-#         horizon=horizon,
-#         folds=folds,
-#         min_train_size=5*horizon
-#     )
-
-def get_ensemble_name_and_model_names(model_name:str):
-    match = re.search(r'\[(.*?)\]', model_name)
-    if match: meta_model = match.group(1)
-    else: raise NameError(f"Model name {model_name} does not contain '[meta_model_name]' string")
-
-    # extract base-models names
-    match = re.search(r'\((.*?)\)', model_name)
-    if match: model_names = match.group(1).split(',')  # Split by comma
-    else: raise NameError(f"Model name {model_name} does not contain '(model_name_1,model_name_2)' string")
-
-    return meta_model, model_names
-
-def analyze_model_performance( data: pd.DataFrame, n_folds: int, metric: str )->tuple[dict, dict]:
-
-    # targets = list(data['target'].unique())
-
-    # Validate inputs
-    if metric not in ['mse', 'rmse', 'mae', 'mape']:
-        raise ValueError(f"Invalid metric '{metric}'. Choose from 'mse', 'rmse', 'mae', 'mape'.")
-
-    targets = data['target'].unique()
-    horizons = []
-    for target in targets:
-        horizons_ = data.loc[data['target']==target]['horizon'].unique().tolist()
-        if horizons == []: horizons = horizons_
-        else:
-            if not horizons_ == horizons_:
-                raise ValueError("All horizons must have same number of horizons.")
-
-    # select last n_folds
-    latest_timestamps = pd.Series(
-        [pd.Timestamp(d,tz='UTC') for d in horizons],
-    ).nlargest(n_folds).tolist()
-
-    data['horizon'] = pd.to_datetime(data["horizon"])
-    data = data[data["horizon"].isin(latest_timestamps)]
-    ave_metric = data.groupby(by=['target', 'method', 'model_label'])[metric].mean().reset_index()
-    trained_metrics = ave_metric[ave_metric['method'] == 'trained'].drop(columns=['method'],inplace=False)
-    forecast_metrics = ave_metric[ave_metric['method'] == 'forecast'].drop(columns=['method'],inplace=False)
-
-    # Finding the best model for each target based on the lowest RMSE
-    best_models_train = trained_metrics.loc[trained_metrics.groupby("target")[metric].idxmin()]
-    # Creating the JSON structure
-    json_output_train = {
-        row["target"]: {
-            "method": "trained",
-            "model_label": row["model_label"],
-            "avg_rmse": row[metric],
-        } for _, row in best_models_train.iterrows()
-    }
-
-    # Finding the best model for each target based on the lowest RMSE
-    best_models_forecast = forecast_metrics.loc[forecast_metrics.groupby("target")[metric].idxmin()]
-    # Creating the JSON structure
-    json_output_forecast = {
-        row["target"]: {
-            "method": "trained",
-            "model_label": row["model_label"],
-            "avg_rmse": row[metric],
-        } for _, row in best_models_forecast.iterrows()
-    }
-
-    return json_output_train, json_output_forecast
+        return instantiate_base_singletarget_forecaster(model_name, targets, model_pars, verbose)
 
 
-
-
-    # # Converting to JSON format
-    # json_str = json.dumps(json_output, indent=4)
-    #
-    # # Filter data by the number of folds
-    # data['horizon'] = pd.to_datetime(data['horizon'])
-    # data = data.sort_values(by=['method', 'model_label', 'horizon'], ascending=[True, True, False])
-    # recent_data = data.groupby(['method', 'model_label'])
-    #
-    # # Compute the average error for each model and method
-    # avg_errors = (recent_data
-    #               .group(['target', 'method', 'model_label'])[metric]
-    #               .mean()
-    #               .reset_index()
-    #               .rename(columns={metric: f'avg_{metric}'}))
-    #
-    # # Determine the best model for each method (trained and forecast)
-    # best_models = avg_errors.loc[avg_errors.groupby(['target','method'])[f'avg_{metric}'].idxmin()]
-    #
-    # # Check for model drift (forecast errors systematically larger than trained errors)
-    # trained_errors = avg_errors[avg_errors['method'] == 'trained']
-    # forecast_errors = avg_errors[avg_errors['method'] == 'forecast']
-    #
-    # drift_data = pd.merge(trained_errors, forecast_errors, on=['target','model_label'], suffixes=('_trained', '_forecast'))
-    # drift_data['error_difference'] = drift_data[f'avg_{metric}_forecast'] - drift_data[f'avg_{metric}_trained']
-    # drift_data['drift_detected'] = drift_data['error_difference'] > 0
-    #
-    # # Summarize drift detection
-    # drift_summary = drift_data[['target', 'model_label', 'error_difference', 'drift_detected']]
-    #
-    # return best_models, drift_summary
-
-
-def write_summary(summary: dict):
-    # Collect datagrams
-    datagram = []
-
-    # Iterate through the methods (train, forecast)
-    for method, models in summary.items():
-        for model_label, horizons in models.items():
-            for horizon, metrics in horizons.items():
-                # Extract the wind_offshore key and its associated metrics
-                for target_key, target_metrics in metrics.items():
-                    # Create a single entry for each horizon with wind_offshore as the root key
-                    datagram.append({
-                        "target": target_key,
-                        "method": method,
-                        "model_label": model_label,
-                        "horizon": horizon,
-                        **target_metrics
-                    })
-
-    return datagram
-
-def plot_metric_evolution(file_path: str, metric: str):
-    # Load the dataframe
-    df = pd.read_csv(file_path)
-
-    # Filter relevant columns
-    if metric not in df.columns:
-        raise ValueError(f"Metric '{metric}' not found in the dataframe.")
-
-    # Sort the dataframe by horizon and convert horizon to datetime
-    df['horizon'] = pd.to_datetime(df['horizon'])
-    df = df.sort_values(by='horizon')
-
-    markers = ['s', 'o', 'v', '^', 'P']
-
-    # Plot the metric evolution
-    fig, ax = plt.subplots(figsize=(8, 4))
-    for marker, model_label in zip(markers, df['model_label'].unique()):
-        if model_label.__contains__('ensemble'): markerfacecolor = 'black'
-        else: markerfacecolor = 'None'
-        method_df_trained = df[(df['model_label'] == model_label) & (df['method'] == 'trained')]
-        ax.plot(method_df_trained['horizon'], method_df_trained[metric], linestyle='None',
-                marker=marker, label=model_label, color='black',
-                markerfacecolor=markerfacecolor, markeredgecolor='black', markersize=8
-                )
-        # method_df_forecast = df[(df['model_label'] == model_label) & (df['method'] == 'trained')]
-        # ax.plot(method_df_forecast['horizon'], method_df_forecast[metric], linestyle='None', marker=marker)
-
-    # Set x-ticks at unique horizon values
-    unique_horizons = df['horizon'].sort_values().unique()
-    ax.set_xticks(unique_horizons)
-    ax.set_xticklabels([
-        h.strftime('%Y-%m-%d') for h in unique_horizons], rotation=0, ha='center'#'right'
-    )
-
-    ax.grid(True, linestyle='-', alpha=0.4)
-    ax.tick_params(axis='x', direction='in', bottom=True)
-    ax.tick_params(axis='y', which='both', direction='in', left=True, right=True)
-    # Set border lines transparent by setting the edge color and alpha
-    ax.spines['top'].set_edgecolor((1, 1, 1, 0))  # Transparent top border
-    ax.spines['right'].set_edgecolor((1, 1, 1, 0))  # Transparent right border
-    ax.spines['left'].set_edgecolor((1, 1, 1, 0))  # Transparent left border
-    ax.spines['bottom'].set_edgecolor((1, 1, 1, 0))  # Transparent bottom border
-
-    # Make x and y ticks transparent
-    ax.tick_params(axis='x', color=(1, 1, 1, 0))  # Transparent x ticks
-    ax.tick_params(axis='y', color=(1, 1, 1, 0))  # Transparent y ticks
-
-    # ax.xaxis.set_major_locator(mdates.DayLocator())
-    # ax_bottom.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))  # Format as "Dec
-
-    ax.set_title(f"{metric.upper()} for Several Out-of-Sample Forecasts")
-    ax.set_xlabel("Starting Date of the Forecasting Horizon")
-    ax.set_ylabel(f"Horizon Averaged {metric.upper()}")
-    ax.legend()
-    ax.grid(True)
-    plt.tight_layout()
-    plt.savefig(file_path.replace(".csv",".png"), dpi=600)
-    plt.show()
-
-def select_best_model(metrics):
-    """
-    Selects the best-performing model using different evaluation approaches.
-
-    Args:
-        metrics (dict): A nested dictionary where metrics[model_name][window_start_timestamp][metric_name] = value.
-
-    Returns:
-        dict: A dictionary with approach names as keys and the best model names as values.
-    """
-
-    # Collect models and windows
-    models = list(metrics.keys())
-    windows = set()
-    for model in metrics:
-        windows.update(metrics[model].keys())
-    windows = sorted(windows)  # Oldest to newest
-
-    # Create weights for windows, giving higher weights to more recent windows
-    num_windows = len(windows)
-    window_weights = np.arange(1, num_windows + 1)  # Linear weights
-    window_weights = window_weights / window_weights.sum()  # Normalize weights to sum to 1
-    window_weights_series = pd.Series(window_weights, index=windows)
-
-    # Define the metrics to consider
-    metric_names = ['mse', 'rmse', 'mae', 'mape', 'smape', 'bias', 'variance', 'std',
-                    'r2', 'prediction_interval_coverage', 'prediction_interval_width']
-
-    # Initialize a dictionary to store DataFrames for each metric
-    metric_dfs = {metric_name: pd.DataFrame(index=windows, columns=models) for metric_name in metric_names}
-
-    # Populate the DataFrames with metric values
-    for model in models:
-        for window in metrics[model]:
-            for metric_name in metric_names:
-                value = metrics[model][window].get(metric_name, np.nan)
-                metric_dfs[metric_name].loc[window, model] = value
-
-    # Initialize the result dictionary
-    best_models = {}
-
-    # Approach 1: Weighted Aggregate Error Metrics
-    # Weighted Mean and Median RMSE
-    for agg_func in ['mean', 'median']:
-        for metric in ['rmse', 'smape']:
-            metric_df = metric_dfs[metric].astype(float)
-            # Apply weights
-            weighted_metric = metric_df.mul(window_weights_series, axis=0)
-            if agg_func == 'mean':
-                agg_metric = weighted_metric.sum()
-            elif agg_func == 'median':
-                # Weighted median is more complex; we'll approximate by sorting
-                # and selecting the value where the cumulative weight reaches 50%
-                agg_metric = {}
-                for model in models:
-                    sorted_metrics = metric_df[model].dropna().sort_values()
-                    sorted_weights = window_weights_series.loc[sorted_metrics.index]
-                    cum_weights = sorted_weights.cumsum()
-                    median_idx = cum_weights >= 0.5
-                    if not median_idx.any():
-                        median_value = np.nan
-                    else:
-                        median_value = sorted_metrics[median_idx.idxmax()]
-                    agg_metric[model] = median_value
-                agg_metric = pd.Series(agg_metric)
-            best_model = agg_metric.idxmin()
-            best_models[f'Weighted {agg_func.capitalize()} {metric.upper()}'] = best_model
-
-    # Weighted Worst-Case Performance
-    # Since worst-case is a single value, weighting doesn't directly apply,
-    # but we can focus on recent worst cases.
-    recent_windows = windows[-max(1, num_windows // 3):]  # Use the most recent third of windows
-    for metric in ['rmse', 'smape']:
-        metric_df = metric_dfs[metric].loc[recent_windows]
-        max_metric = metric_df.max()
-        best_model_max = max_metric.idxmin()
-        best_models[f'Recent Worst-Case {metric.upper()}'] = best_model_max
-
-    # Approach 2: Weighted Stability of Performance
-    for metric in ['rmse', 'smape']:
-        metric_df = metric_dfs[metric].astype(float)
-        # Calculate weighted standard deviation
-        mean_metric = metric_df.mul(window_weights_series, axis=0).sum()
-        deviations = metric_df.subtract(mean_metric, axis=1)
-        weighted_var = (deviations ** 2).mul(window_weights_series, axis=0).sum()
-        weighted_std = np.sqrt(weighted_var)
-        cv_metric = weighted_std / mean_metric.abs()
-
-        best_model_std = weighted_std.idxmin()
-        best_model_cv = cv_metric.idxmin()
-
-        best_models[f'Weighted Std of {metric.upper()}'] = best_model_std
-        best_models[f'Weighted CV of {metric.upper()}'] = best_model_cv
-
-    # Approach 3: Weighted Pairwise Comparisons
-    for metric in ['rmse', 'smape']:
-        metric_df = metric_dfs[metric].astype(float)
-        # For each window, find the best model
-        best_per_window = metric_df.idxmin(axis=1)
-        # Weight the counts based on window weights
-        weighted_counts = best_per_window.map(window_weights_series).groupby(best_per_window).sum()
-        best_model_pairwise = weighted_counts.idxmax()
-        best_models[f'Weighted Pairwise Comparison {metric.upper()}'] = best_model_pairwise
-
-    # Approach 5: Statistical Tests on Recent Windows
-    for metric in ['rmse', 'smape']:
-        metric_df = metric_dfs[metric].loc[recent_windows].dropna()
-        if len(models) >= 2 and metric_df.shape[0] >= 2:
-            # Perform Friedman test on recent windows
-            friedman_stat, p_value = friedmanchisquare(
-                *[metric_df[model].values for model in models]
-            )
-            if p_value < 0.05:
-                best_model_friedman = metric_df.mean().idxmin()
-                best_models[f'Recent Friedman Test {metric.upper()}'] = best_model_friedman
-            else:
-                best_models[f'Recent Friedman Test {metric.upper()}'] = 'No significant difference'
-        else:
-            best_models[f'Recent Friedman Test {metric.upper()}'] = 'Not enough data'
-
-    return best_models
-
-
-def get_average_metrics(metrics:dict)->dict:
-    sample_target = list(metrics.values())[0]
-    sample_keys = list(sample_target[list(sample_target.keys())[0]].keys())
-
-    # Compute average values for each metric and target
-    averages = {
-        target: {
-            key: np.mean([metrics[timestamp][target][key] for timestamp in metrics])
-            for key in sample_keys
-        }
-        for target in list(sample_target.keys())
-    }
-    return averages
-
-
+# keeps track on where finetuning, training and forecasting results are kept for each task and each model
 class TaskPaths:
 
     train_forecast = ['trained', 'forecast']
@@ -567,7 +119,7 @@ class TaskPaths:
         elif dir == 'forecast': return self.to_forecast()
         else: raise ValueError(f"Directory {dir} is not supported. Expected 'trained' or 'forecast'")
 
-
+# single-model (non-enseble) finetune/train/forecast manager
 class BaseModelTasks(TaskPaths):
 
     def __init__(self, run_label: str, targets_list:list, model_label: str, working_dir: str, verbose: bool = False):

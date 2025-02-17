@@ -233,3 +233,40 @@ class MultiTargetLGBMMultiTargetForecaster(BaseMultiTargetForecaster):
 
         self.name='MultiTargetLGBMMultiTargetForecaster'
         self.model = model
+
+
+
+def instantiate_base_multitarget_forecaster(model_name:str, targets:list, model_pars:dict, verbose:bool) \
+        -> BaseMultiTargetForecaster:
+    # if 'l1_ratio' in model_pars: del model_pars['l1_ratio']
+    # train the forecasting model several times to evaluate its performance, get all results
+    if model_name == 'MultiTargetElasticNet':
+        extra_pars = {}
+        return MultiTargetLGBMMultiTargetForecaster(
+            model=MultiOutputRegressor(ElasticNet(**(model_pars | extra_pars))),
+            targets=targets, alpha=0.05, verbose=verbose
+        )
+
+    elif model_name == 'MultiTargetCatBoost':
+        if len(targets) > 1: extra_pars =  {
+            'loss_function': 'MultiRMSE', 'eval_metric': 'MultiRMSE',
+            "allow_writing_files":False,"silent":True
+        }
+        else: extra_pars = {
+            'loss_function': 'RMSE', 'eval_metric': 'RMSE',
+            "allow_writing_files":False,"silent":True
+        }
+        return MultiTargetCatBoostRegressor(
+            model=CatBoostRegressor(**(model_pars | extra_pars)),  # Multivariate regression objective}),
+            targets=targets, alpha=0.05, verbose=verbose
+        )
+
+    elif model_name == 'MultiTargetLGBM':
+        extra_pars = {'importance_type': 'gain', "verbose":-1} # Use 'gain' importance for feature selection
+        return MultiTargetLGBMMultiTargetForecaster(
+            model=MultiOutputRegressor(LGBMRegressor(**(model_pars | extra_pars))),
+            targets=targets, alpha=0.05, verbose=verbose
+        )
+
+    else:
+        raise NotImplementedError(f"Fine-tuning parameter set for {model_name} not implemented")

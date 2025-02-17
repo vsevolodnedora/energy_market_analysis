@@ -38,12 +38,15 @@ def compute_residual_load(df:pd.DataFrame, suffix:str):
     return pd.Series(load.values, index=df.index, name=f'residual_load{suffix}')
 
 # TODO: USE SQL HERE!!!
-def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:int, horizon:int, verbose:bool)\
+def extract_from_database(main_pars:dict, db_path:str, outdir:str, freq:str, verbose:bool)\
         -> tuple[pd.DataFrame, pd.DataFrame]:
 
     tso_name = main_pars['region']
     targets = main_pars['targets']
     target_label = main_pars['label']
+
+    n_horizons = 100 # amount of data to extract
+    horizon = 7*24 if freq == 'hourly' else 7*24*4
 
     # -------- laod database TODO move to SQLlite DB
     df_smard = pd.read_parquet(db_path + 'smard/' + 'history.parquet')
@@ -55,7 +58,7 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
     df_om_solar_f = pd.read_parquet(db_path + 'openmeteo/' + 'solar_forecast.parquet')
     df_om_cities = pd.read_parquet(db_path + 'openmeteo/' + 'cities_history.parquet')
     df_om_cities_f = pd.read_parquet(db_path + 'openmeteo/' + 'cities_forecast.parquet')
-    df_es = pd.read_parquet(db_path + 'epexspot/' + 'history.parquet')
+    # df_es = pd.read_parquet(db_path + 'epexspot/' + 'history.parquet')
     df_entsoe = pd.read_parquet(db_path + 'entsoe/' + 'history.parquet')
     df_entsoe = df_entsoe.apply(pd.to_numeric, errors='coerce')
 
@@ -70,7 +73,7 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
         logger.info(f"OM onshore data shapes forecast={df_om_onshore_f.shape} (days={len(df_om_onshore_f)/24}) start={df_om_onshore_f.index[0]} end={df_om_onshore_f.index[-1]}")
         logger.info(f"OM solar data shapes hist={df_om_solar.shape} (days={len(df_om_solar)/24}) start={df_om_solar.index[0]} end={df_om_solar.index[-1]}")
         logger.info(f"OM solar data shapes forecast={df_om_solar_f.shape} (days={len(df_om_solar_f)/24}) start={df_om_solar_f.index[0]} end={df_om_solar_f.index[-1]}")
-        logger.info(f"EPEXSPOT data shapes hist={df_es.shape} (days={len(df_es)/24}) start={df_es.index[0]} end={df_es.index[-1]}")
+        # logger.info(f"EPEXSPOT data shapes hist={df_es.shape} (days={len(df_es)/24}) start={df_es.index[0]} end={df_es.index[-1]}")
         logger.info("-------------------------------------------")
 
     if len(df_om_offshore_f) != len(df_om_offshore_f) or len(df_om_solar_f) != len(df_om_solar_f):
@@ -86,9 +89,14 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
         df_om_solar_f = df_om_solar_f.iloc[:horizon]
         df_om_cities_f = df_om_cities_f.iloc[:horizon]
         assert len(df_om_offshore_f) == horizon
-        assert (df_om_offshore_f.index[-1].hour == 23 and
-                df_om_offshore_f.index[-1].minute == 0 and
-                df_om_offshore_f.index[-1].second == 0)
+        if not (df_om_offshore_f.index[-1].hour == 23 and
+            (df_om_offshore_f.index[-1].minute == 0 or df_om_offshore_f.index[-1].minute == 45)and
+            df_om_offshore_f.index[-1].second == 0):
+            raise IOError(f"The forecast DataFrames have different number of columns. "
+                          f"Hour={df_om_offshore_f.index[-1].hour} "
+                          f"minute={df_om_offshore_f.index[-1].minute} "
+                          f"second={df_om_offshore_f.index[-1].second}")
+
 
     target_label_notso = ''
     tso_dict = {}
@@ -329,8 +337,9 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, n_horizons:in
     #     raise ValueError(f"History dataframe for target = {target} and region = {region} failed to validate.")
     # if not validate_dataframe(df_forecast):
     #     raise ValueError(f"History dataframe for target = {target} and region = {region} failed to validate.")
-    if not df_forecast.index[0] == df_hist.index[-1]+pd.Timedelta(hours=1):
-        raise ValueError(f"Forecast dataframe must have index[0] = historic index[-1] + 1 hour")
+    if  not (df_forecast.index[0] == df_hist.index[-1]+pd.Timedelta(hours=1)):
+        raise ValueError(f"Forecast dataframe must have index[0] = historic index[-1] + 1 hour"
+                         f"forecast starts on {df_forecast.index[0]} history ends on {df_hist.index[-1]} ")
 
     expected_range = pd.date_range(start=df_hist.index.min(), end=df_hist.index.max(), freq='h')
     if not df_hist.index.equals(expected_range):

@@ -3,9 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import copy, json
 from datetime import timedelta, datetime
-
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, mean_absolute_percentage_error
-from typing import Callable
+import optuna
+import os, csv, re
 
 
 def visualize_splits(
@@ -150,108 +149,6 @@ def compute_timeseries_split_cutoffs(
     return cutoffs, train_test_splits
 
 
-
-def compute_error_metrics(target:list,result:pd.DataFrame)->dict:
-
-    def smape(actual, predicted):
-        """
-        Calculate Symmetric Mean Absolute Percentage Error (sMAPE).
-
-        Parameters:
-        actual (array-like): Array of actual values.
-        predicted (array-like): Array of predicted values.
-
-        Returns:
-        float: sMAPE value as a percentage.
-        """
-        actual = np.array(actual)
-        predicted = np.array(predicted)
-
-        # Avoid division by zero using (|actual| + |predicted|) in the denominator
-        denominator = (np.abs(actual) + np.abs(predicted)) / 2.0
-        smape_value = np.mean(2 * np.abs(predicted - actual) / denominator) * 100
-
-        return smape_value
-
-    res_dict ={}
-    for target_ in target:
-        # extract arrays
-        y_true = result[f'{target_}_actual'].values
-        y_pred = result[f'{target_}_fitted'].values
-        y_lower = result[f'{target_}_lower'].values if f'{target_}_lower' in result.columns else np.zeros_like(y_true)
-        y_upper = result[f'{target_}_upper'].values if f'{target_}_lower' in result.columns else np.zeros_like(y_true)
-        coverage = np.mean((y_true >= y_lower) & (y_true <= y_upper))
-
-        # if not np.all(np.isfinite(y_true)):
-        #     print ("WARNIGN! y_true contains NaN, infinity, or values too large for dtype('float64').")
-        #     y_true = np.nan_to_num(y_true, nan=0.0, posinf=1e10, neginf=-1e10)
-        # if not np.all(np.isfinite(y_pred)):
-        #     print ("WARNING! y_pred contains NaN, infinity, or values too large for dtype('float64').")
-        #     y_pred = np.nan_to_num(y_pred, nan=0.0, posinf=1e10, neginf=-1e10)
-
-        # compute metrics
-        res_dict[target_] = {
-            'mse': mean_squared_error(y_true, y_pred),
-            'rmse': np.sqrt(mean_squared_error(y_true, y_pred)),
-            'mae': mean_absolute_error(y_true, y_pred),
-            'mape': mean_absolute_percentage_error(y_true+1e-10, y_pred) * 100,
-            'smape': smape(y_true, y_pred),
-            'bias': np.mean(y_pred - y_true),
-            'variance': np.var(y_pred - y_true),
-            'std': np.std(y_pred - y_true),
-            'r2':r2_score(y_true, y_pred),
-            'prediction_interval_coverage':coverage,
-            'prediction_interval_width':np.mean(y_upper - y_lower)
-        }
-
-    return res_dict
-
-def compute_error_metrics_aggregate_over_horizon(
-        target:str, cv_result:list[pd.DataFrame], unscaler:Callable[[pd.Series], pd.Series] = None)->dict:
-    ''' compute error metrics for each forecasted hour using forecasted horizon to aggregate over
-        and compute mean and std of the result (aggregating over cv_runs) '''
-    cv_metrics = []
-    for i in range(len(cv_result)):
-        if unscaler is None:
-            cv_metrics.append(compute_error_metrics(target, cv_result[i]))
-        else:
-            # apply function that takes pd.Seris to invert scale the target column
-            cv_metrics.append(compute_error_metrics(target, cv_result[i].apply(unscaler)))
-
-    res = {'mean':{}, 'std':{}}
-    for metric in cv_metrics[0].keys():
-        res['mean'][metric] = np.mean([cv_metrics[i][metric] for i in range(len(cv_metrics))])
-        res['std'][metric] = np.std([cv_metrics[i][metric] for i in range(len(cv_metrics))])
-    return res
-
-def compute_error_metrics_aggregate_over_cv_runs(
-        target:str, cv_result: list[pd.DataFrame], unscaler:Callable[[pd.Series], pd.Series] or None) -> list[dict]:
-    ''' Compute error metrics for each forecasted hour using cross-validation runs to aggregate over '''
-    n_hours_forecasted = len(cv_result[0].iloc[:, 0])  # Access first column with .iloc
-    folds = len(cv_result)
-    entries = list(cv_result[0].columns)
-
-    cv_results = copy.deepcopy(cv_result)
-    if not unscaler is None:
-        for i in range(len(cv_results)):
-            cv_results[i] = cv_results[i].apply(unscaler)
-
-    # Reshape the data so that each DataFrame for each hour contains values for all CV runs
-    tmp_list = [pd.DataFrame() for _ in range(n_hours_forecasted)]
-    for i_hour in range(n_hours_forecasted):
-        tmp_dict = {key: [] for key in entries}
-        for key in entries:
-            for i_cv in range(folds):
-                tmp_dict[key].append(float(cv_results[i_cv][key].iloc[i_hour]))  # Use .iloc[i_hour] here
-        tmp_list[i_hour] = pd.DataFrame(tmp_dict, columns=entries, index=[i_cv for i_cv in range(folds)])
-
-    # Compute error metrics for each hour aggregating over CV runs
-    res = [{} for _ in range(n_hours_forecasted)]
-    for i_hour in range(n_hours_forecasted):
-        res[i_hour] = compute_error_metrics(target, tmp_list[i_hour])
-
-    return res
-
 def save_datetime_now(outdir:str):
     # save when fine-tuning was done
     today = pd.Timestamp(datetime.today()).tz_localize(tz='UTC')
@@ -268,3 +165,66 @@ def convert_ensemble_string(input_string):
     # Construct the desired format
     output_string = f"meta_{ensemble_name}_" + "_".join(components)
     return output_string
+
+
+def save_optuna_results(study:optuna.Study, extra_pars:dict, outdir:str):
+    """
+    Save all results from an Optuna study to multiple formats.
+
+    Args:
+        study (optuna.study.Study): The completed Optuna study to save.
+        outdir (str): Outdir for the files to create.
+
+    Files created:
+        - {outdir}_best_parameters.json: Best parameters in JSON format.
+        - {outdir}_best_trial_details.json: Details of the best trial in JSON format.
+        - {outdir}_best_parameters.csv: Best parameters in CSV format.
+        - {outdir}_complete_study_results.csv: Full study results in CSV format.
+    """
+
+    if not os.path.isdir(outdir):
+        os.makedirs(outdir)
+
+    # Save best parameters to JSON
+    best_params = study.best_params
+    if extra_pars: best_params = best_params | extra_pars
+    with open(f'{outdir}best_parameters.json', 'w') as f:
+        json.dump(best_params, f, indent=4)
+
+    # Save details of the best trial to JSON
+    best_trial = study.best_trial
+    best_trial_details = {
+        'trial_id': best_trial.number,
+        'best_value': study.best_value,
+        'params': best_params
+    }
+    with open(f'{outdir}best_trial_details.json', 'w') as f:
+        json.dump(best_trial_details, f, indent=4)
+
+    # Save best parameters to CSV
+    with open(f'{outdir}best_parameters.csv', 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Parameter', 'Value'])
+        for key, value in best_params.items():
+            writer.writerow([key, value])
+
+    # Convert the complete study results to a DataFrame and save to CSV
+    results_df = study.trials_dataframe(attrs=('number', 'value', 'params', 'state'))
+    results_df.to_csv(f'{outdir}complete_study_results.csv', index=False)
+
+    save_datetime_now(outdir) # save when the training was done
+
+
+def get_ensemble_name_and_model_names(model_name:str):
+    match = re.search(r'\[(.*?)\]', model_name)
+    if match: meta_model = match.group(1)
+    else: raise NameError(f"Model name {model_name} does not contain '[meta_model_name]' string")
+
+    # extract base-models names
+    match = re.search(r'\((.*?)\)', model_name)
+    if match: model_names = match.group(1).split(',')  # Split by comma
+    else: raise NameError(f"Model name {model_name} does not contain '(model_name_1,model_name_2)' string")
+
+    return meta_model, model_names
+
+
