@@ -8,11 +8,18 @@ from logger import get_logger
 logger = get_logger(__name__)
 
 
+
+
+
 if __name__ == '__main__':
 
+    freq='minutely_15'
+
     db_path = './database/'
+    # db_path = './database_15min/'
 
     targets = ['wind_offshore', 'wind_onshore', 'solar', 'load', 'energy_mix']
+    # targets = ['wind_offshore']
 
     # update_forecast_production(
     #     database=db_path, variable='energy_mix', outdir='./output/forecasts/', verbose=True
@@ -22,7 +29,7 @@ if __name__ == '__main__':
 
     for target in targets:
         update_forecast_production(
-            database=db_path, variable=target, outdir='./output/forecasts/', verbose=True
+            database=db_path, variable=target, outdir='./output/forecasts/', freq=freq, verbose=True
         )
 
     end_time = time.time()  # End the timer

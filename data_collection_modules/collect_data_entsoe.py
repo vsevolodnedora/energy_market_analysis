@@ -88,6 +88,8 @@ def fetch_entsoe_data_from_api(
 
     client = EntsoePandasClient(api_key=api_key)
 
+    ''' ----------- DATA PER TSO -------------- '''
+
     df = pd.DataFrame()
     for i, region in enumerate(de_regions):
         if verbose: logger.info(
@@ -265,7 +267,7 @@ def fetch_entsoe_data_from_api(
         else: df = pd.merge(df, df_tot, left_index=True, right_index=True, how="left")
 
 
-    ''' --------- CROSS-BORDER FLOWS -------- '''
+    ''' --------- CROSS-BORDER FLOWS (15min) -------- '''
 
     neighborhood = NEIGHBOURS[country_code_to_flows]
 
@@ -285,28 +287,21 @@ def fetch_entsoe_data_from_api(
                         raise KeyError("No mapping found for {}".format(country))
                     df_export = pd.DataFrame(client.query_crossborder_flows(
                         country, country_code_to_flows, start=start_date, end=today),
-                        columns=[flow_mapping[country]+'_export']
+                        columns=[flow_mapping[country]+'_flow_export']
                     )
                     time.sleep(5)
                     df_import = pd.DataFrame(client.query_crossborder_flows(
                         country_code_to_flows, country, start=start_date, end=today),
-                        columns=[flow_mapping[country]+'_import']
+                        columns=[flow_mapping[country]+'_flow_import']
                     )
                     df_ = pd.merge(df_export,df_import,left_index=True,right_index=True)
                     if df_flows.empty: df_flows = df_.copy()
                     else: df_flows = pd.merge(df_flows, df_.copy(), left_index=True, right_index=True, how='left')
-                # for col in hourly_flow_data:
-                #     if not col+'_import' in df_flows.columns:
-                #         raise KeyError(f"No hourly_flow_data column {col+'_import' } found in dataframe")
-                #     if not col+'_export' in df_flows.columns:
-                #         raise KeyError(f"No hourly_flow_data column {col+'_export' } found in dataframe")
-                    # df_flows[col+'_import'] = df_flows[col+'_import'].resample('15min').ffill().bfill() # fill nans in the data (hourly echange)
-                    # df_flows[col+'_export'] = df_flows[col+'_export'].resample('15min').ffill().bfill() # fill nans in the data (hourly echange)
 
                 if freq == 'hourly': df_flows = df_flows.resample('h').mean()
             except Exception as e:
                 logger.error(
-                    f"Failed to fetch generation from ENTSOE API ({i}/{5}) for "
+                    f"Failed to fetch cross-border flows from ENTSOE API ({i}/{5}) for "
                     f"{country_code_to_flows} for freq {freq} from {start_date} till {today}: \n\t{e}"
                 )
                 time.sleep(5)
@@ -323,14 +318,63 @@ def fetch_entsoe_data_from_api(
     # combine
     df = pd.merge(df, df_flows, left_index=True, right_index=True, how="left")
 
+    ''' --------- CROSS-BORDER EXCHANGES (hourly) -------- '''
+
+    df_exchanges = pd.DataFrame()
+    fname = f"tmp_exchanges_{country_code_to_flows}.parquet"
+    if os.path.isfile(working_dir + fname):
+        if verbose: logger.info(f"Loading temporary file: {working_dir + fname}")
+        df_exchanges = pd.read_parquet(working_dir + fname)
+    else:
+        for i in range(5):
+            try:
+                df_exchanges = pd.DataFrame()
+                for i, country in enumerate(neighborhood):
+                    logger.info(f"Processing exchanges for country {country} ({i}/{len(neighborhood)})")
+                    if not country in flow_mapping:
+                        raise KeyError("No mapping found for {}".format(country))
+                    df_export = pd.DataFrame(client.query_scheduled_exchanges(
+                        country, country_code_to_flows, start=start_date, end=today),
+                        columns=[flow_mapping[country]+'_exchange_export']
+                    )
+                    time.sleep(5)
+                    df_import = pd.DataFrame(client.query_scheduled_exchanges(
+                        country_code_to_flows, country, start=start_date, end=today),
+                        columns=[flow_mapping[country]+'_exchange_import']
+                    )
+                    df_ = pd.merge(df_export,df_import,left_index=True,right_index=True)
+                    if df_exchanges.empty: df_exchanges = df_.copy()
+                    else: df_exchanges = pd.merge(df_exchanges, df_.copy(), left_index=True, right_index=True, how='left')
+
+                if freq == 'hourly': df_exchanges = df_exchanges.resample('h').mean()
+            except Exception as e:
+                logger.error(
+                    f"Failed to fetch exchanges from ENTSOE API ({i}/{5}) for "
+                    f"{country_code_to_flows} for freq {freq} from {start_date} till {today}: \n\t{e}"
+                )
+                time.sleep(5)
+                continue
+            break
+        if df_exchanges.empty:
+            raise ConnectionAbortedError(
+                f"Failed to fetch cross-border flows from ENTSOE API for   "
+                f"{country_code_to_flows} (empty df) for freq {freq} from {start_date} till {today}."
+            )
+        if verbose: logger.info(f"Saving temporary file: {working_dir + fname}")
+        df_exchanges.to_parquet(working_dir + fname)
+
+    # combine
+    df = pd.merge(df, df_exchanges, left_index=True, right_index=True, how="left")
 
     # remove temporary files
     if verbose: logger.info(
         f"Successfully collected ENTSO-E data for freq {freq} with (df={df.shape}) from {start_date} till {today}. "
         f"Removing temporary files..."
     )
-
     fname = f"tmp_flows_{country_code_to_flows}.parquet"
+    if os.path.isfile(working_dir + fname):
+        os.remove(working_dir + fname)
+    fname = f"tmp_exchanges_{country_code_to_flows}.parquet"
     if os.path.isfile(working_dir + fname):
         os.remove(working_dir + fname)
     for i, region in enumerate(de_regions):
@@ -343,7 +387,6 @@ def fetch_entsoe_data_from_api(
         for fname in fnames:
             if os.path.isfile(working_dir + fname):
                 os.remove(working_dir + fname)
-
 
     return df
 
