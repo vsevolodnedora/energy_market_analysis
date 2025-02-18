@@ -1,8 +1,7 @@
 import copy, re, pandas as pd
 import numpy as np
 import os
-
-from future.backports.datetime import timedelta
+from datetime import datetime, timedelta
 
 from data_collection_modules.collect_data_openmeteo import OpenMeteo
 from data_collection_modules.german_locations import (
