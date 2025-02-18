@@ -23,6 +23,7 @@ def main_forecasting_pipeline(task_list:list, outdir:str, database:str, freq:str
     if not os.path.isdir(outdir):
         if verbose: logger.info("Creating output directory {}".format(outdir))
         os.mkdir(outdir)
+
     if not freq in ['hourly', 'minutely_15']:
         raise ValueError(f"freq must be one of 'hourly', 'minutely_15' Given {freq}")
 
@@ -43,7 +44,7 @@ def main_forecasting_pipeline(task_list:list, outdir:str, database:str, freq:str
             task['targets'] = list(df_hist.columns.difference(df_forecast.columns))
 
         # clean data from nans and outliers
-        df_hist, df_forecast = clean_and_impute(df_hist=df_hist,df_forecast=df_forecast,verbose=verbose)
+        df_hist, df_forecast = clean_and_impute(df_hist=df_hist,df_forecast=df_forecast,freq=freq,verbose=verbose)
 
         # initialize the processor for tasks
         processor = ForecastingTaskSingleTarget(

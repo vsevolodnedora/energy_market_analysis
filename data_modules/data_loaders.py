@@ -2,6 +2,8 @@ import copy, re, pandas as pd
 import numpy as np
 import os
 
+from future.backports.datetime import timedelta
+
 from data_collection_modules.collect_data_openmeteo import OpenMeteo
 from data_collection_modules.german_locations import (
     de_regions,
@@ -37,6 +39,81 @@ def compute_residual_load(df:pd.DataFrame, suffix:str):
         load -= df['solar{}'.format(suffix)]
     return pd.Series(load.values, index=df.index, name=f'residual_load{suffix}')
 
+
+def load_combine_continous_weather(db_path:str, freq:str, suffix:str)->tuple[pd.DataFrame, pd.DataFrame]:
+
+    # def drop_trailing_nan_columns(df):
+    #     # Find the index of the last non-NaN column
+    #     last_valid_idx = df.columns[::-1][df.notna().any()].max()
+    #
+    #     # If all columns are NaN, return an empty dataframe with the same index
+    #     if last_valid_idx is None:
+    #         return df.iloc[:, :0]
+    #
+    #         # Drop all columns after (including) the last NaN-only column
+    #     return df.loc[:, :last_valid_idx]
+
+    if freq == 'hourly':
+        df_past = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}_history.parquet')
+        df_past_forecast = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}_hist_forecast.parquet')
+        df_forecast = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}_forecast.parquet')
+
+        # combine past actual with past forecast to bridge the data gap
+        last_valid_index = df_past.dropna(how='any').index[-1]
+        df_past = df_past[:last_valid_index]
+        if len(df_past) < len(df_forecast):
+            raise ValueError("Not enough data remains")
+        df_past = df_past[:df_forecast.index[0]-timedelta(hours=1)]
+        df_past_forecast = df_past_forecast[df_past.index[-1]:df_forecast.index[0]-timedelta(hours=1)]
+
+
+        # if df_forecast.index[0] < df_past.index[-1]:
+        #     raise ValueError(
+        #         f"Past actual data is later than forecast: (freq={freq} suffix={suffix}) "
+        #         f"past[-1]={df_past.index[-1]} forecast[0]={df_forecast.index[0]}"
+        #     )
+        # if df_forecast.index[0] < df_past_forecast.index[0]:
+        #     raise ValueError(
+        #         f"Past actual data is later than forecast: (freq={freq} suffix={suffix}) "
+        #         f"past[-1]={df_past.index[-1]} forecast[0]={df_forecast.index[0]}"
+        #     )
+
+
+
+        # last_valid_index = df_past.dropna(how='all').index[-1]
+        # df_past_forecast = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}_hist_forecast.parquet')
+        # df_past = df_past.loc[:last_valid_index]
+        # df_forecast = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}_forecast.parquet')
+        # df_past = df_past.loc[:df_forecast.index[0]]
+        # df_past_forecast = df_past_forecast.loc[:df_forecast.index[0]]
+        # if df_forecast.index[0] < df_past.index[0]:
+        #     raise ValueError(
+        #         f"Past actual data is later than forecast: past[-1]={df_past.index[-1]} forecast[0]={df_forecast.index[0]}"
+        #     )
+        # if df_forecast.index[0] < df_past.index[0]:
+        #     raise ValueError(
+        #         f"Past actual data is later than forecast: past[-1]={df_past.index[-1]} forecast[0]={df_forecast.index[0]}"
+        #     )
+
+        # df = pd.concat([
+        #     df_past, df_past_forecast[ df_past.index[-1] : df_forecast.index[0] - timedelta(hours=1)]
+        # ], axis=0)
+        df = pd.concat([df_past, df_past_forecast],axis=0)
+        df.sort_index(inplace=True)
+        df = df.loc[~df.index.duplicated(keep='first')]
+        assert len(df_past.columns) == len(df.columns)
+        import matplotlib.pyplot as plt
+        plt.title(f'freq={freq}, suffix={suffix}')
+        plt.plot(df.tail(24).index, df.tail(24)[df.columns.tolist()[0]],color='black',label='combined',marker='.',ls='none',fillstyle='none')
+        plt.plot(df_past.tail(24).index, df_past.tail(24)[df_past.columns.tolist()[0]],color='red',label='past',marker='d',ls='none',fillstyle='none')
+        plt.plot(df_past_forecast.tail(24).index, df_past_forecast.tail(24)[df_past_forecast.columns.tolist()[0]],color='orange', label='past forecast',marker='o',ls='none',fillstyle='none')
+        plt.plot(df_forecast.head(24).index, df_forecast.head(24)[df_forecast.columns.tolist()[0]],color='green',label='forecast',marker='s',ls='none',fillstyle='none')
+        plt.legend()
+        plt.show()
+        return df, df_forecast
+    else:
+        raise NotImplementedError("Frequency not implemented {}".format(freq))
+
 # TODO: USE SQL HERE!!!
 def extract_from_database(main_pars:dict, db_path:str, outdir:str, freq:str, verbose:bool)\
         -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -50,14 +127,20 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, freq:str, ver
 
     # -------- laod database TODO move to SQLlite DB
     df_smard = pd.read_parquet(db_path + 'smard/' + 'history.parquet')
-    df_om_offshore = pd.read_parquet(db_path + 'openmeteo/' + 'offshore_history.parquet')
-    df_om_offshore_f = pd.read_parquet(db_path + 'openmeteo/' + 'offshore_forecast.parquet')
-    df_om_onshore = pd.read_parquet(db_path + 'openmeteo/' + 'onshore_history.parquet')
-    df_om_onshore_f = pd.read_parquet(db_path + 'openmeteo/' + 'onshore_forecast.parquet')
-    df_om_solar = pd.read_parquet(db_path + 'openmeteo/' + 'solar_history.parquet')
-    df_om_solar_f = pd.read_parquet(db_path + 'openmeteo/' + 'solar_forecast.parquet')
-    df_om_cities = pd.read_parquet(db_path + 'openmeteo/' + 'cities_history.parquet')
-    df_om_cities_f = pd.read_parquet(db_path + 'openmeteo/' + 'cities_forecast.parquet')
+    df_om_offshore, df_om_offshore_f = load_combine_continous_weather(db_path, freq, suffix='offshore')
+    df_om_onshore, df_om_onshore_f = load_combine_continous_weather(db_path, freq, suffix='onshore')
+    df_om_solar, df_om_solar_f = load_combine_continous_weather(db_path, freq, suffix='solar')
+    df_om_cities, df_om_cities_f = load_combine_continous_weather(db_path, freq, suffix='cities')
+
+
+    # df_om_offshore = pd.read_parquet(db_path + 'openmeteo/' + 'offshore_history.parquet')
+    # df_om_offshore_f = pd.read_parquet(db_path + 'openmeteo/' + 'offshore_forecast.parquet')
+    # df_om_onshore = pd.read_parquet(db_path + 'openmeteo/' + 'onshore_history.parquet')
+    # df_om_onshore_f = pd.read_parquet(db_path + 'openmeteo/' + 'onshore_forecast.parquet')
+    # df_om_solar = pd.read_parquet(db_path + 'openmeteo/' + 'solar_history.parquet')
+    # df_om_solar_f = pd.read_parquet(db_path + 'openmeteo/' + 'solar_forecast.parquet')
+    # df_om_cities = pd.read_parquet(db_path + 'openmeteo/' + 'cities_history.parquet')
+    # df_om_cities_f = pd.read_parquet(db_path + 'openmeteo/' + 'cities_forecast.parquet')
     # df_es = pd.read_parquet(db_path + 'epexspot/' + 'history.parquet')
     df_entsoe = pd.read_parquet(db_path + 'entsoe/' + 'history.parquet')
     df_entsoe = df_entsoe.apply(pd.to_numeric, errors='coerce')
@@ -337,13 +420,35 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, freq:str, ver
     #     raise ValueError(f"History dataframe for target = {target} and region = {region} failed to validate.")
     # if not validate_dataframe(df_forecast):
     #     raise ValueError(f"History dataframe for target = {target} and region = {region} failed to validate.")
-    if  not (df_forecast.index[0] == df_hist.index[-1]+pd.Timedelta(hours=1)):
-        raise ValueError(f"Forecast dataframe must have index[0] = historic index[-1] + 1 hour"
-                         f"forecast starts on {df_forecast.index[0]} history ends on {df_hist.index[-1]} ")
+    if (freq=='hourly'):
+        if not (df_forecast.index[0] == df_hist.index[-1]+pd.Timedelta(hours=1)):
+            raise ValueError(f"Forecast dataframe must have index[0] = historic index[-1] + 1 hour"
+                             f"forecast starts on {df_forecast.index[0]} history ends on {df_hist.index[-1]} ")
+        expected_range = pd.date_range(start=df_hist.index.min(), end=df_hist.index.max(), freq='h')
+        if not df_hist.index.equals(expected_range):
+            raise ValueError("full_index must be continuous with hourly frequency.")
+    else:
+        if not (df_forecast.index[0] == df_hist.index[-1]+pd.Timedelta(minutes=15)):
+            raise ValueError(f"Forecast dataframe must have index[0] = historic index[-1] + 15 minutes"
+                             f"forecast starts on {df_forecast.index[0]} history ends on {df_hist.index[-1]} ")
+        expected_range = pd.date_range(start=df_hist.index.min(), end=df_hist.index.max(), freq='15min')
+        if not df_hist.index.equals(expected_range):
+            raise ValueError("full_index must be continuous with 15min frequency.")
 
-    expected_range = pd.date_range(start=df_hist.index.min(), end=df_hist.index.max(), freq='h')
-    if not df_hist.index.equals(expected_range):
-        raise ValueError("full_index must be continuous with hourly frequency.")
+
+    # if (freq=='hourly') and (not (df_forecast.index[0] == df_hist.index[-1]+pd.Timedelta(hours=1))):
+    #     raise ValueError(f"Forecast dataframe must have index[0] = historic index[-1] + 1 hour"
+    #                      f"forecast starts on {df_forecast.index[0]} history ends on {df_hist.index[-1]} ")
+    #
+    # elif (freq=='minutely_15') and (not (df_forecast.index[0] == df_hist.index[-1]+pd.Timedelta(minutes=15))):
+    #     raise ValueError(f"Forecast dataframe must have index[0] = historic index[-1] + 15 minutes"
+    #                      f"forecast starts on {df_forecast.index[0]} history ends on {df_hist.index[-1]} ")
+    # else:
+    #     pass
+
+    # expected_range = pd.date_range(start=df_hist.index.min(), end=df_hist.index.max(), freq='h')
+    # if not df_hist.index.equals(expected_range):
+    #     raise ValueError("full_index must be continuous with hourly frequency.")
 
     if df_forecast.isna().any().any():
         raise ValueError(f"df_forecast contains NaN entries. df_forecast={df_forecast[df_forecast.isna()]}")
@@ -509,14 +614,19 @@ def mask_outliers_and_unphysical_values(
     # Return the cleaned dataframes
     return df_hist, df_forecast
 
-def clean_and_impute(df_hist, df_forecast, verbose:bool)->tuple[pd.DataFrame, pd.DataFrame]:
+def clean_and_impute(df_hist, df_forecast, freq:str, verbose:bool)->tuple[pd.DataFrame, pd.DataFrame]:
 
     df_hist, df_forecast = mask_outliers_and_unphysical_values(df_hist, df_forecast, verbose)
     df_hist = validate_dataframe(df_hist, 'df_hist', log_func=logger.warning, verbose=verbose)
     df_forecast = validate_dataframe(df_forecast, 'df_forecast', log_func=logger.warning, verbose=verbose)
-    expected_range = pd.date_range(start=df_hist.index.min(), end=df_hist.index.max(), freq='h')
+    if not freq in ['minutely_15', 'hourly']:
+        raise ValueError(f'Frequency must be "minutely_15" or "hourly" Given: {freq}')
+    if freq == 'hourly':
+        expected_range = pd.date_range(start=df_hist.index.min(), end=df_hist.index.max(), freq='h')
+    else:
+        expected_range = pd.date_range(start=df_hist.index.min(), end=df_hist.index.max(), freq='15min')
     if not df_hist.index.equals(expected_range):
-        raise ValueError("full_index must be continuous with hourly frequency.")
+        raise ValueError(f"full_index must be continuous with freq={freq} frequency.")
 
     # final check for nans. We must be certain that no nans enter training stage
     def check_for_nans_and_raise_error(df:pd.DataFrame):

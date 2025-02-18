@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import pandas as pd
 
 # def plot_time_series_with_residuals(
 #         tasks, run_label, target, ylabel, **kwargs
@@ -502,4 +503,65 @@ def plot_time_series_with_residuals_multi(
 
 
     plt.savefig(f"{run_label}_{'tmp'}.png", bbox_inches='tight')
+    plt.show()
+
+
+def plot_metric_evolution(file_path: str, metric: str):
+    # Load the dataframe
+    df = pd.read_csv(file_path)
+
+    # Filter relevant columns
+    if metric not in df.columns:
+        raise ValueError(f"Metric '{metric}' not found in the dataframe.")
+
+    # Sort the dataframe by horizon and convert horizon to datetime
+    df['horizon'] = pd.to_datetime(df['horizon'])
+    df = df.sort_values(by='horizon')
+
+    markers = ['s', 'o', 'v', '^', 'P']
+
+    # Plot the metric evolution
+    fig, ax = plt.subplots(figsize=(8, 4))
+    for marker, model_label in zip(markers, df['model_label'].unique()):
+        if model_label.__contains__('ensemble'): markerfacecolor = 'black'
+        else: markerfacecolor = 'None'
+        method_df_trained = df[(df['model_label'] == model_label) & (df['method'] == 'trained')]
+        ax.plot(method_df_trained['horizon'], method_df_trained[metric], linestyle='None',
+                marker=marker, label=model_label, color='black',
+                markerfacecolor=markerfacecolor, markeredgecolor='black', markersize=8
+                )
+        # method_df_forecast = df[(df['model_label'] == model_label) & (df['method'] == 'trained')]
+        # ax.plot(method_df_forecast['horizon'], method_df_forecast[metric], linestyle='None', marker=marker)
+
+    # Set x-ticks at unique horizon values
+    unique_horizons = df['horizon'].sort_values().unique()
+    ax.set_xticks(unique_horizons)
+    ax.set_xticklabels([
+        h.strftime('%Y-%m-%d') for h in unique_horizons], rotation=0, ha='center'#'right'
+    )
+
+    ax.grid(True, linestyle='-', alpha=0.4)
+    ax.tick_params(axis='x', direction='in', bottom=True)
+    ax.tick_params(axis='y', which='both', direction='in', left=True, right=True)
+    # Set border lines transparent by setting the edge color and alpha
+    ax.spines['top'].set_edgecolor((1, 1, 1, 0))  # Transparent top border
+    ax.spines['right'].set_edgecolor((1, 1, 1, 0))  # Transparent right border
+    ax.spines['left'].set_edgecolor((1, 1, 1, 0))  # Transparent left border
+    ax.spines['bottom'].set_edgecolor((1, 1, 1, 0))  # Transparent bottom border
+
+    # Make x and y ticks transparent
+    ax.tick_params(axis='x', color=(1, 1, 1, 0))  # Transparent x ticks
+    ax.tick_params(axis='y', color=(1, 1, 1, 0))  # Transparent y ticks
+
+    # ax.xaxis.set_major_locator(mdates.DayLocator())
+    # ax_bottom.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))  # Format as "Dec
+
+    ax.set_title(f"{metric.upper()} for Several Out-of-Sample Forecasts")
+    ax.set_xlabel("Starting Date of the Forecasting Horizon")
+    ax.set_ylabel(f"Horizon Averaged {metric.upper()}")
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
+    plt.savefig(file_path.replace(".csv",".png"), dpi=600)
     plt.show()

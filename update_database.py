@@ -81,7 +81,7 @@ def main(task:str, freq:str, verbose:bool = True):
 
     if task == "update_openmeteo_windfarms_offshore" or task == "all":
         update_openmeteo_from_api(
-            fpath=db_path + 'openmeteo/offshore_history.parquet',
+            datadir=db_path + 'openmeteo/', suffix='offshore',
             variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind) if freq == 'hourly' else
                         (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min),
             locations = loc_offshore_windfarms, freq=freq, verbose = verbose
@@ -89,7 +89,7 @@ def main(task:str, freq:str, verbose:bool = True):
 
     if task == "update_openmeteo_windfarms_onshore" or task == "all":
         update_openmeteo_from_api(
-            fpath=db_path + 'openmeteo/onshore_history.parquet',
+            datadir=db_path + 'openmeteo/', suffix='onshore',
             variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind) if freq == 'hourly' else
                         (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min),
             locations = loc_onshore_windfarms, freq=freq, verbose = verbose
@@ -97,7 +97,7 @@ def main(task:str, freq:str, verbose:bool = True):
 
     if task == "update_openmeteo_solarfarms" or task == "all":
         update_openmeteo_from_api(
-            fpath=db_path + 'openmeteo/solar_history.parquet',
+            datadir=db_path + 'openmeteo/', suffix='solar',
             variables = (OpenMeteo.vars_basic + OpenMeteo.vars_radiation) if freq == 'hourly' else
                         (OpenMeteo.vars_basic_15min + OpenMeteo.vars_radiation_15min),
             locations = loc_solarfarms, freq=freq, verbose = verbose
@@ -105,7 +105,7 @@ def main(task:str, freq:str, verbose:bool = True):
 
     if task == "update_openmeteo_cities" or task == "all":
         update_openmeteo_from_api(
-            fpath=db_path + 'openmeteo/cities_history.parquet',
+            datadir=db_path + 'openmeteo/', suffix='cities',
             variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind + OpenMeteo.vars_radiation) if freq == 'hourly' else
                         (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min + OpenMeteo.vars_radiation_15min),
             locations = loc_cities, freq=freq, verbose = verbose
@@ -120,8 +120,10 @@ def main(task:str, freq:str, verbose:bool = True):
 
 if __name__ == '__main__':
     if len(sys.argv) != 3:
-        raise KeyError("Usage: python update_database.py <task> <freq>")
-
-    task_argument = str( sys.argv[1] )
-    freq = str( sys.argv[2] )
+        # raise KeyError("Usage: python update_database.py <task> <freq>")
+        task_argument = str( 'update_openmeteo_windfarms_onshore' )
+        freq = str( 'hourly' )
+    else:
+        task_argument = str( sys.argv[1] )
+        freq = str( sys.argv[2] )
     main(task_argument, freq)

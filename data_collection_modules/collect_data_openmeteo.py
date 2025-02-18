@@ -2,13 +2,57 @@ import pandas as pd
 from retry_requests import retry
 import time
 import os
+import random
 import requests
 import openmeteo_requests
+from openmeteo_requests.Client import OpenMeteoRequestsError
+from openmeteo_sdk.WeatherApiResponse import WeatherApiResponse
+
+
 from datetime import datetime, timedelta
 from pysolar.solar import get_altitude, get_azimuth
 
 from logger import get_logger
 logger = get_logger(__name__)
+
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:98.0)",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    # Add more to your liking
+]
+
+TOR_PROXIES = {
+    'http':  'socks5h://127.0.0.1:9050',
+    'https': 'socks5h://127.0.0.1:9050',
+}
+
+def get_retry_session(use_tor=False) -> requests.Session:
+    """Return a requests.Session with random User-Agent and optional Tor proxies."""
+    session = requests.Session()
+
+    # Rotate User-Agent
+    random_user_agent = random.choice(USER_AGENTS)
+    session.headers.update({"User-Agent": random_user_agent})
+
+    # Optionally set Tor proxies
+    if use_tor:
+        session.proxies.update(TOR_PROXIES)
+
+    # If you want to add retries, do so here:
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
+
+    retry_strategy = Retry(
+        total=5,  # total retry attempts
+        backoff_factor=0.2,
+        status_forcelist=[429, 500, 502, 503, 504],  # retry on these statuses
+        raise_on_status=False
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
 
 class OpenMeteo:
 
@@ -190,6 +234,7 @@ class OpenMeteo:
             else: df = pd.merge(df, minutely_15_dataframe, left_index=True, right_index=True, how='left')
 
         return df
+
     def make_request_hourly(self, url: str, params: dict) -> pd.DataFrame:
         # No caching session, just a regular retry session
         retry_session = retry(requests.Session(), retries=5, backoff_factor=0.2)
@@ -203,9 +248,12 @@ class OpenMeteo:
                 for response in responses:
                     hourly.append( response.Hourly() )
             except Exception as e:
-                if self.verbose: logger.error(f"Failed to fetch weather data from openmeteo {i}/{5} "
-                                              f"for {params.get('start_date', 'N/A')} -> {params.get('end_date', 'N/A')} "
-                                              f"with Error:\n{e}")
+                if self.verbose: logger.error(
+                    f"Failed to fetch weather data from openmeteo {i}/{5} "
+                    f"for {params.get('start_date', 'N/A')} -> {params.get('end_date', 'N/A')} "
+                    f"url={url} "
+                    f"with Error:\n{e}"
+                )
                 time.sleep(20*i)  # in case API is overloaded
                 continue
             break
@@ -245,6 +293,170 @@ class OpenMeteo:
             else: df = pd.merge(df, hourly_dataframe, left_index=True, right_index=True, how='left')
 
         return df
+
+    def NEW_make_request_hourly(self, url: str, params: dict) -> pd.DataFrame:
+
+        # 1. Start with a normal session (rotating user agent)
+        retry_session = get_retry_session(use_tor=False)
+        openmeteo = openmeteo_requests.Client(session=retry_session)
+
+        responses_data = []
+        max_tries = 5
+        for i in range(max_tries):
+            try:
+                responses = openmeteo.weather_api(url, params=params)
+                responses_data = responses
+                break
+
+            except OpenMeteoRequestsError as e:
+                # If error body says "429", try fallback to Tor
+                if self.verbose:
+                    logger.error(
+                        f"OpenMeteoRequestsError {i}/{max_tries}: {e}. "
+                        f"Trying fallback (Tor) if 429 limit encountered."
+                    )
+
+                # If you see that the error JSON or code is 429, do the fallback:
+                if "429" in str(e):
+                    # fallback with Tor session
+                    time.sleep(3)
+                    retry_session = get_retry_session(use_tor=True)
+                    openmeteo = openmeteo_requests.Client(session=retry_session)
+                    # Attempt again
+                    try:
+                        responses = openmeteo.weather_api(url, params=params)
+                        responses_data = responses
+                        break
+                    except Exception as e_tor:
+                        logger.error("Tor fallback also failed: %s", e_tor)
+                        # Optionally keep trying; or break early.
+                        time.sleep(5 * (i+1))
+                        continue
+                else:
+                    time.sleep(5 * (i+1))
+                    continue
+
+            except Exception as e:
+                if self.verbose:
+                    logger.error(
+                        f"General error {i}/{max_tries} "
+                        f"for {params.get('start_date', 'N/A')} -> "
+                        f"{params.get('end_date', 'N/A')} (url={url}):\n{e}"
+                    )
+                time.sleep(5 * (i+1))
+                continue
+
+        if not responses_data:
+            raise ConnectionError(
+                f"Failed to fetch weather data from OpenMeteo {max_tries} times "
+                f"for {params.get('start_date', 'N/A')} -> {params.get('end_date', 'N/A')}"
+            )
+
+        if len(responses_data) != len(self.location_list):
+            raise ValueError(
+                f"Requested data for {len(self.location_list)} locations, "
+                f"but got {len(responses_data)} responses."
+            )
+
+        # Construct dataframe
+        df = pd.DataFrame()
+        for hourly_resp, loc in zip(responses_data, self.location_list):
+            # Convert to times and variables
+            date_range = pd.date_range(
+                start=pd.to_datetime(hourly_resp.Time(), unit="s", utc=True),
+                end=pd.to_datetime(hourly_resp.TimeEnd(), unit="s", utc=True),
+                freq=pd.Timedelta(seconds=hourly_resp.Interval()),
+                inclusive="left"
+            )
+            hourly_data = {"date": date_range}
+            for i, var in enumerate(self.variable_list):
+                data = hourly_resp.Variables(i).ValuesAsNumpy()
+                hourly_data[var] = data
+
+            hourly_dataframe = pd.DataFrame(data=hourly_data).set_index('date')
+            # add suffix to column names
+            rename_map = {
+                col: col + loc['suffix']
+                for col in hourly_dataframe.columns
+            }
+            hourly_dataframe.rename(columns=rename_map, inplace=True)
+
+            if df.empty:
+                df = hourly_dataframe
+            else:
+                df = pd.merge(df, hourly_dataframe, left_index=True, right_index=True, how='left')
+
+        return df
+
+    def _collect_past_actual(self,data_dir:str, freq:str)->pd.DataFrame:
+        if freq != 'hourly':
+            raise NotImplementedError(f"Frequency {freq} is not implemented for hourly data")
+        # collect historic data
+        url = "https://archive-api.open-meteo.com/v1/archive"
+        params = {
+            "latitude": [loc['lat'] for loc in self.location_list],
+            "longitude": [loc['lon'] for loc in self.location_list],
+            "start_date": self.start_date.strftime('%Y-%m-%d'),
+            "end_date": self.today.strftime('%Y-%m-%d'),
+            'hourly': ''.join([var + ',' for var in self.variable_list])[:-1], # "hourly" or "minutely_15"
+        }
+
+        # making heavy-duty API call (it might overload API so we need to be able to fail and load)
+        fname = data_dir  + '/' + "tmp_hist.parquet"
+        if os.path.exists(fname):
+            if self.verbose: logger.info(f"Loading temporary file: {fname}")
+            hist_data = pd.read_parquet(fname)
+        else:
+            hist_data = self.make_request_hourly(url, params)
+        return hist_data
+
+    def _collect_past_forecast(self,data_dir:str, freq:str)->pd.DataFrame:
+        # collect historic data
+        params = {
+            "latitude": [loc['lat'] for loc in self.location_list],
+            "longitude": [loc['lon'] for loc in self.location_list],
+            "start_date": self.start_date.strftime('%Y-%m-%d'),
+            "end_date": self.today.strftime('%Y-%m-%d'),
+        }
+        # collect historic forecast (to bridge the data till forecasts starts)
+        # params['start_date'] = self.day_before_yesterday.strftime('%Y-%m-%d')
+        # params['end_date'] = self.today.strftime('%Y-%m-%d')
+        url = "https://historical-forecast-api.open-meteo.com/v1/forecast"
+        fname = data_dir  + '/' + "tmp_hist_forecast.parquet"
+        if os.path.exists(fname):
+            if self.verbose: logger.info(f"Loading temporary file: {fname}")
+            hist_forecast_data = pd.read_parquet(fname)
+        else:
+            if freq == 'hourly':
+                params['hourly'] = ''.join([var + ',' for var in self.variable_list])[:-1]
+                hist_forecast_data = self.make_request_hourly(url, params)
+            else:
+                params['minutely_15'] = ''.join([var + ',' for var in self.variable_list])[:-1]
+                hist_forecast_data = self.make_request_15min(url, params)
+        return hist_forecast_data
+
+    def _collect_forecast(self,data_dir:str, freq:str)->pd.DataFrame:
+
+        url = "https://api.open-meteo.com/v1/forecast"
+        params = {
+            'forecast_days':14,
+            "latitude": [loc['lat'] for loc in self.location_list],
+            "longitude": [loc['lon'] for loc in self.location_list],
+        }
+
+        fname = data_dir  + '/' + "tmp_forecast.parquet"
+        if os.path.exists(fname):
+            if self.verbose: logger.info(f"Loading temporary file: {fname}")
+            forecast_data = pd.read_parquet(fname)
+        else:
+            if freq == 'hourly':
+                params['hourly']= ''.join([var + ',' for var in self.variable_list])[:-1], # "hourly" or "minutely_15"
+                forecast_data = self.make_request_hourly(url, params)
+            else:
+                params['minutely_15']= ''.join([var + ',' for var in self.variable_list])[:-1], # "hourly" or "minutely_15"
+                forecast_data = self.make_request_15min(url, params)
+        return forecast_data
+
 
     def _collect_hourly(self, data_dir:str) -> pd.DataFrame:
         '''
@@ -444,7 +656,125 @@ def add_solar_elevation_and_azimuth(df: pd.DataFrame, locations, verbose=False):
         df[f"solar_azimuth_deg{suffix}"] = azimuth_list
     return df
 
-def create_openmeteo_from_api(fpath:str, locations:list, variables:tuple, start_date:pd.Timestamp, freq:str, verbose:bool):
+
+def create_openmeteo_from_api(
+        datadir:str, suffix:str,
+        locations:list, variables:tuple, start_date:pd.Timestamp, freq:str, verbose:bool
+):
+
+    om = OpenMeteo(start_date, locations, variables, freq=freq, verbose=verbose)
+
+    # --- collect past actual data and update database
+
+    logger.info(
+        f"Collecting historical actual data from OpenMeteo from {start_date} ({len(locations)})"
+        f"{[loc['name'] for loc in locations]} locations"
+    )
+    if freq == 'hourly':
+        df_hist_ = om._collect_past_actual(data_dir=datadir, freq=freq)
+        if 'solar' in suffix:
+            df_hist_ = add_solar_elevation_and_azimuth(df_hist_, locations, verbose=verbose)
+        fpath = datadir + suffix + '_history.parquet'
+        logger.info(f"Writing historical data for {suffix} to {fpath} (shape={df_hist_.shape})")
+        df_hist_.to_parquet(fpath)
+    else:
+        logger.info(f"Openmeteo does not have actual historical data for freq={freq}. Skipping...")
+
+    # --- collect past forecast
+
+    logger.info(
+        f"Collecting historical forecasts from OpenMeteo from {start_date} ({len(locations)})"
+        f"freq={freq} and {[loc['name'] for loc in locations]} locations"
+    )
+    df_hist_forecast_ = om._collect_past_forecast(data_dir=datadir, freq=freq)
+    if 'solar' in suffix:
+        df_hist_forecast_ = add_solar_elevation_and_azimuth(df_hist_forecast_, locations, verbose=verbose)
+    fpath = datadir + suffix + '_hist_forecast.parquet'
+    logger.info(f"Writing historical forecasts for {suffix} to {fpath} (shape={df_hist_forecast_.shape})")
+    df_hist_forecast_.to_parquet(fpath)
+
+    # --- collect current forecast
+
+    logger.info(
+        f"Collecting forecasts from OpenMeteo ({len(locations)}) for "
+        f"freq={freq} and {[loc['name'] for loc in locations]} locations"
+    )
+    df_forecast_ = om._collect_forecast(data_dir=datadir, freq=freq)
+    if 'solar' in suffix:
+        df_forecast_ = add_solar_elevation_and_azimuth(df_forecast_, locations, verbose=verbose)
+    fpath = datadir + suffix + '_forecast.parquet'
+    logger.info(f"Writing forecasts for {suffix} to {fpath} (shape={df_forecast_.shape})")
+    df_forecast_.to_parquet(fpath)
+
+def update_openmeteo_from_api(
+        datadir:str, suffix:str, verbose:bool, locations:list, variables:tuple, freq:str
+):
+
+    def _update_historic(
+            datadir:str, suffix:str, suffix2:str, verbose:bool, locations:list, variables:tuple, freq:str
+    ):
+
+        if (freq != 'hourly') and (suffix2 == 'history'):
+            logger.info(f"Actual historical data is not available for freq={freq} Skipping...")
+            return
+
+        fpath = datadir + suffix + '_' + suffix2 + '.parquet'
+        if not os.path.isfile(fpath): raise FileNotFoundError(f"Historical actual data file is not found {fpath}")
+        df_hist = pd.read_parquet(fpath)
+        if (df_hist.index[-1] >= pd.Timestamp.today(tz='UTC')):
+            logger.warning(f"Cannot update {suffix} with {suffix2} as its "
+                           f"idx[-1]={df_hist.index[-1]} >= today={pd.Timestamp.today(tz='UTC')} "
+                           f"File={fpath}")
+        last_timestamp = pd.Timestamp(df_hist.dropna(how='all', inplace=False).last_valid_index())
+        start_date = last_timestamp - timedelta(days=3) # overwrite previous historic forecast with actual data
+        logger.info(
+            f"Collecting historical actual data from OpenMeteo from {start_date} ({len(locations)})"
+            f"{[loc['name'] for loc in locations]} locations"
+        )
+
+        # collect data
+        om = OpenMeteo(start_date, locations, variables, freq=freq, verbose=verbose)
+        if suffix2 == 'history': df_hist_upd = om._collect_past_actual(data_dir=datadir, freq=freq)
+        elif suffix2 == 'hist_forecast': df_hist_upd = om._collect_past_forecast(data_dir=datadir, freq=freq)
+        else: raise ValueError(f"Unknown suffix {suffix2}")
+        if 'solar' in suffix: df_hist_upd = add_solar_elevation_and_azimuth(df_hist_upd, locations, verbose=verbose)
+
+        # check if columns match
+        if not df_hist.columns.equals(df_hist_upd.columns):
+            unique_to_df1 = set(df_hist_upd.columns) - set(df_hist.columns)
+            unique_to_df2 = set(df_hist.columns) - set(df_hist_upd.columns)
+            raise KeyError(f"! Error. Column mismatch between historical and forecasted weather for file {fpath}\n!"
+                           f" (expected {len(variables)} variables) unique to"
+                           f" df_om_hist={unique_to_df1} Unique to df_om_forecast={unique_to_df2}")
+
+        df_hist_upd = df_hist_upd.combine_first(df_hist[:df_hist_upd.index[0]]) # overwrite previous forecasts with actual data
+        df_hist_upd = df_hist_upd.loc[~df_hist_upd.index.duplicated(keep='first')]
+        df_hist_upd.sort_index(inplace=True)
+        logger.info(f"Overriding openmeteo past actual dataframe at {fpath} (shape={df_hist_upd.shape})")
+        df_hist_upd.to_parquet(fpath)
+
+
+    # update past actual data
+    _update_historic(
+        datadir=datadir, suffix=suffix, suffix2='history', verbose=verbose,
+        locations=locations, variables=variables, freq=freq
+    )
+    # update past forecasts data
+    _update_historic(
+        datadir=datadir, suffix=suffix, suffix2='hist_forecast', verbose=verbose,
+        locations=locations, variables=variables, freq=freq
+    )
+
+    # collect current forecasts
+    fpath = datadir + suffix + '_' + 'forecast' + '.parquet'
+    om = OpenMeteo(pd.Timestamp.today(), locations, variables, freq=freq, verbose=verbose)
+    df_forecast = om._collect_forecast(data_dir=datadir, freq=freq)
+    if 'solar' in suffix: df_forecast = add_solar_elevation_and_azimuth(df_forecast, locations, verbose=verbose)
+    logger.info(f"Saving openmeteo latest forecast to {fpath} (shape={df_forecast.shape})")
+    df_forecast.to_parquet(fpath)
+
+
+def OLD_create_openmeteo_from_api(fpath:str, locations:list, variables:tuple, start_date:pd.Timestamp, freq:str, verbose:bool):
 
     if verbose: logger.info(f"Collecting historical data from OpenMeteo from {start_date} ({len(locations)})"
                      f"{[loc['name'] for loc in locations]} locations")
@@ -466,7 +796,7 @@ def create_openmeteo_from_api(fpath:str, locations:list, variables:tuple, start_
         f"OpenMeteo data updated. Freq: {freq} "
         f"Collected df_hist={df_hist[:idx].shape} and df_forecast={df_hist[idx+timedelta(hours=1):].shape}. ")
 
-def update_openmeteo_from_api(fpath:str, verbose:bool, locations:list, variables:tuple, freq:str):
+def OLD_update_openmeteo_from_api(fpath:str, verbose:bool, locations:list, variables:tuple, freq:str):
     df_hist = pd.read_parquet(fpath)
     if (df_hist.index[-1] >= pd.Timestamp.today(tz='UTC')):
         raise ValueError(f"Cannot update df_hist as its idx[-1]={df_hist.index[-1]} File={fpath}")

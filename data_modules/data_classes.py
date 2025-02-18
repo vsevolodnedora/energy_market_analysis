@@ -135,10 +135,16 @@ class HistForecastDataset:
             pars:dict
     ):
 
-        expected_range = pd.date_range(start=df_historic.index.min(), end=df_historic.index.max(), freq='h')
-        if not df_historic.index.equals(expected_range):
-            raise ValueError("full_index must be continuous with hourly frequency.")
+        expected_range_hourly = pd.date_range(start=df_historic.index.min(), end=df_historic.index.max(), freq='h')
+        expected_range_15min = pd.date_range(start=df_historic.index.min(), end=df_historic.index.max(), freq='15min')
+        if (df_historic.index.equals(expected_range_hourly)): self.freq = 'hourly'
+        elif (df_historic.index.equals(expected_range_15min)): self.freq = 'minutely_15'
+        else: raise ValueError(f"Dataframe has an unexpected time frequency {df_historic.index.freq}")
 
+        logger.info(
+            f"Initializing dataclass with {self.freq} data "
+            f"df_hist={df_historic.shape} df_forecast={df_forecast.shape}"
+        )
 
         self.targets_list : list = pars['targets']
 
@@ -177,10 +183,16 @@ class HistForecastDataset:
 
         # if no forecast data is given, create an empty dataframe to be filled later
         if self.df_forecast_ is None:
-            self.df_forecast_ = pd.DataFrame(
-                index = pd.date_range(start=self.df_target_.index[-1] + pd.Timedelta(hours=1),
-                                      periods=self.forecast_horizon, freq=self.df_target_.index.freq)
-            )
+            if self.freq == 'hourly':
+                self.df_forecast_ = pd.DataFrame(
+                    index = pd.date_range(start=self.df_target_.index[-1] + pd.Timedelta(hours=1),
+                                          periods=self.forecast_horizon, freq=self.df_target_.index.freq)
+                )
+            else:
+                self.df_forecast_ = pd.DataFrame(
+                    index = pd.date_range(start=self.df_target_.index[-1] + pd.Timedelta(minutes=15),
+                                          periods=self.forecast_horizon, freq=self.df_target_.index.freq)
+                )
 
         # check if columns are the same
 
@@ -217,7 +229,10 @@ class HistForecastDataset:
             raise ValueError("Historic and forecast dataframes should not overlap")
         last_index_df1 = df_hist_.index[-1]
         first_index_df2 = df_forecast_.index[0]
-        expected_next_index = last_index_df1 + pd.Timedelta(hours=1)
+        if self.freq == 'hourly':
+            expected_next_index = last_index_df1 + pd.Timedelta(hours=1)
+        else:
+            expected_next_index = last_index_df1 + pd.Timedelta(minutes=15)
         if first_index_df2 != expected_next_index:
             raise ValueError("Forecast dataframe should start exactly one timestep after the historic index")
         if not len(df_forecast_) % 24 == 0:

@@ -19,8 +19,8 @@ if __name__ == '__main__':
     # db_path = './database/'
     # db_path_15min = './database_15min/'
 
+    # targets = ['wind_offshore', 'wind_onshore', 'solar', 'load', 'energy_mix']
     targets = ['wind_offshore', 'wind_onshore', 'solar', 'load', 'energy_mix']
-    # targets = ['wind_offshore']
 
     # update_forecast_production(
     #     database=db_path, variable='energy_mix', outdir='./output/forecasts/', verbose=True
