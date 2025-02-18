@@ -2,6 +2,6 @@
     "solar_50hz": {
         "method": "trained",
         "model_label": "ElasticNet",
-        "avg_rmse": 922.6069995855103
+        "avg_rmse": 922.6069995840832
     }
 }
