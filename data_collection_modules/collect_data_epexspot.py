@@ -18,7 +18,7 @@ def update_epexspot_from_files(
         logger.warning(f'EPEXSPOT data collection for frequency {freq} is not implemented yet. Skipping...')
         return
 
-    fname = data_dir + 'history.parquet'
+    fname = data_dir + f'history_{freq}.parquet'
     df_hist = pd.read_parquet(fname)
 
     first_timestamp = pd.Timestamp(df_hist.dropna(how='any', inplace=False).first_valid_index())

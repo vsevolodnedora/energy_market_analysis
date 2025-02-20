@@ -80,7 +80,8 @@ def preprocess_generation(df_gen:pd.DataFrame, drop_consumption:bool, freq:str)-
     return df_gen
 
 def fetch_entsoe_data_from_api(
-        working_dir:str, start_date:pd.Timestamp or None, today:pd.Timestamp,api_key:str,freq:str,verbose:bool)\
+        working_dir:str, start_date:pd.Timestamp or None,
+        today:pd.Timestamp,api_key:str,freq:str,cols:list,verbose:bool)\
         ->pd.DataFrame:
 
     if freq not in ['hourly', 'minutely_15']:
@@ -91,6 +92,7 @@ def fetch_entsoe_data_from_api(
     ''' ----------- DATA PER TSO -------------- '''
 
     df = pd.DataFrame()
+    cach_fnames = []
     for i, region in enumerate(de_regions):
         if verbose: logger.info(
             f"Requesting ENTSO-E data for region {region['name']} for freq {freq} from {start_date} till {today}"
@@ -98,10 +100,11 @@ def fetch_entsoe_data_from_api(
 
         ''' ------------ GENERATION ENERGY MIX ---------------- '''
         df_gen = None
-        fname = f"tmp_gen{region['suffix']}_hist.parquet"
-        if os.path.isfile(working_dir + fname):
-            if verbose: logger.info(f"Loading temporary file: {working_dir + fname}")
-            df_gen = pd.read_parquet(working_dir + fname)
+        fname1 = f"tmp_gen{region['suffix']}_hist_{freq}.parquet"
+        cach_fnames.append(fname1)
+        if os.path.isfile(working_dir + fname1):
+            if verbose: logger.info(f"Loading temporary file: {working_dir + fname1}")
+            df_gen = pd.read_parquet(working_dir + fname1)
         else:
             # query generation
             for i in range(5):
@@ -126,15 +129,16 @@ def fetch_entsoe_data_from_api(
                     f"Failed to fetch generation from ENTSOE API for region "
                     f"{region['name']} for freq {freq} from {start_date} till {today}."
                 )
-            if verbose: logger.info(f"Saving temporary file: {working_dir + fname}")
-            df_gen.to_parquet(working_dir + fname)
+            if verbose: logger.info(f"Saving temporary file: {working_dir + fname1}")
+            df_gen.to_parquet(working_dir + fname1)
 
         ''' ------------- TOTAL GENERATION FORECAST ------------------ '''
         df_gen_f = None
-        fname = f"tmp_gen{region['suffix']}_total_forecast.parquet"
-        if os.path.isfile(working_dir + fname):
-            if verbose: logger.info(f"Loading temporary file: {working_dir + fname}")
-            df_gen_f = pd.read_parquet(working_dir + fname)
+        fname2 = f"tmp_gen{region['suffix']}_total_forecast_{freq}.parquet"
+        cach_fnames.append(fname2)
+        if os.path.isfile(working_dir + fname2):
+            if verbose: logger.info(f"Loading temporary file: {working_dir + fname2}")
+            df_gen_f = pd.read_parquet(working_dir + fname2)
         else:
             # query generation
             for i in range(5):
@@ -168,15 +172,16 @@ def fetch_entsoe_data_from_api(
                     f"Failed to fetch generation forecast from ENTSOE API for region "
                     f"{region['name']} for freq {freq} from {start_date} till {today}."
                 )
-            if verbose: logger.info(f"Saving temporary file: {working_dir + fname}")
-            df_gen_f.to_parquet(working_dir + fname)
+            if verbose: logger.info(f"Saving temporary file: {working_dir + fname2}")
+            df_gen_f.to_parquet(working_dir + fname2)
 
         ''' ------------- SOLAR & WIND GENERATION FORECAST ------------- '''
         df_gen_sw_f = None
-        fname = f"tmp_gen{region['suffix']}_solarwind_forecast.parquet"
-        if os.path.isfile(working_dir + fname):
-            if verbose: logger.info(f"Loading temporary file: {working_dir + fname}")
-            df_gen_sw_f = pd.read_parquet(working_dir + fname)
+        fname3 = f"tmp_gen{region['suffix']}_solarwind_forecast_{freq}.parquet"
+        cach_fnames.append(fname3)
+        if os.path.isfile(working_dir + fname3):
+            if verbose: logger.info(f"Loading temporary file: {working_dir + fname3}")
+            df_gen_sw_f = pd.read_parquet(working_dir + fname3)
         else:
             # query generation
             for i in range(5):
@@ -211,15 +216,16 @@ def fetch_entsoe_data_from_api(
                     f"Failed to fetch solar & wind generation forecast from ENTSOE API for region "
                     f"{region['name']} for freq {freq} from {start_date} till {today}."
                 )
-            if verbose: logger.info(f"Saving temporary file: {working_dir + fname}")
-            df_gen_sw_f.to_parquet(working_dir + fname)
+            if verbose: logger.info(f"Saving temporary file: {working_dir + fname3}")
+            df_gen_sw_f.to_parquet(working_dir + fname3)
 
         ''' ---------- LOAD ------------ '''
         df_load = None
-        fname = f"tmp_load{region['suffix']}_forecast.parquet"
-        if os.path.isfile(working_dir + fname):
-            if verbose: logger.info(f"Loading temporary file: {working_dir + fname}")
-            df_load = pd.read_parquet(working_dir + fname)
+        fname4 = f"tmp_load{region['suffix']}_forecast_{freq}.parquet"
+        cach_fnames.append(fname4)
+        if os.path.isfile(working_dir + fname4):
+            if verbose: logger.info(f"Loading temporary file: {working_dir + fname4}")
+            df_load = pd.read_parquet(working_dir + fname4)
         else:
             # query generation
             for i in range(5):
@@ -251,8 +257,8 @@ def fetch_entsoe_data_from_api(
                     f"Failed to fetch load from ENTSOE API for region "
                     f"{region['name']} for freq {freq} from {start_date} till {today}."
                 )
-            if verbose: logger.info(f"Saving temporary file: {working_dir + fname}")
-            df_load.to_parquet(working_dir + fname)
+            if verbose: logger.info(f"Saving temporary file: {working_dir + fname4}")
+            df_load.to_parquet(working_dir + fname4)
 
         # --- Combine dataframes (assume indexes match)
         df_tot = pd.merge(df_gen, df_gen_sw_f, left_index=True, right_index=True, how="left")
@@ -272,10 +278,11 @@ def fetch_entsoe_data_from_api(
     neighborhood = NEIGHBOURS[country_code_to_flows]
 
     df_flows = pd.DataFrame()
-    fname = f"tmp_flows_{country_code_to_flows}.parquet"
-    if os.path.isfile(working_dir + fname):
-        if verbose: logger.info(f"Loading temporary file: {working_dir + fname}")
-        df_flows = pd.read_parquet(working_dir + fname)
+    fname5 = f"tmp_flows_{country_code_to_flows}_{freq}.parquet"
+    cach_fnames.append(fname5)
+    if os.path.isfile(working_dir + fname5):
+        if verbose: logger.info(f"Loading temporary file: {working_dir + fname5}")
+        df_flows = pd.read_parquet(working_dir + fname5)
     else:
         # query generation
         for i in range(5):
@@ -285,11 +292,12 @@ def fetch_entsoe_data_from_api(
                     logger.info(f"Processing flows for country {country} ({i}/{len(neighborhood)})")
                     if not country in flow_mapping:
                         raise KeyError("No mapping found for {}".format(country))
+                    time.sleep(10)
                     df_export = pd.DataFrame(client.query_crossborder_flows(
                         country, country_code_to_flows, start=start_date, end=today),
                         columns=[flow_mapping[country]+'_flow_export']
                     )
-                    time.sleep(5)
+                    time.sleep(10)
                     df_import = pd.DataFrame(client.query_crossborder_flows(
                         country_code_to_flows, country, start=start_date, end=today),
                         columns=[flow_mapping[country]+'_flow_import']
@@ -312,8 +320,8 @@ def fetch_entsoe_data_from_api(
                 f"Failed to fetch cross-border flows from ENTSOE API for   "
                 f"{country_code_to_flows} (empty df) for freq {freq} from {start_date} till {today}."
             )
-        if verbose: logger.info(f"Saving temporary file: {working_dir + fname}")
-        df_flows.to_parquet(working_dir + fname)
+        if verbose: logger.info(f"Saving temporary file: {working_dir + fname5}")
+        df_flows.to_parquet(working_dir + fname5)
 
     # combine
     df = pd.merge(df, df_flows, left_index=True, right_index=True, how="left")
@@ -321,10 +329,11 @@ def fetch_entsoe_data_from_api(
     ''' --------- CROSS-BORDER EXCHANGES (hourly) -------- '''
 
     df_exchanges = pd.DataFrame()
-    fname = f"tmp_exchanges_{country_code_to_flows}.parquet"
-    if os.path.isfile(working_dir + fname):
-        if verbose: logger.info(f"Loading temporary file: {working_dir + fname}")
-        df_exchanges = pd.read_parquet(working_dir + fname)
+    fname6 = f"tmp_exchanges_{country_code_to_flows}_{freq}.parquet"
+    cach_fnames.append(fname6)
+    if os.path.isfile(working_dir + fname6):
+        if verbose: logger.info(f"Loading temporary file: {working_dir + fname6}")
+        df_exchanges = pd.read_parquet(working_dir + fname6)
     else:
         for i in range(5):
             try:
@@ -333,18 +342,19 @@ def fetch_entsoe_data_from_api(
                     logger.info(f"Processing exchanges for country {country} ({i}/{len(neighborhood)})")
                     if not country in flow_mapping:
                         raise KeyError("No mapping found for {}".format(country))
+                    time.sleep(10)
                     df_export = pd.DataFrame(client.query_scheduled_exchanges(
                         country, country_code_to_flows, start=start_date, end=today),
                         columns=[flow_mapping[country]+'_exchange_export']
                     )
-                    time.sleep(5)
+                    time.sleep(10)
                     df_import = pd.DataFrame(client.query_scheduled_exchanges(
                         country_code_to_flows, country, start=start_date, end=today),
                         columns=[flow_mapping[country]+'_exchange_import']
                     )
                     df_ = pd.merge(df_export,df_import,left_index=True,right_index=True)
                     if df_exchanges.empty: df_exchanges = df_.copy()
-                    else: df_exchanges = pd.merge(df_exchanges, df_.copy(), left_index=True, right_index=True, how='left')
+                    else: df_exchanges = pd.merge(df_exchanges, df_.copy(),left_index=True,right_index=True,how='left')
 
                 if freq == 'hourly': df_exchanges = df_exchanges.resample('h').mean()
             except Exception as e:
@@ -357,43 +367,44 @@ def fetch_entsoe_data_from_api(
             break
         if df_exchanges.empty:
             raise ConnectionAbortedError(
-                f"Failed to fetch cross-border flows from ENTSOE API for   "
+                f"Failed to fetch cross-border exchanges from ENTSOE API for   "
                 f"{country_code_to_flows} (empty df) for freq {freq} from {start_date} till {today}."
             )
-        if verbose: logger.info(f"Saving temporary file: {working_dir + fname}")
-        df_exchanges.to_parquet(working_dir + fname)
+        if verbose: logger.info(f"Saving temporary file: {working_dir + fname6}")
+        df_exchanges.to_parquet(working_dir + fname6)
 
     # combine
     df = pd.merge(df, df_exchanges, left_index=True, right_index=True, how="left")
 
+    # check that columns match before removing temporary files
+    for col_name in cols:
+        if not col_name in df.columns.tolist():
+            raise KeyError("Expected column name '{}' is not in the collected ENTSOE data".format(col_name))
+    for col_name in df.columns.tolist():
+        if not col_name in cols:
+            raise KeyError("Column name '{}' from collected data is not expected".format(col_name))
+
     # remove temporary files
     if verbose: logger.info(
         f"Successfully collected ENTSO-E data for freq {freq} with (df={df.shape}) from {start_date} till {today}. "
-        f"Removing temporary files..."
+        f"Removing {len(cach_fnames)+2} temporary files..."
     )
-    fname = f"tmp_flows_{country_code_to_flows}.parquet"
-    if os.path.isfile(working_dir + fname):
-        os.remove(working_dir + fname)
-    fname = f"tmp_exchanges_{country_code_to_flows}.parquet"
-    if os.path.isfile(working_dir + fname):
-        os.remove(working_dir + fname)
-    for i, region in enumerate(de_regions):
-        fnames = [
-            f"tmp_gen{region['suffix']}_hist.parquet",
-            f"tmp_gen{region['suffix']}_total_forecast.parquet",
-            f"tmp_gen{region['suffix']}_solarwind_forecast.parquet",
-            f"tmp_load{region['suffix']}_forecast.parquet"
-        ]
-        for fname in fnames:
-            if os.path.isfile(working_dir + fname):
-                os.remove(working_dir + fname)
+    fname7 = f"tmp_flows_{country_code_to_flows}.parquet"
+    if os.path.isfile(working_dir + fname7):
+        os.remove(working_dir + fname7)
+    fname8 = f"tmp_exchanges_{country_code_to_flows}.parquet"
+    if os.path.isfile(working_dir + fname8):
+        os.remove(working_dir + fname8)
+    for fname in cach_fnames:
+        if os.path.isfile(working_dir + fname):
+            os.remove(working_dir + fname)
 
     return df
 
 def create_entsoe_from_api(
         start_date:pd.Timestamp or None, today:pd.Timestamp,data_dir:str,api_key:str,freq:str,verbose:bool):
     df = fetch_entsoe_data_from_api(data_dir, start_date, today, api_key, freq, verbose)
-    fname = data_dir + 'history.parquet'
+    fname = data_dir + f'history_{freq}.parquet'
     if verbose: logger.info(
         f"ENTSOE data is successfully collected for for freq {freq}. Shape={df.shape}. Saving into {fname}"
     )
@@ -401,15 +412,15 @@ def create_entsoe_from_api(
 
 def update_entsoe_from_api(today:pd.Timestamp,data_dir:str,api_key:str,freq:str,verbose:bool):
 
-    fname = data_dir + 'history.parquet'
-    df_hist = pd.read_parquet(fname)
+    fname = data_dir + f'history_{freq}.parquet'
+    df_hist:pd.DataFrame = pd.read_parquet(fname)
     df_hist.index = pd.to_datetime(df_hist.index, utc=True)
     start_date = pd.Timestamp(df_hist.index[-1]) - timedelta(days=3) # to override previously incorrect last values
     if verbose: logger.info(
         f"Updating ENTSOE data for freq {freq} from {start_date} till {today}. Current shape={df_hist.shape}"
     )
 
-    df = fetch_entsoe_data_from_api(data_dir, start_date, today, api_key, freq, verbose)
+    df = fetch_entsoe_data_from_api(data_dir, start_date, today, api_key, freq, df_hist.columns.tolist(), verbose)
 
     compare_columns(df, df_hist)
     if len(df.columns) != len(df_hist.columns):
@@ -443,7 +454,7 @@ if __name__ == '__main__':
 #         pass
 #
 # def update_entsoe_from_api(today:pd.Timestamp,data_dir:str,verbose):
-#     fname = data_dir + 'history.parquet'
+#     fname = data_dir + 'history_hourly.parquet'
 #     df_hist = pd.read_parquet(fname)
 #
 #     first_timestamp = pd.Timestamp(df_hist.dropna(how='any', inplace=False).first_valid_index())

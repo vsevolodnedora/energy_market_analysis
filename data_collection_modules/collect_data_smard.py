@@ -627,7 +627,7 @@ class DataEnergySMARD:
 
 # def update_smard_from_api(today:pd.Timestamp,data_dir:str,verbose):
 #
-#     fname = data_dir + 'history.parquet'
+#     fname = data_dir + 'history_hourly.parquet'
 #
 #     if not os.path.isdir(fname)
 #
@@ -669,15 +669,12 @@ class DataEnergySMARD:
 
 
 def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datadir:str, freq:str, verbose:bool):
-    datadir += 'tmp_smard/'
-    if not os.path.isdir(datadir):
-        os.mkdir(datadir)
 
     if verbose: logger.info(f"Updating SMARD data from {start_date} to {end_date} for freq: {freq} ")
     o_smard = DataEnergySMARD( start_date=start_date,  end_date=end_date, verbose=verbose)
 
     # collect cross-border flows
-    fname0 = datadir+'/smard_smard_flow.parquet'
+    fname0 = datadir+f'/tmp_smard_flow_{freq}.parquet'
     if os.path.isfile(fname0):
         df_smard_flow = pd.read_parquet(fname0)
         if verbose: logger.info(f"Loading file {fname0} for freq: {freq} ")
@@ -688,7 +685,7 @@ def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datad
 
 
     # collect forecasted generation and load
-    fname1 = datadir+'/smard_gen_forecasted.parquet'
+    fname1 = datadir+f'/tmp_smard_gen_forecasted_{freq}.parquet'
     if os.path.isfile(fname1):
         df_smard_gen_forecasted = pd.read_parquet(fname1)
         if verbose: logger.info(f"Loading file {fname1} for freq: {freq} ")
@@ -702,7 +699,7 @@ def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datad
         if verbose: logger.info(f"Saving file {fname1} for freq: {freq} ")
 
     # collecting forecasted consumption
-    fname2 = datadir+'/smard_con_forecasted.parquet'
+    fname2 = datadir+f'/tmp_smard_con_forecasted_{freq}.parquet'
     if os.path.isfile(fname2):
         df_smard_con_forecasted = pd.read_parquet(fname2)
         if verbose: logger.info(f"Loading file {fname2} for freq: {freq} ")
@@ -721,7 +718,7 @@ def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datad
 
 
     # collect actual realized generation and load
-    fname3 = datadir+'/smard_gen_realized.parquet'
+    fname3 = datadir+f'/tmp_smard_gen_realized_{freq}.parquet'
     if os.path.isfile(fname3):
         df_smard_gen_realized = pd.read_parquet(fname3)
         if verbose: logger.info(f"Loading file {fname3} for freq: {freq} ")
@@ -736,7 +733,7 @@ def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datad
         if verbose: logger.info(f"Saving file {fname3} for freq: {freq} ")
 
     # collect realized consumption
-    fname4 = datadir+'/smard_con_realized.parquet'
+    fname4 = datadir+f'/tmp_smard_con_realized_{freq}.parquet'
     if os.path.isfile(fname4):
         df_smard_con_realized = pd.read_parquet(fname4)
         if verbose: logger.info(f"Loading file {fname4} for freq: {freq} ")
@@ -749,7 +746,7 @@ def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datad
         if verbose: logger.info(f"Saving file {fname4} for freq: {freq} ")
 
     # collect realize consumption residual
-    fname5 = datadir+'/smard_con_res_realized.parquet'
+    fname5 = datadir+f'/tmp_smard_con_res_realized_{freq}.parquet'
     if os.path.isfile(fname5):
         df_smard_con_res_realized = pd.read_parquet(fname5)
         if verbose: logger.info(f"Loading file {fname5} for freq: {freq} ")
@@ -764,7 +761,7 @@ def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datad
         if verbose: logger.info(f"Saving file {fname5} for freq: {freq} ")
 
     # collect DA prices
-    fname6 = datadir+'/smard_da_prices.parquet'
+    fname6 = datadir+f'/tmp_smard_da_prices_{freq}.parquet'
     if os.path.isfile(fname6):
         df_da_prices = pd.read_parquet(fname6)
         if verbose: logger.info(f"Loading file {fname6} for freq: {freq} ")
@@ -795,7 +792,7 @@ def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datad
 
 def update_smard_from_api(today:pd.Timestamp,data_dir:str,freq:str,verbose:bool):
     if verbose: logger.info(f"Updating SMARD data up to {today}")
-    fname = data_dir + 'history.parquet'
+    fname = data_dir + f'history_{freq}.parquet'
     df_hist = pd.read_parquet(fname)
     last_timestamp = pd.Timestamp(df_hist.dropna(how='all', inplace=False).last_valid_index())
     start_date_ = last_timestamp - timedelta(hours=72) # account for weekends where no data is published
@@ -829,7 +826,7 @@ def update_smard_from_api(today:pd.Timestamp,data_dir:str,freq:str,verbose:bool)
 
 def create_smard_from_api(start_date:pd.Timestamp or None, today:pd.Timestamp,data_dir:str,freq:str,verbose:bool):
     if verbose: logger.info(f"Collecting SMARD data for {start_date} - {today}")
-    fname = data_dir + 'history.parquet'
+    fname = data_dir + f'history_{freq}.parquet'
     end_date = today + timedelta(hours=24)
     start_date_ = start_date - timedelta(hours=24)
     df_smard = collect_smard_from_api(
@@ -841,7 +838,7 @@ def create_smard_from_api(start_date:pd.Timestamp or None, today:pd.Timestamp,da
 
 # def update_create_smard_from_api(start_date:pd.Timestamp or None, today:pd.Timestamp,data_dir:str,verbose):
 #
-#     fname = data_dir + 'history.parquet'
+#     fname = data_dir + 'history_hourly.parquet'
 #
 #     if not os.path.isdir(fname):
 #         if start_date is None:

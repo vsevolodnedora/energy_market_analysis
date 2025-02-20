@@ -293,7 +293,7 @@ def OLD_publish_generation(
 
     df_results = pd.DataFrame()
 
-    df_entsoe = pd.read_parquet(database_dir + 'entsoe/' + 'history.parquet')
+    df_entsoe = pd.read_parquet(database_dir + 'entsoe/' + 'history_hourly.parquet')
 
     # collect total values from all regions; compute error using average metric and ENTSO-E data
     for de_reg in de_regions:
@@ -376,7 +376,7 @@ def OLD_publish_generation(
 
     # ----------- COMPUTE SMARD ERROR OVER THE LAST N HORIZONS ------------------ #
 
-    df_smard = pd.read_parquet(database_dir + 'smard/' + 'history.parquet')
+    df_smard = pd.read_parquet(database_dir + 'smard/' + 'history_hourly.parquet')
 
     df_smard.rename(columns={
         "total_grid_load_forecasted": "load_forecasted",
@@ -570,7 +570,7 @@ def publish_generation(
 
     df_results = pd.DataFrame()
 
-    df_entsoe = pd.read_parquet(database_dir + 'entsoe/' + 'history.parquet')
+    df_entsoe = pd.read_parquet(database_dir + 'entsoe/' + 'history_hourly.parquet')
 
     # collect total values from all regions; compute error using average metric and ENTSO-E data
     for de_reg in de_regions:
@@ -654,7 +654,7 @@ def publish_generation(
 
     # ----------- COMPUTE SMARD ERROR OVER THE LAST N HORIZONS ------------------ #
 
-    df_smard = pd.read_parquet(database_dir + 'smard/' + 'history.parquet')
+    df_smard = pd.read_parquet(database_dir + 'smard/' + 'history_hourly.parquet')
 
     df_smard.rename(columns={
         "total_grid_load_forecasted": "load_forecasted",
@@ -1888,7 +1888,7 @@ class PublishGenerationLoad:
         timeseries_to_json( df=df, fname=outdir + "forecast_curr_fitted.json" )
 
     def load_entsoe_data(self):
-        self.df_entsoe = pd.read_parquet(self.db_path + 'entsoe/' + 'history.parquet')
+        self.df_entsoe = pd.read_parquet(self.db_path + 'entsoe/' + 'history_hourly.parquet')
 
         self.df_entsoe = validate_dataframe(self.df_entsoe, 'df_entsoe', logger.warning, self.verbose)
 
@@ -1912,7 +1912,7 @@ class PublishGenerationLoad:
             if not nan_cols.empty:
                 logger.error(f"SMARD has nans in columns: {nan_cols}")
                 raise ValueError("Nans in SMARD data")
-        self.df_smard = pd.read_parquet(self.db_path + 'smard/' + 'history.parquet')
+        self.df_smard = pd.read_parquet(self.db_path + 'smard/' + 'history_hourly.parquet')
 
         if not isinstance(self.df_smard.index, pd.DatetimeIndex):
             self.df_smard = self.df_smard.set_index(pd.to_datetime(self.df_smard.index))

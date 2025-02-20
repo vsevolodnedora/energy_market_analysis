@@ -46,7 +46,7 @@ def main(task:str, freq:str, verbose : bool = True):
     # start_date = pd.Timestamp(datetime(year=2025, month=2, day=1), tz='UTC') # no openmeteo data for 15 min before that
 
 
-    db_path = './database/' if freq == 'hourly' else './database_15min/'
+    db_path = './database/'
 
     tasks = [
         'create_smard',
@@ -75,7 +75,7 @@ def main(task:str, freq:str, verbose : bool = True):
     # due to file size limitations on GitHub we need to split the openmeteo data into different files
     elif task == 'create_openmeteo_windfarms_offshore':
         create_openmeteo_from_api(
-            datadir=db_path + 'openmeteo/', suffix='offshore',
+            datadir=db_path + 'openmeteo/', loc_label='offshore',
             variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind)   if freq == 'hourly' else
                         (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min),
             locations = loc_offshore_windfarms, start_date = start_date, freq=freq, verbose = verbose
@@ -83,7 +83,7 @@ def main(task:str, freq:str, verbose : bool = True):
 
     elif task == 'create_openmeteo_windfarms_onshore':
         create_openmeteo_from_api(
-            datadir=db_path + 'openmeteo/', suffix='onshore',
+            datadir=db_path + 'openmeteo/', loc_label='onshore',
             variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind) if freq == 'hourly' else
                         (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min),
             locations = loc_onshore_windfarms, start_date = start_date, freq=freq, verbose = verbose
@@ -91,7 +91,7 @@ def main(task:str, freq:str, verbose : bool = True):
 
     elif task == 'create_openmeteo_solarfarms':
         create_openmeteo_from_api(
-            datadir=db_path + 'openmeteo/', suffix='solar',
+            datadir=db_path + 'openmeteo/', loc_label='solar',
             variables = (OpenMeteo.vars_basic + OpenMeteo.vars_radiation) if freq == 'hourly' else
                         (OpenMeteo.vars_basic_15min + OpenMeteo.vars_radiation_15min),
             locations = loc_solarfarms, start_date = start_date, freq=freq, verbose = verbose
@@ -99,7 +99,7 @@ def main(task:str, freq:str, verbose : bool = True):
 
     elif task == 'create_openmeteo_cities':
         create_openmeteo_from_api(
-            datadir=db_path + 'openmeteo/', suffix='cities',
+            datadir=db_path + 'openmeteo/', loc_label='cities',
             variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind + OpenMeteo.vars_radiation) if freq == 'hourly' else
                         (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min + OpenMeteo.vars_radiation_15min),
             locations = loc_cities, start_date = start_date, freq=freq, verbose = verbose

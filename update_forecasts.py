@@ -39,7 +39,7 @@ if __name__ == '__main__':
         # update_forecast_production(
         #     database='./database_15min/',
         #     variable=target,
-        #     outdir='./output/forecasts/',
+        #     outdir='./output_15min/forecasts/',
         #     freq='minutely_15',
         #     verbose=True
         # )

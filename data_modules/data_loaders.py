@@ -101,16 +101,28 @@ def load_combine_continous_weather(db_path:str, freq:str, suffix:str)->tuple[pd.
         df.sort_index(inplace=True)
         df = df.loc[~df.index.duplicated(keep='first')]
         assert len(df_past.columns) == len(df.columns)
-        import matplotlib.pyplot as plt
-        plt.title(f'freq={freq}, suffix={suffix}')
-        plt.plot(df.tail(24).index, df.tail(24)[df.columns.tolist()[0]],color='black',label='combined',marker='.',ls='none',fillstyle='none')
-        plt.plot(df_past.tail(24).index, df_past.tail(24)[df_past.columns.tolist()[0]],color='red',label='past',marker='d',ls='none',fillstyle='none')
-        plt.plot(df_past_forecast.tail(24).index, df_past_forecast.tail(24)[df_past_forecast.columns.tolist()[0]],color='orange', label='past forecast',marker='o',ls='none',fillstyle='none')
-        plt.plot(df_forecast.head(24).index, df_forecast.head(24)[df_forecast.columns.tolist()[0]],color='green',label='forecast',marker='s',ls='none',fillstyle='none')
-        plt.legend()
-        plt.show()
+        # import matplotlib.pyplot as plt
+        # plt.title(f'freq={freq}, suffix={suffix}')
+        # plt.plot(df.tail(24).index, df.tail(24)[df.columns.tolist()[0]],color='black',label='combined',marker='.',ls='none',fillstyle='none')
+        # plt.plot(df_past.tail(24).index, df_past.tail(24)[df_past.columns.tolist()[0]],color='red',label='past',marker='d',ls='none',fillstyle='none')
+        # plt.plot(df_past_forecast.tail(24).index, df_past_forecast.tail(24)[df_past_forecast.columns.tolist()[0]],color='orange', label='past forecast',marker='o',ls='none',fillstyle='none')
+        # plt.plot(df_forecast.head(24).index, df_forecast.head(24)[df_forecast.columns.tolist()[0]],color='green',label='forecast',marker='s',ls='none',fillstyle='none')
+        # plt.legend()
+        # plt.show()
         return df, df_forecast
     else:
+        df_past = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}_history.parquet')
+        df_past_forecast = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}_hist_forecast.parquet')
+        df_forecast = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}_forecast.parquet')
+
+        # import matplotlib.pyplot as plt
+        # plt.title(f'freq={freq}, suffix={suffix}')
+        # plt.plot(df.tail(24).index, df.tail(24)[df.columns.tolist()[0]],color='black',label='combined',marker='.',ls='none',fillstyle='none')
+        # plt.plot(df_past.tail(24).index, df_past.tail(24)[df_past.columns.tolist()[0]],color='red',label='past',marker='d',ls='none',fillstyle='none')
+        # plt.plot(df_past_forecast.tail(24).index, df_past_forecast.tail(24)[df_past_forecast.columns.tolist()[0]],color='orange', label='past forecast',marker='o',ls='none',fillstyle='none')
+        # plt.plot(df_forecast.head(24).index, df_forecast.head(24)[df_forecast.columns.tolist()[0]],color='green',label='forecast',marker='s',ls='none',fillstyle='none')
+        # plt.legend()
+        # plt.show()
         raise NotImplementedError("Frequency not implemented {}".format(freq))
 
 # TODO: USE SQL HERE!!!
@@ -125,23 +137,23 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, freq:str, ver
     horizon = 7*24 if freq == 'hourly' else 7*24*4
 
     # -------- laod database TODO move to SQLlite DB
-    df_smard = pd.read_parquet(db_path + 'smard/' + 'history.parquet')
+    df_smard = pd.read_parquet(db_path + 'smard/' + 'history_hourly.parquet')
     df_om_offshore, df_om_offshore_f = load_combine_continous_weather(db_path, freq, suffix='offshore')
     df_om_onshore, df_om_onshore_f = load_combine_continous_weather(db_path, freq, suffix='onshore')
     df_om_solar, df_om_solar_f = load_combine_continous_weather(db_path, freq, suffix='solar')
     df_om_cities, df_om_cities_f = load_combine_continous_weather(db_path, freq, suffix='cities')
 
 
-    # df_om_offshore = pd.read_parquet(db_path + 'openmeteo/' + 'offshore_history.parquet')
-    # df_om_offshore_f = pd.read_parquet(db_path + 'openmeteo/' + 'offshore_forecast.parquet')
-    # df_om_onshore = pd.read_parquet(db_path + 'openmeteo/' + 'onshore_history.parquet')
-    # df_om_onshore_f = pd.read_parquet(db_path + 'openmeteo/' + 'onshore_forecast.parquet')
-    # df_om_solar = pd.read_parquet(db_path + 'openmeteo/' + 'solar_history.parquet')
-    # df_om_solar_f = pd.read_parquet(db_path + 'openmeteo/' + 'solar_forecast.parquet')
-    # df_om_cities = pd.read_parquet(db_path + 'openmeteo/' + 'cities_history.parquet')
-    # df_om_cities_f = pd.read_parquet(db_path + 'openmeteo/' + 'cities_forecast.parquet')
-    # df_es = pd.read_parquet(db_path + 'epexspot/' + 'history.parquet')
-    df_entsoe = pd.read_parquet(db_path + 'entsoe/' + 'history.parquet')
+    # df_om_offshore = pd.read_parquet(db_path + 'openmeteo/' + 'offshore_history_hourly.parquet')
+    # df_om_offshore_f = pd.read_parquet(db_path + 'openmeteo/' + 'offshore_forecast_hourly.parquet')
+    # df_om_onshore = pd.read_parquet(db_path + 'openmeteo/' + 'onshore_history_hourly.parquet')
+    # df_om_onshore_f = pd.read_parquet(db_path + 'openmeteo/' + 'onshore_forecast_hourly.parquet')
+    # df_om_solar = pd.read_parquet(db_path + 'openmeteo/' + 'solar_history_hourly.parquet')
+    # df_om_solar_f = pd.read_parquet(db_path + 'openmeteo/' + 'solar_forecast_hourly.parquet')
+    # df_om_cities = pd.read_parquet(db_path + 'openmeteo/' + 'cities_history_hourly.parquet')
+    # df_om_cities_f = pd.read_parquet(db_path + 'openmeteo/' + 'cities_forecast_hourly.parquet')
+    # df_es = pd.read_parquet(db_path + 'epexspot/' + 'history_hourly.parquet')
+    df_entsoe = pd.read_parquet(db_path + 'entsoe/' + 'history_hourly.parquet')
     df_entsoe = df_entsoe.apply(pd.to_numeric, errors='coerce')
 
     # ----- CHECKS AND NOTES ----
