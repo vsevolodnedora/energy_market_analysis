@@ -1,10 +1,10 @@
 
-Our __week-ahead__ forecast has average RMSE of __1259__.  
-SMARD __day-ahead__ forecast has average accuracy of __881__. 
+Our __week-ahead__ forecast has average RMSE of __1890__.  
+SMARD __day-ahead__ forecast has average accuracy of __2436__. 
     
 | TSO/Region   | Train Date   |   N Features | Best Model   |   RMSE |   TSO RMSE |
 |:-------------|:-------------|-------------:|:-------------|-------:|-----------:|
-| Amprion      | 2025-02-13   |           44 | LightGBM     |    365 |        269 |
-| 50Hertz      | 2025-02-13   |           32 | LightGBM     |    432 |        266 |
-| TenneT       | 2025-02-13   |           37 | LightGBM     |    754 |        492 |
-| TransnetBW   | 2025-02-13   |           70 | Ensemble     |    339 |        291 |
+| Amprion      | 2025-02-21   |           30 | Ensemble     |    631 |        375 |
+| 50Hertz      | 2025-02-21   |           29 | LightGBM     |    595 |        409 |
+| TenneT       | 2025-02-21   |           90 | LightGBM     |    886 |        515 |
+| TransnetBW   | 2025-02-21   |           32 | Ensemble     |    403 |        364 |
