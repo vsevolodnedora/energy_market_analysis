@@ -47,7 +47,7 @@ def main(task:str, freq:str, verbose : bool = True):
     # start_date = pd.Timestamp(datetime(year=2025, month=2, day=1), tz='UTC') # no openmeteo data for 15 min before that
 
 
-    db_path = './new_database/DE/'
+    db_path = './database/DE/'
 
     tasks = [
         'create_smard',

@@ -44,7 +44,7 @@ def main(task:str, freq:str, verbose:bool = True):
     today = pd.Timestamp(datetime.today()).tz_localize(tz='UTC')
     today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
 
-    db_path = './new_database/DE/'
+    db_path = './database/DE/'
 
     tasks = [
         'all',
