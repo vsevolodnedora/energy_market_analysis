@@ -21,6 +21,7 @@ if __name__ == '__main__':
 
     # targets = ['wind_offshore', 'wind_onshore', 'solar', 'load', 'energy_mix']
     targets = ['wind_offshore', 'wind_onshore', 'solar', 'load', 'energy_mix']
+    # targets = ['wind_offshore']
 
     # update_forecast_production(
     #     database=db_path, variable='energy_mix', outdir='./output/forecasts/', verbose=True
@@ -30,7 +31,7 @@ if __name__ == '__main__':
 
     for target in targets:
         update_forecast_production(
-            database='./database/',
+            database='./database/DE/',
             variable=target,
             outdir='./output/forecasts/',
             freq='hourly',

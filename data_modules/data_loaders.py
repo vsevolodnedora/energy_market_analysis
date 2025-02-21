@@ -58,10 +58,18 @@ def load_combine_continous_weather(db_path:str, freq:str, suffix:str)->tuple[pd.
         df_forecast = pd.DataFrame()
 
         for tso_dict in de_regions:
-            df_past_ = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}/history.parquet')
-            df_past_forecast_ = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}/hist_forecast.parquet')
-            df_forecast_ = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}/forecast.parquet')
-            # ---
+            tso_name = tso_dict['TSO']
+            dir_ = db_path + 'openmeteo/' + f'{suffix}/' + f'{tso_name}/'
+            if not os.path.isdir(dir_):
+                logger.info(f'Directory does not exist: {dir_}')
+                continue
+
+            # --- #
+            df_past_ = pd.read_parquet(dir_+f'history_{freq}.parquet')
+            df_past_forecast_ = pd.read_parquet(dir_+f'hist_forecast_{freq}.parquet')
+            df_forecast_ = pd.read_parquet(dir_+f'forecast_{freq}.parquet')
+            # --- #
+            # --- #
             if df_past.empty: df_past = df_past_.copy()
             else: df_past = pd.merge(df_past, df_past_,left_index=True, right_index=True, how='left')
 
@@ -69,7 +77,19 @@ def load_combine_continous_weather(db_path:str, freq:str, suffix:str)->tuple[pd.
             else: df_past_forecast = pd.merge(df_past_forecast, df_past_forecast_,left_index=True, right_index=True, how='left')
 
             if df_forecast.empty: df_forecast = df_forecast_.copy()
-            else: df_forecast = pd.merge(df_forecast, df_past_forecast_,left_index=True, right_index=True, how='left')
+            else: df_forecast = pd.merge(df_forecast, df_forecast_,left_index=True, right_index=True, how='left')
+
+            # --- checks
+            if (not df_forecast.empty) and df_forecast.index[-1] != df_forecast_.index[-1]:
+                raise ValueError(
+                    f"Forecast Data Time Mismatch. Expected {df_forecast.index[-1]} while got "
+                    f"{df_forecast_.index[-1]} for freq={freq} tso={tso_name} suffix={suffix}"
+                )
+            if df_forecast.isna().any().any():
+                raise ValueError("NaNs in forecast data")
+
+        if df_past.empty: raise ValueError('df_past.empty')
+        if df_forecast.empty: raise ValueError('df_forecast.empty')
 
 
         # combine past actual with past forecast to bridge the data gap
@@ -157,6 +177,7 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, freq:str, ver
     df_om_onshore, df_om_onshore_f = load_combine_continous_weather(db_path, freq, suffix='onshore')
     df_om_solar, df_om_solar_f = load_combine_continous_weather(db_path, freq, suffix='solar')
     df_om_cities, df_om_cities_f = load_combine_continous_weather(db_path, freq, suffix='cities')
+
 
 
     # df_om_offshore = pd.read_parquet(db_path + 'openmeteo/' + 'offshore_history_hourly.parquet')

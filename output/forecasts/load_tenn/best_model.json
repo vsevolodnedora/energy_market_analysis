@@ -1,7 +1,7 @@
 {
     "load_tenn": {
         "method": "trained",
-        "model_label": "LightGBM",
-        "avg_rmse": 586.627572851362
+        "model_label": "ensemble[LightGBM](LightGBM,ElasticNet)",
+        "avg_rmse": 698.8700327936232
     }
 }

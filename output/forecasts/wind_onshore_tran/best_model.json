@@ -1,7 +1,7 @@
 {
     "wind_onshore_tran": {
         "method": "trained",
-        "model_label": "XGBoost",
-        "avg_rmse": 141.00731842300937
+        "model_label": "LightGBM",
+        "avg_rmse": 139.757977239904
     }
 }

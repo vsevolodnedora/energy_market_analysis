@@ -1,7 +1,7 @@
 {
     "wind_offshore_50hz": {
         "method": "trained",
-        "model_label": "ensemble[LightGBM](LightGBM,ElasticNet)",
-        "avg_rmse": 210.92973200402
+        "model_label": "ensemble[XGBoost](XGBoost,ElasticNet)",
+        "avg_rmse": 108.52938281419915
     }
 }
