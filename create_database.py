@@ -11,6 +11,7 @@ from data_collection_modules import (
     loc_onshore_windfarms,
     loc_offshore_windfarms,
     loc_cities,
+    de_regions,
     OpenMeteo
 )
 
@@ -46,7 +47,7 @@ def main(task:str, freq:str, verbose : bool = True):
     # start_date = pd.Timestamp(datetime(year=2025, month=2, day=1), tz='UTC') # no openmeteo data for 15 min before that
 
 
-    db_path = './database/'
+    db_path = './new_database/DE/'
 
     tasks = [
         'create_smard',
@@ -74,36 +75,44 @@ def main(task:str, freq:str, verbose : bool = True):
 
     # due to file size limitations on GitHub we need to split the openmeteo data into different files
     elif task == 'create_openmeteo_windfarms_offshore':
-        create_openmeteo_from_api(
-            datadir=db_path + 'openmeteo/', loc_label='offshore',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind)   if freq == 'hourly' else
-                        (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min),
-            locations = loc_offshore_windfarms, start_date = start_date, freq=freq, verbose = verbose
-        )
+        for tso_dict in de_regions:
+            create_openmeteo_from_api(
+                datadir=db_path + f"openmeteo/offshore/{tso_dict['TSO']}/",
+                variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind)   if freq == 'hourly' else
+                            (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min),
+                locations = [loc for loc in loc_offshore_windfarms if loc['TSO'] == tso_dict['TSO']],
+                start_date = start_date,  freq=freq, verbose = verbose
+            )
 
     elif task == 'create_openmeteo_windfarms_onshore':
-        create_openmeteo_from_api(
-            datadir=db_path + 'openmeteo/', loc_label='onshore',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind) if freq == 'hourly' else
-                        (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min),
-            locations = loc_onshore_windfarms, start_date = start_date, freq=freq, verbose = verbose
-        )
+        for tso_dict in de_regions:
+            create_openmeteo_from_api(
+                datadir=db_path + f"openmeteo/onshore/{tso_dict['TSO']}/",
+                variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind) if freq == 'hourly' else
+                            (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min),
+                locations = [loc for loc in loc_onshore_windfarms if loc['TSO'] == tso_dict['TSO']],
+                start_date = start_date, freq=freq, verbose = verbose
+            )
 
     elif task == 'create_openmeteo_solarfarms':
-        create_openmeteo_from_api(
-            datadir=db_path + 'openmeteo/', loc_label='solar',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_radiation) if freq == 'hourly' else
-                        (OpenMeteo.vars_basic_15min + OpenMeteo.vars_radiation_15min),
-            locations = loc_solarfarms, start_date = start_date, freq=freq, verbose = verbose
-        )
+        for tso_dict in de_regions:
+            create_openmeteo_from_api(
+                datadir=db_path + f"openmeteo/solar/{tso_dict['TSO']}/",
+                variables = (OpenMeteo.vars_basic + OpenMeteo.vars_radiation) if freq == 'hourly' else
+                            (OpenMeteo.vars_basic_15min + OpenMeteo.vars_radiation_15min),
+                locations = [loc for loc in loc_solarfarms if loc['TSO'] == tso_dict['TSO']],
+                start_date = start_date, freq=freq, verbose = verbose
+            )
 
     elif task == 'create_openmeteo_cities':
-        create_openmeteo_from_api(
-            datadir=db_path + 'openmeteo/', loc_label='cities',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind + OpenMeteo.vars_radiation) if freq == 'hourly' else
-                        (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min + OpenMeteo.vars_radiation_15min),
-            locations = loc_cities, start_date = start_date, freq=freq, verbose = verbose
-        )
+        for tso_dict in de_regions:
+            create_openmeteo_from_api(
+                datadir=db_path + f"openmeteo/cities/{tso_dict['TSO']}",
+                variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind + OpenMeteo.vars_radiation) if freq == 'hourly' else
+                            (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min + OpenMeteo.vars_radiation_15min),
+                locations = [loc for loc in loc_cities if loc['TSO'] == tso_dict['TSO']],
+                start_date = start_date, freq=freq, verbose = verbose
+            )
 
     else:
         raise ValueError(f'Invalid task {task}. Available tasks: {tasks}')

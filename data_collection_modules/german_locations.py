@@ -17,25 +17,13 @@ Roughness length: https://www.wind101.net/wind-height/index.htm
 Roughness factor: https://eurocodes-tools.com/en/roughness-factor-crz/
 
 MAP energy companies: https://www.enet-navigator.de/aktuelles/uebertragungsnetzentgelte-preisentwicklungen-durchwachsen#&gid=2&pid=1
+
 """
 
-# loc_cities = [
-#     {"name": "Berlin", "type": "city", "suffix":"_ber",
-#      "lat": 52.520007, "lon": 13.404954,
-#      "om_api_pars":{"cell_selection":"land"}},
-#     {"name": "Munchen", "type": "city", "suffix":"_mun",
-#      "lat": 48.1351, "lon": 11.5820,
-#      "om_api_pars":{"cell_selection":"land"}},
-#     {"name": "Stuttgart", "type": "city", "suffix":"_stut",
-#      "lat": 48.7791, "lon": 9.1801,
-#      "om_api_pars":{"cell_selection":"land"}},
-#     {"name": "Frankfurt", "type": "city", "suffix":"_fran",
-#      "lat": 50.1109, "lon": 8.6821,
-#      "om_api_pars":{"cell_selection":"land"}},
-#     {"name": "Hamburg", "type": "city", "suffix":"_ham",
-#      "lat": 53.5488, "lon": 9.9872,
-#      "om_api_pars":{"cell_selection":"land"}}
-# ]
+
+
+
+
 
 loc_cities = [
     # {
@@ -68,6 +56,7 @@ loc_cities = [
     # 50Hertz: Berlin, Rostok, Leipzig, Dresden (Hambug (partly))
     {
         "name": "Berlin",
+        "label":'berlin',
         "type": "city",
         "suffix":"_city_berlin",
         "TSO": "50Hertz",
@@ -100,6 +89,7 @@ loc_cities = [
     },
     {
         "name": "Hamburg",
+        "label":'hamburg',
         "type": "city",
         "suffix":"_city_hamburg",
         "TSO": "50Hertz", # NOTE that it is only partly in 50Hertz area
@@ -128,6 +118,7 @@ loc_cities = [
     },
     {
         "name": "Leipzig",
+        "label":'leipzig',
         "type": "city",
         "suffix":"_city_leipzig",
         "TSO": "50Hertz",
@@ -156,6 +147,7 @@ loc_cities = [
     },
     {
         "name": "Dresden",
+        "label":'dresden',
         "type": "city",
         "suffix":"_city_dresden",
         "TSO": "50Hertz",
@@ -184,6 +176,7 @@ loc_cities = [
     },
     {
         "name": "Magdeburg",
+        "label":'magdeburg',
         "type": "city",
         "suffix":"_city_magdeburg",
         "TSO": "50Hertz",
@@ -214,6 +207,7 @@ loc_cities = [
     # Tennet: Munich, Bremen, Kiel, Kassel, Bremerhaven, Emden
     {
         "name": "Munich",
+        "label":'munich',
         "type": "city",
         "suffix":"_city_munich",
         "TSO": "TenneT",
@@ -242,6 +236,7 @@ loc_cities = [
     },
     {
         "name": "Bremen",
+        "label":'bremen',
         "type": "city",
         "suffix":"_city_bremen",
         "TSO": "TenneT",
@@ -270,6 +265,7 @@ loc_cities = [
     },
     {
         "name": "Kiel",
+        "label":'kiel',
         "type": "city",
         "suffix":"_city_kiel",
         "TSO": "TenneT",
@@ -298,6 +294,7 @@ loc_cities = [
 },
     {
         "name": "Kassel",
+        "label":'kassel',
         "type": "city",
         "suffix":"_city_kassel",
         "TSO": "TenneT",
@@ -326,6 +323,7 @@ loc_cities = [
     },
     {
         "name": "Bremerhaven",
+        "label":'bremerhaven',
         "type": "city",
         "suffix":"_city_bremerhaven",
         "TSO": "TenneT",
@@ -356,6 +354,7 @@ loc_cities = [
     # TransnetBW: Stuttgard, Karlsruhe, Mannheim, Freiburg im Breisgau, Heidelberg
     {
         "name": "Stuttgart",
+        "label":'stuttgart',
         "type": "city",
         "suffix":"_city_stuttgart",
         "TSO": "TransnetBW",
@@ -384,6 +383,7 @@ loc_cities = [
     },
     {
         "name": "Karlsruhe",
+        "label":'karlsruhe',
         "type": "city",
         "suffix":"_city_karlsruhe",
         "TSO": "TransnetBW",
@@ -412,6 +412,7 @@ loc_cities = [
     },
     {
         "name": "Mannheim",
+        "label":'mannheim',
         "type": "city",
         "suffix":"_city_mannheim",
         "TSO": "TransnetBW",
@@ -440,6 +441,7 @@ loc_cities = [
     },
     {
         "name": "Freiburg im Breisgau",
+        "label":'freiburg_im_breisgau',
         "type": "city",
         "suffix":"_city_freiburg",
         "TSO": "TransnetBW",
@@ -468,6 +470,7 @@ loc_cities = [
     },
     {
         "name": "Heidelberg",
+        "label":'heidelberg',
         "type": "city",
         "suffix":"_city_heidelberg",
         "TSO": "TransnetBW",
@@ -498,6 +501,7 @@ loc_cities = [
     # Amprion: Frankfurt am Main, Cologne, Düsseldorf, Essen, Dortmund
     {
         "name": "Frankfurt am Main",
+        "label":'frankfurt_am_main',
         "type": "city",
         "suffix":"_city_frankfurt",
         "TSO": "Amprion",
@@ -526,6 +530,7 @@ loc_cities = [
     },
     {
         "name": "Cologne",
+        "label":'cologne',
         "type": "city",
         "suffix":"_city_cologne",
         "TSO": "Amprion",
@@ -554,6 +559,7 @@ loc_cities = [
     },
     {
         "name": "Düsseldorf",
+        "label":'duesseldorf',
         "type": "city",
         "suffix":"_city_duesseldorf",
         "TSO": "Amprion",
@@ -582,6 +588,7 @@ loc_cities = [
     },
     {
         "name": "Essen",
+        "label":'essen',
         "type": "city",
         "suffix":"_city_essen",
         "TSO": "Amprion",
@@ -610,6 +617,7 @@ loc_cities = [
     },
     {
         "name": "Dortmund",
+        "label":'dortmund',
         "type": "city",
         "suffix":"_city_dortmund",
         "TSO": "Amprion",
@@ -644,6 +652,7 @@ loc_onshore_windfarms = [
     # 50Hertz
     {
         "name": "Hüselitz Wind Farm",
+        "label":"hueselitz_wind_farm",
         "capacity": 151.8,
         "n_turbines": 46,
         "lat": 52.5347,
@@ -659,6 +668,7 @@ loc_onshore_windfarms = [
     },
     {
         "name": "Werder/Kessin Wind Farm",
+        "label":"werder_kessin_wind_farm",
         "capacity": 148.05,
         "n_turbines": 32,
         "lat": 53.7270,
@@ -673,6 +683,7 @@ loc_onshore_windfarms = [
     },
     {
         "name": "Uckermark Enertrag Wind Farm",
+        "label":"uckermark_enertrag_wind_farm",
         "capacity": 106,
         "n_turbines": 72,
         "location": "Uckermark district of Brandenburg",
@@ -687,6 +698,7 @@ loc_onshore_windfarms = [
     },
     {
         "name": "Feldheim Wind Farm",
+        "label":"feldheim_wind_farm",
         "location": "Potsdam-Mittelmark",
         "capacity": 74,
         "n_turbines": 47,
@@ -703,6 +715,7 @@ loc_onshore_windfarms = [
     # TenneT
     {
         "name": "Reußenköge Wind Farm",
+        "label":"reussenkoege_wind_farm",
         "capacity": 303,
         "n_turbines": 90,
         "lat": 54.645,
@@ -717,6 +730,7 @@ loc_onshore_windfarms = [
     },
     {
         "name": "Jade Wind Park",
+        "label":"jade_wind_farm",
         "capacity": 40.7, # MW
         "n_turbines": 16,
         "lat": 53.5923, # approximate latitude
@@ -731,6 +745,7 @@ loc_onshore_windfarms = [
     },
     {
         "name": "Bürgerwindpark Veer Dörper",
+        "label":"veer_doerper_wind_farm",
         "location": "Schleswig-Holstein",
         "capacity": 99.95,  # in megawatts (MW)
         "n_turbines": 44,
@@ -748,6 +763,7 @@ loc_onshore_windfarms = [
     # TransnetBW
     {
         "name": "Windpark Hohenlochen",
+        "label":"hohenlochen_wind_farm",
         "location": "Oberwolfach and Hausach",
         "capacity": 16.8,
         "n_turbines": 4,
@@ -764,6 +780,7 @@ loc_onshore_windfarms = [
     # TODO add Bürgerwindpark Südliche Ortenau, Windpark Großer Wald,
     {
         "name": "Windpark Harthäuser Wald",
+        "label":"harthaeuser_wald_wind_farm",
         "location": "Harthäuser Wald",
         "capacity": 54.9,
         "n_turbines": 18,
@@ -780,6 +797,7 @@ loc_onshore_windfarms = [
     },
     {
         "name": "Windpark Straubenhardt",
+        "label":"straubenhardt_wind_farm",
         "location": "Gemeinde Straubenhardt im Enzkreis, Baden-Württemberg",
         "capacity": 11,
         "n_turbines": 18,
@@ -798,6 +816,7 @@ loc_onshore_windfarms = [
     # Amprion
     {
         "name": "Windpark Hollich",
+        "label":"hollich_wind_farm",
         "capacity": 48,
         "n_turbines": 15,
         "lat": 52.1788,
@@ -813,6 +832,7 @@ loc_onshore_windfarms = [
     },
     {
         "name": "Windpark Coesfeld Letter Bruch",
+        "label":"coesfeld_letter_bruch_wind_farm",
         "capacity": 52.8,
         "n_turbines": 13,
         "lat": 51.8716,
@@ -827,6 +847,7 @@ loc_onshore_windfarms = [
     },
     {
         "name": "Windpark A31 Gescher-Reken",
+        "label":"a31_gescher_reken_wind_farm",
         "capacity": 45,
         "n_turbines": 15,
         "lat": 51.8500,
@@ -845,6 +866,7 @@ loc_offshore_windfarms = [
     # TenneT
     {
         "name": "EnBW Hohe See",
+        "label":"enbw_hohe_see_wind_farm",
         "capacity": 497,
         "n_turbines": 71,
         "type_turbines": "Siemens SWT-7.0-154 (7 MW each)",
@@ -856,6 +878,7 @@ loc_offshore_windfarms = [
     },
     {
         "name": "Borkum Riffgrund 2 Wind Farm",
+        "label":"borkum_riffgrund_wind_farm",
         "capacity": 450,
         "n_turbines": 56,
         "type_turbines": "MHI Vestas V164-8.0 MW (8 MW each)",
@@ -867,6 +890,7 @@ loc_offshore_windfarms = [
     },
     {
         "name":"Veja Mate Offshore Wind Farm",
+        "label":"veja_mate_wind_farm",
         "capacity":402,
         "n_turbines": 67,
         'type_turbines':'Siemens SWT-6.0-154 (6 MW each)',
@@ -878,6 +902,7 @@ loc_offshore_windfarms = [
     },
     {
         "name": "BARD Offshore 1 Wind Farm",
+        "label":"bard_offshore_1_wind_farm",
         "capacity": 400,
         "n_turbines": 80,
         "type_turbines": "BARD 5.0 (5 MW each)",
@@ -889,6 +914,7 @@ loc_offshore_windfarms = [
     },
     {
         "name": "Global Tech I Offshore Wind Farm",
+        "label":"global_tech_i_wind_farm",
         "capacity": 400,
         "n_turbines": 80,
         "type_turbines": "Areva Multibrid M5000 (5 MW each)",
@@ -902,6 +928,7 @@ loc_offshore_windfarms = [
     # 50Hertz
     {
         "name": "Wikinger Offshore Wind Farm",
+        "label":"wikinger_offshore_wind_farm",
         "capacity": 350,
         "n_turbines": 70,
         "type_turbines": "Adwen AD 5-135 (5 MW each)",
@@ -915,6 +942,7 @@ loc_offshore_windfarms = [
     },
     {
         "name": "Arkona Wind Farm",
+        "label":"arkona_wind_farm",
         "capacity": 385,
         "n_turbines": 60,
         "type_turbines": "Siemens SWT-6.0-154 direct-drive (6 MW each)",
@@ -954,6 +982,7 @@ loc_solarfarms = [
     # 50Hertz
     {
         "name": "Witznitz Solar Farm",
+        "label":"witznitz_solar_farm",
         "capacity": 650,  # in MW
         "n_panels": 1100000,  # number of panels
         "type_panels": "JinkoSolar Tiger Neo modules with Topcon Hot 3.0 technology",  # panel type
@@ -970,6 +999,7 @@ loc_solarfarms = [
     },
     {
         "name": "Weesow-Willmersdorf Solar PV Park",
+        "label":"weesow_willmersdorf_solar_farm",
         "capacity": 187,  # in MW
         "n_panels": 465000,  # number of panels
         "type_panels": "Trina Solar dual-glass PV modules, each with approximately 400 Wp output",  # panel specifications
@@ -986,6 +1016,7 @@ loc_solarfarms = [
     },
     {
         "name": "Tramm-Göthen Solar Park",
+        "label":"tramm_Goethen_solar_farm",
         "capacity": 172.0,  # float; in MW
         "n_panels": 420000,  # int; number of panels
         "type_panels": None,  # str; type of panels used
@@ -1002,6 +1033,7 @@ loc_solarfarms = [
     },
     {
         "name": "Meuro Solar Park",
+        "label":"meuro_solar_farm",
         "capacity": 166.0,  # float; in MW
         "n_panels": 636000,  # int; number of panels
         "type_panels": "Canadian Solar photovoltaic panels",  # str; type of panels used
@@ -1018,6 +1050,7 @@ loc_solarfarms = [
     },
     {
         "name": "Gottesgabe Solar Park",
+        "label":"gottesgabe_solar_farm",
         "capacity": 153.131,  # float; in MW
         "n_panels": 350000,  # int; number of panels
         "type_panels": "crystalline and bifacial modules",  # str; types of panels used
@@ -1036,6 +1069,7 @@ loc_solarfarms = [
     # TransnetBW
     {
         "name": "Ernsthof Solar Park",
+        "label":"ernsthof_solar_farm",
         "capacity": 34.4, # MW
         "n_panels": 155480, # number of panels
         "type_panels": "LDK Solar Energy Systems modules",
@@ -1052,6 +1086,7 @@ loc_solarfarms = [
     },
     {
         "name": "Solarpark Erbach",
+        "label":"erbach_solar_farm",
         "capacity": 5.0,  # float; in MW
         "n_panels": 20000,  # int; number of panels
         "type_panels": "Monocrystalline silicon panels",  # str; type of panels used
@@ -1068,6 +1103,7 @@ loc_solarfarms = [
     },
     {
         "name": "Solarpark Aalen",
+        "label":"aalen_solar_farm",
         "capacity": 35.0,  # Estimated capacity in MW
         "n_panels": 100000,  # Estimated number of panels
         "type_panels": "Monocrystalline silicon",
@@ -1086,6 +1122,7 @@ loc_solarfarms = [
     # TenneT
     {
         "name": "Lauingen Energy Park",
+        "label":"lauingen_solar_farm",
         "capacity": 25.7,  # float; in MW
         "n_panels": 306084,  # int; number of panels
         "type_panels": "288,132 thin-film CdTe PV modules by First Solar; 17,952 crystalline silicon panels by Yingli",  # str; types of panels used
@@ -1102,6 +1139,7 @@ loc_solarfarms = [
     },
     {
         "name": "Schlechtenberg Solar Park",
+        "label":"schlechtenberg_solar_farm",
         "capacity": 8.2, # float; in MW
         "n_panels": 33000, # int; number of panels
         "type_panels": "Hanwha SolarOne", # str; what panels are used
@@ -1112,12 +1150,13 @@ loc_solarfarms = [
         "size": 12, # float; hectares
         "lat": 47.68028, # float; decimal latitude
         "lon": 10.39417, # float; decimal longitude
-        "TSO": "TenneT TSO GmbH", # str; TSO that connects this solar farm to the grid
+        "TSO": "TenneT", # str; TSO that connects this solar farm to the grid
         "suffix": "_sol_schlechtenberg",
         "type": "solar farm"
     },
     {
         "name": "Mengkofen Solar Park",
+        "label":"mengkofen_solar_farm",
         "capacity": 21.78,  # float; in MW
         "n_panels": 98978,  # int; number of panels
         "type_panels": "Flat-panel PV",  # str; type of panels used
@@ -1134,6 +1173,7 @@ loc_solarfarms = [
     },
     {
         "name": "Solarpark Eggebek",
+        "label":"eggebek_solar_farm",
         "capacity": 83.6,  # float; in MW
         "n_panels": 360000,  # int; number of panels
         "type_panels": "TSM-PC05 series by Trina Solar",  # str; what panels are used
@@ -1152,6 +1192,7 @@ loc_solarfarms = [
     # Amprion
     {
         "name": "Solarpark Bottrop",
+        "label":"bottrop_solar_farm",
         "capacity": 10.0,  # in MW
         "n_panels": 40000,  # number of panels
         "type_panels": "Monocrystalline silicon",  # type of panels
@@ -1168,6 +1209,7 @@ loc_solarfarms = [
     },
     {
         "name": "Solarpark Kirchhellen",
+        "label":"kirchhellen_solar_farm",
         "capacity": 10.0, # float; in MW
         "n_panels": 30000, # int; number of panels
         "type_panels": "monocrystalline or polycrystalline", # str; what panels are used
@@ -1184,6 +1226,7 @@ loc_solarfarms = [
     },
     {
         "name": "Solarpark Nettersheim",
+        "label":"nettersheim_solar_farm",
         "capacity": 40.5,  # MW
         "n_panels": 122500,  # Number of panels (assuming 330W per panel)
         "type_panels": "High-efficiency photovoltaic panels",
@@ -1200,6 +1243,7 @@ loc_solarfarms = [
     },
     {
         "name": "Solarpark Frankfurt",
+        "label":"frankfurt_solar_farm",
         "capacity": 17.4,  # float; in MW
         "n_panels": 17400,  # int; number of panels
         "type_panels": "Vertical bifacial PV modules",  # str; what panels are used
@@ -1210,7 +1254,7 @@ loc_solarfarms = [
         "size": 30.8,  # float; hectares
         "lat": 50.0379,  # float; decimal latitude
         "lon": 8.5622,  # float; decimal longitude
-        "TSO": "Amprion GmbH",  # str; TSO that connects this solar farm to the grid
+        "TSO": "Amprion",  # str; TSO that connects this solar farm to the grid
         "suffix": "_sol_frankfurt",
         "type": "solar farm",
     }

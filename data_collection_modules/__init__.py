@@ -20,6 +20,7 @@ from .german_locations import (
     loc_onshore_windfarms,
     loc_solarfarms,
     loc_cities,
-    all_locations
+    all_locations,
+    de_regions
 )
 

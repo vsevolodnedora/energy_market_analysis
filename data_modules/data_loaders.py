@@ -53,9 +53,24 @@ def load_combine_continous_weather(db_path:str, freq:str, suffix:str)->tuple[pd.
     #     return df.loc[:, :last_valid_idx]
 
     if freq == 'hourly':
-        df_past = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}_history.parquet')
-        df_past_forecast = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}_hist_forecast.parquet')
-        df_forecast = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}_forecast.parquet')
+        df_past = pd.DataFrame()
+        df_past_forecast = pd.DataFrame()
+        df_forecast = pd.DataFrame()
+
+        for tso_dict in de_regions:
+            df_past_ = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}/history.parquet')
+            df_past_forecast_ = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}/hist_forecast.parquet')
+            df_forecast_ = pd.read_parquet(db_path + 'openmeteo/' + f'{suffix}/forecast.parquet')
+            # ---
+            if df_past.empty: df_past = df_past_.copy()
+            else: df_past = pd.merge(df_past, df_past_,left_index=True, right_index=True, how='left')
+
+            if df_past_forecast.empty: df_past_forecast = df_past_forecast_.copy()
+            else: df_past_forecast = pd.merge(df_past_forecast, df_past_forecast_,left_index=True, right_index=True, how='left')
+
+            if df_forecast.empty: df_forecast = df_forecast_.copy()
+            else: df_forecast = pd.merge(df_forecast, df_past_forecast_,left_index=True, right_index=True, how='left')
+
 
         # combine past actual with past forecast to bridge the data gap
         last_valid_index = df_past.dropna(how='any').index[-1]

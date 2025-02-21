@@ -16,6 +16,7 @@ from data_collection_modules import (
     loc_onshore_windfarms,
     loc_offshore_windfarms,
     loc_cities,
+    de_regions,
     OpenMeteo
 )
 
@@ -43,7 +44,7 @@ def main(task:str, freq:str, verbose:bool = True):
     today = pd.Timestamp(datetime.today()).tz_localize(tz='UTC')
     today = today.normalize() + pd.DateOffset(hours=today.hour) # leave only hours
 
-    db_path = './database/'
+    db_path = './new_database/DE/'
 
     tasks = [
         'all',
@@ -77,36 +78,45 @@ def main(task:str, freq:str, verbose:bool = True):
         update_epexspot_from_files(today=today, data_dir=db_path + 'epexspot/', freq=freq, verbose=verbose)
 
     if task == "update_openmeteo_windfarms_offshore" or task == "all":
-        update_openmeteo_from_api(
-            datadir=db_path + 'openmeteo/', loc_label='offshore',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind) if freq == 'hourly' else
-                        (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min),
-            locations = loc_offshore_windfarms, freq=freq, verbose = verbose
-        )
+        for tso_dict in de_regions:
+            update_openmeteo_from_api(
+                datadir=db_path + f"openmeteo/offshore/{tso_dict['TSO']}/",
+                variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind) if freq == 'hourly' else
+                            (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min),
+                locations = [loc for loc in loc_offshore_windfarms if loc['TSO'] == tso_dict['TSO']],
+                freq=freq, verbose = verbose
+            )
 
     if task == "update_openmeteo_windfarms_onshore" or task == "all":
-        update_openmeteo_from_api(
-            datadir=db_path + 'openmeteo/', loc_label='onshore',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind) if freq == 'hourly' else
-                        (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min),
-            locations = loc_onshore_windfarms, freq=freq, verbose = verbose
-        )
+        for tso_dict in de_regions:
+            update_openmeteo_from_api(
+                datadir=db_path + f"openmeteo/onshore/{tso_dict['TSO']}/",
+                variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind) if freq == 'hourly' else
+                            (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min),
+                locations = [loc for loc in loc_onshore_windfarms if loc['TSO'] == tso_dict['TSO']],
+                freq=freq, verbose = verbose
+            )
 
     if task == "update_openmeteo_solarfarms" or task == "all":
-        update_openmeteo_from_api(
-            datadir=db_path + 'openmeteo/', loc_label='solar',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_radiation) if freq == 'hourly' else
-                        (OpenMeteo.vars_basic_15min + OpenMeteo.vars_radiation_15min),
-            locations = loc_solarfarms, freq=freq, verbose = verbose
-        )
+        for tso_dict in de_regions:
+            update_openmeteo_from_api(
+                datadir=db_path + f"openmeteo/solar/{tso_dict['TSO']}/",
+                variables = (OpenMeteo.vars_basic + OpenMeteo.vars_radiation) if freq == 'hourly' else
+                            (OpenMeteo.vars_basic_15min + OpenMeteo.vars_radiation_15min),
+                locations = [loc for loc in loc_solarfarms if loc['TSO'] == tso_dict['TSO']],
+                freq=freq, verbose = verbose
+            )
 
     if task == "update_openmeteo_cities" or task == "all":
-        update_openmeteo_from_api(
-            datadir=db_path + 'openmeteo/', loc_label='cities',
-            variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind + OpenMeteo.vars_radiation) if freq == 'hourly' else
-                        (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min + OpenMeteo.vars_radiation_15min),
-            locations = loc_cities, freq=freq, verbose = verbose
-        )
+        for tso_dict in de_regions:
+            update_openmeteo_from_api(
+                datadir=db_path + f"openmeteo/cities/{tso_dict['TSO']}/",
+                variables = (OpenMeteo.vars_basic + OpenMeteo.vars_wind + OpenMeteo.vars_radiation) if freq == 'hourly'
+                            else
+                            (OpenMeteo.vars_basic_15min + OpenMeteo.vars_wind_15min + OpenMeteo.vars_radiation_15min),
+                locations = [loc for loc in loc_cities if loc['TSO'] == tso_dict['TSO']],
+                freq=freq, verbose = verbose
+            )
 
     # End the timer
     end_time = time.time()
