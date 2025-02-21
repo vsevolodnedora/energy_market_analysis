@@ -2,26 +2,26 @@
     "biomass_tran": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-        "avg_rmse": 21.31338342975786
+        "avg_rmse": 24.442747227316673
     },
     "gas_tran": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-        "avg_rmse": 31.173378664390015
+        "avg_rmse": 38.243478460464885
     },
     "hard_coal_tran": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-        "avg_rmse": 439.33978462986414
+        "avg_rmse": 518.8027044337762
     },
     "oil_tran": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-        "avg_rmse": 13.708814471192872
+        "avg_rmse": 16.903747726891353
     },
     "renewables_tran": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-        "avg_rmse": 173.91389443954736
+        "avg_rmse": 184.45544979283835
     }
 }

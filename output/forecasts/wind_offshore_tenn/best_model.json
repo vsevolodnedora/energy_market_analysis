@@ -2,6 +2,6 @@
     "wind_offshore_tenn": {
         "method": "trained",
         "model_label": "ensemble[LightGBM](LightGBM,ElasticNet)",
-        "avg_rmse": 531.0777448906126
+        "avg_rmse": 465.8575745816232
     }
 }
