@@ -2,6 +2,6 @@
     "load_50hz": {
         "method": "trained",
         "model_label": "ensemble[LightGBM](LightGBM,ElasticNet)",
-        "avg_rmse": 572.1730191102292
+        "avg_rmse": 558.6720992637361
     }
 }

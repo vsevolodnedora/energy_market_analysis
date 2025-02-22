@@ -1,7 +1,7 @@
 {
     "solar_tran": {
         "method": "trained",
-        "model_label": "ensemble[LightGBM](LightGBM,ElasticNet)",
-        "avg_rmse": 333.01092739759787
+        "model_label": "LightGBM",
+        "avg_rmse": 416.65990544416854
     }
 }

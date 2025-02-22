@@ -2,6 +2,6 @@
     "solar_tenn": {
         "method": "trained",
         "model_label": "ensemble[XGBoost](XGBoost,ElasticNet)",
-        "avg_rmse": 576.0546396679554
+        "avg_rmse": 808.0598430148144
     }
 }
