@@ -2,27 +2,47 @@
     "biomass_ampr": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
+<<<<<<< HEAD:output/DE/forecasts/energy_mix_ampr/best_model_forecast.json
         "avg_rmse": 26.710803430706513
+=======
+        "avg_rmse": 26.7094462775366
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_ampr/best_model_forecast.json
     },
     "coal_derived_gas_ampr": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
+<<<<<<< HEAD:output/DE/forecasts/energy_mix_ampr/best_model_forecast.json
         "avg_rmse": 91.0750884484599
+=======
+        "avg_rmse": 91.07510691862603
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_ampr/best_model_forecast.json
     },
     "gas_ampr": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
+<<<<<<< HEAD:output/DE/forecasts/energy_mix_ampr/best_model_forecast.json
         "avg_rmse": 645.4605285028935
+=======
+        "avg_rmse": 644.7942017484277
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_ampr/best_model_forecast.json
     },
     "hard_coal_ampr": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
+<<<<<<< HEAD:output/DE/forecasts/energy_mix_ampr/best_model_forecast.json
         "avg_rmse": 728.153783421888
+=======
+        "avg_rmse": 728.1168229776422
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_ampr/best_model_forecast.json
     },
     "lignite_ampr": {
         "method": "trained",
         "model_label": "MultiTargetElasticNet",
+<<<<<<< HEAD:output/DE/forecasts/energy_mix_ampr/best_model_forecast.json
         "avg_rmse": 766.9241473621436
+=======
+        "avg_rmse": 766.8589225110686
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_ampr/best_model_forecast.json
     },
     "other_fossil_ampr": {
         "method": "trained",
@@ -36,7 +56,12 @@
     },
     "waste_ampr": {
         "method": "trained",
+<<<<<<< HEAD:output/DE/forecasts/energy_mix_ampr/best_model_forecast.json
         "model_label": "MultiTargetLGBM",
         "avg_rmse": 9.014015017530108
+=======
+        "model_label": "MultiTargetCatBoost",
+        "avg_rmse": 8.065710122959082
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_ampr/best_model_forecast.json
     }
 }

@@ -16,8 +16,13 @@
     },
     "hard_coal_ampr": {
         "method": "trained",
+<<<<<<< HEAD:output/DE/forecasts/energy_mix_ampr/best_model.json
         "model_label": "MultiTargetLGBM",
         "avg_rmse": 844.1052608218031
+=======
+        "model_label": "MultiTargetCatBoost",
+        "avg_rmse": 800.6905845313673
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_ampr/best_model.json
     },
     "lignite_ampr": {
         "method": "trained",
@@ -36,7 +41,12 @@
     },
     "waste_ampr": {
         "method": "trained",
+<<<<<<< HEAD:output/DE/forecasts/energy_mix_ampr/best_model.json
         "model_label": "MultiTargetLGBM",
         "avg_rmse": 9.6744073570526
+=======
+        "model_label": "MultiTargetCatBoost",
+        "avg_rmse": 8.03167530765122
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_ampr/best_model.json
     }
 }

@@ -2,6 +2,7 @@
     "biomass_tenn": {
         "method": "trained",
         "model_label": "MultiTargetElasticNet",
+<<<<<<< HEAD:output/DE/forecasts/energy_mix_tenn/best_model_forecast.json
         "avg_rmse": 59.905754264488905
     },
     "gas_tenn": {
@@ -18,15 +19,41 @@
         "method": "trained",
         "model_label": "MultiTargetElasticNet",
         "avg_rmse": 7.423162970278865
+=======
+        "avg_rmse": 56.85782369470153
+    },
+    "gas_tenn": {
+        "method": "trained",
+        "model_label": "MultiTargetCatBoost",
+        "avg_rmse": 647.5131984624574
+    },
+    "hard_coal_tenn": {
+        "method": "trained",
+        "model_label": "MultiTargetCatBoost",
+        "avg_rmse": 443.0819491941853
+    },
+    "oil_tenn": {
+        "method": "trained",
+        "model_label": "MultiTargetCatBoost",
+        "avg_rmse": 12.419598356930672
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_tenn/best_model.json
     },
     "renewables_tenn": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
+<<<<<<< HEAD:output/DE/forecasts/energy_mix_tenn/best_model_forecast.json
         "avg_rmse": 234.74068977489333
+=======
+        "avg_rmse": 252.627958414602
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_tenn/best_model.json
     },
     "waste_tenn": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
+<<<<<<< HEAD:output/DE/forecasts/energy_mix_tenn/best_model_forecast.json
         "avg_rmse": 66.12209475581038
+=======
+        "avg_rmse": 67.87006283097138
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_tenn/best_model.json
     }
 }

@@ -118,6 +118,7 @@
     "error_metrics": {
         "2025-01-19T00:00:00+00:00": {
             "solar_50hz": {
+<<<<<<< HEAD:output/DE/forecasts/solar_50hz/ElasticNet/forecast/metadata.json
                 "mse": 177044.01989876782,
                 "rmse": 420.7659918514896,
                 "mae": 304.7010275489553,
@@ -129,10 +130,24 @@
                 "r2": 0.9002986461996402,
                 "prediction_interval_coverage": 1.0,
                 "prediction_interval_width": 3240.142613361302
+=======
+                "mse": 177044.01989725415,
+                "rmse": 420.7659918496909,
+                "mae": 304.70102754737536,
+                "mape": 109765415701599.3,
+                "smape": 285.3600305173116,
+                "bias": 16.22876316605121,
+                "variance": 176780.64714335438,
+                "std": 420.4529071648267,
+                "r2": 0.9002986462004926,
+                "prediction_interval_coverage": 1.0,
+                "prediction_interval_width": 3240.142613366048
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/solar_50hz/ElasticNet/forecast/metadata.json
             }
         },
         "2025-01-26T00:00:00+00:00": {
             "solar_50hz": {
+<<<<<<< HEAD:output/DE/forecasts/solar_50hz/ElasticNet/forecast/metadata.json
                 "mse": 164127.85949718193,
                 "rmse": 405.1269671315178,
                 "mae": 267.1587077163187,
@@ -144,10 +159,24 @@
                 "r2": 0.8146270614049429,
                 "prediction_interval_coverage": 0.9940476190476191,
                 "prediction_interval_width": 3239.6683132088533
+=======
+                "mse": 164127.85949979356,
+                "rmse": 405.12696713474105,
+                "mae": 267.158707721223,
+                "mape": 92973730429467.3,
+                "smape": 283.4221032927051,
+                "bias": 56.28587684502439,
+                "variance": 160959.7595675803,
+                "std": 401.1979057367826,
+                "r2": 0.8146270614019933,
+                "prediction_interval_coverage": 0.9940476190476191,
+                "prediction_interval_width": 3239.6683132066673
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/solar_50hz/ElasticNet/forecast/metadata.json
             }
         },
         "2025-02-02T00:00:00+00:00": {
             "solar_50hz": {
+<<<<<<< HEAD:output/DE/forecasts/solar_50hz/ElasticNet/forecast/metadata.json
                 "mse": 365856.07941866864,
                 "rmse": 604.8603801032671,
                 "mae": 365.59659808256424,
@@ -159,10 +188,24 @@
                 "r2": 0.9012867956463398,
                 "prediction_interval_coverage": 0.9583333333333334,
                 "prediction_interval_width": 3239.8729090697875
+=======
+                "mse": 365856.0794174962,
+                "rmse": 604.8603801022979,
+                "mae": 365.59659807936623,
+                "mape": 99185969955323.11,
+                "smape": 269.7095468798241,
+                "bias": -43.489450074924626,
+                "variance": 363964.74714967684,
+                "std": 603.2949089373097,
+                "r2": 0.9012867956466561,
+                "prediction_interval_coverage": 0.9583333333333334,
+                "prediction_interval_width": 3239.872909064967
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/solar_50hz/ElasticNet/forecast/metadata.json
             }
         },
         "2025-02-09T00:00:00+00:00": {
             "solar_50hz": {
+<<<<<<< HEAD:output/DE/forecasts/solar_50hz/ElasticNet/forecast/metadata.json
                 "mse": 564578.7066180696,
                 "rmse": 751.3845264696829,
                 "mae": 488.3603075119832,
@@ -174,10 +217,24 @@
                 "r2": 0.7601528910353836,
                 "prediction_interval_coverage": 0.9404761904761905,
                 "prediction_interval_width": 3240.6269070120434
+=======
+                "mse": 564578.7066114327,
+                "rmse": 751.3845264652665,
+                "mae": 488.3603075070823,
+                "mape": 108040499383612.53,
+                "smape": 285.43848396843947,
+                "bias": 231.03250485380795,
+                "variance": 511202.68831240793,
+                "std": 714.9843972510225,
+                "r2": 0.7601528910382032,
+                "prediction_interval_coverage": 0.9404761904761905,
+                "prediction_interval_width": 3240.626907009084
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/solar_50hz/ElasticNet/forecast/metadata.json
             }
         },
         "2025-02-16T00:00:00+00:00": {
             "solar_50hz": {
+<<<<<<< HEAD:output/DE/forecasts/solar_50hz/ElasticNet/forecast/metadata.json
                 "mse": 592396.8146742252,
                 "rmse": 769.6731869269094,
                 "mae": 569.7440569860244,
@@ -189,6 +246,19 @@
                 "r2": 0.9119252780364342,
                 "prediction_interval_coverage": 0.9345238095238095,
                 "prediction_interval_width": 3241.0512454314685
+=======
+                "mse": 592396.8146619119,
+                "rmse": 769.6731869189103,
+                "mae": 569.7440569828325,
+                "mape": 160241223414686.9,
+                "smape": 265.73760006778986,
+                "bias": -321.3597783319986,
+                "variance": 489124.70753232064,
+                "std": 699.3745116404519,
+                "r2": 0.9119252780382648,
+                "prediction_interval_coverage": 0.9345238095238095,
+                "prediction_interval_width": 3241.0512454280724
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/solar_50hz/ElasticNet/forecast/metadata.json
             }
         }
     }

@@ -84,7 +84,11 @@
                 "mae": 591.8636261273363,
                 "mape": 3427429582235.872,
                 "smape": 110.28496065998301,
+<<<<<<< HEAD:output/DE/forecasts/wind_offshore_tenn/ElasticNet/forecast/metadata.json
                 "bias": -91.46426087707563,
+=======
+                "bias": -91.46426087707567,
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/wind_offshore_tenn/ElasticNet/forecast/metadata.json
                 "variance": 527865.2495322311,
                 "std": 726.5433569527913,
                 "r2": 0.8264638159115488,
@@ -94,6 +98,7 @@
         },
         "2025-01-26T00:00:00+00:00": {
             "wind_offshore_tenn": {
+<<<<<<< HEAD:output/DE/forecasts/wind_offshore_tenn/ElasticNet/forecast/metadata.json
                 "mse": 766575.6852774512,
                 "rmse": 875.5430801950588,
                 "mae": 705.2237739621276,
@@ -101,6 +106,15 @@
                 "smape": 97.40265277414805,
                 "bias": -342.4971667608592,
                 "variance": 649271.3760382355,
+=======
+                "mse": 766575.6852774513,
+                "rmse": 875.5430801950589,
+                "mae": 705.2237739621277,
+                "mape": 152.0656404515678,
+                "smape": 97.40265277414805,
+                "bias": -342.4971667608592,
+                "variance": 649271.3760382356,
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/wind_offshore_tenn/ElasticNet/forecast/metadata.json
                 "std": 805.7737747272714,
                 "r2": 0.7919115731530995,
                 "prediction_interval_coverage": 0.9464285714285714,
@@ -111,12 +125,21 @@
             "wind_offshore_tenn": {
                 "mse": 758440.0221416253,
                 "rmse": 870.8846204530341,
+<<<<<<< HEAD:output/DE/forecasts/wind_offshore_tenn/ElasticNet/forecast/metadata.json
                 "mae": 750.0647457255116,
                 "mape": 52.60153264534635,
                 "smape": 71.35405998842143,
                 "bias": -83.58208776300928,
                 "variance": 751454.0567468021,
                 "std": 866.8644973390028,
+=======
+                "mae": 750.0647457255117,
+                "mape": 52.60153264534635,
+                "smape": 71.35405998842143,
+                "bias": -83.58208776300931,
+                "variance": 751454.0567468022,
+                "std": 866.8644973390029,
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/wind_offshore_tenn/ElasticNet/forecast/metadata.json
                 "r2": 0.7907351768516964,
                 "prediction_interval_coverage": 0.9761904761904762,
                 "prediction_interval_width": 3374.727065729062
@@ -127,11 +150,19 @@
                 "mse": 1181667.0091015827,
                 "rmse": 1087.045081448595,
                 "mae": 850.1193326668205,
+<<<<<<< HEAD:output/DE/forecasts/wind_offshore_tenn/ElasticNet/forecast/metadata.json
                 "mape": 194.1752405162315,
                 "smape": 106.98202444470472,
                 "bias": -129.89166051832967,
                 "variance": 1164795.1656293734,
                 "std": 1079.2567653850372,
+=======
+                "mape": 194.17524051623153,
+                "smape": 106.98202444470472,
+                "bias": -129.89166051832976,
+                "variance": 1164795.1656293736,
+                "std": 1079.2567653850374,
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/wind_offshore_tenn/ElasticNet/forecast/metadata.json
                 "r2": 0.6975169241844079,
                 "prediction_interval_coverage": 0.8630952380952381,
                 "prediction_interval_width": 3374.8248042062237
@@ -139,6 +170,7 @@
         },
         "2025-02-16T00:00:00+00:00": {
             "wind_offshore_tenn": {
+<<<<<<< HEAD:output/DE/forecasts/wind_offshore_tenn/ElasticNet/forecast/metadata.json
                 "mse": 1585064.8323153453,
                 "rmse": 1258.9935791398402,
                 "mae": 1036.0363412462623,
@@ -148,6 +180,17 @@
                 "variance": 1093179.686138163,
                 "std": 1045.5523354371903,
                 "r2": 0.6487966141536378,
+=======
+                "mse": 1585064.8323153448,
+                "rmse": 1258.99357913984,
+                "mae": 1036.0363412462623,
+                "mape": 50.340974323539236,
+                "smape": 85.01839787184508,
+                "bias": -701.3452403611092,
+                "variance": 1093179.686138163,
+                "std": 1045.5523354371903,
+                "r2": 0.6487966141536379,
+>>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/wind_offshore_tenn/ElasticNet/forecast/metadata.json
                 "prediction_interval_coverage": 0.7678571428571429,
                 "prediction_interval_width": 3375.3537380583543
             }
