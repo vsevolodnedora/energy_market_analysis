@@ -4,12 +4,8 @@ import os
 from datetime import datetime, timedelta
 
 from data_collection_modules.collect_data_openmeteo import OpenMeteo
-from data_collection_modules.german_locations import (
-    de_regions,
-    loc_onshore_windfarms,
-    loc_offshore_windfarms,
-    loc_cities,
-    loc_solarfarms
+from data_collection_modules.eu_locations import (
+    countries_metadata
 )
 from data_modules.utils import (
     validate_dataframe
@@ -39,7 +35,7 @@ def compute_residual_load(df:pd.DataFrame, suffix:str):
     return pd.Series(load.values, index=df.index, name=f'residual_load{suffix}')
 
 
-def load_combine_continous_weather(db_path:str, freq:str, suffix:str)->tuple[pd.DataFrame, pd.DataFrame]:
+def load_combine_continous_weather(c_dict:dict,db_path:str, freq:str, suffix:str)->tuple[pd.DataFrame, pd.DataFrame]:
 
     # def drop_trailing_nan_columns(df):
     #     # Find the index of the last non-NaN column
@@ -52,12 +48,14 @@ def load_combine_continous_weather(db_path:str, freq:str, suffix:str)->tuple[pd.
     #         # Drop all columns after (including) the last NaN-only column
     #     return df.loc[:, :last_valid_idx]
 
+    regions = c_dict['regions']
+
     if freq == 'hourly':
         df_past = pd.DataFrame()
         df_past_forecast = pd.DataFrame()
         df_forecast = pd.DataFrame()
 
-        for tso_dict in de_regions:
+        for tso_dict in regions:
             tso_name = tso_dict['TSO']
             dir_ = db_path + 'openmeteo/' + f'{suffix}/' + f'{tso_name}/'
             if not os.path.isdir(dir_):
@@ -161,7 +159,7 @@ def load_combine_continous_weather(db_path:str, freq:str, suffix:str)->tuple[pd.
         raise NotImplementedError("Frequency not implemented {}".format(freq))
 
 # TODO: USE SQL HERE!!!
-def extract_from_database(main_pars:dict, db_path:str, outdir:str, freq:str, verbose:bool)\
+def extract_from_database(main_pars:dict,c_dict, db_path:str, outdir:str, freq:str, verbose:bool)\
         -> tuple[pd.DataFrame, pd.DataFrame]:
 
     tso_name = main_pars['region']
@@ -173,10 +171,10 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, freq:str, ver
 
     # -------- laod database TODO move to SQLlite DB
     df_smard = pd.read_parquet(db_path + 'smard/' + 'history_hourly.parquet')
-    df_om_offshore, df_om_offshore_f = load_combine_continous_weather(db_path, freq, suffix='offshore')
-    df_om_onshore, df_om_onshore_f = load_combine_continous_weather(db_path, freq, suffix='onshore')
-    df_om_solar, df_om_solar_f = load_combine_continous_weather(db_path, freq, suffix='solar')
-    df_om_cities, df_om_cities_f = load_combine_continous_weather(db_path, freq, suffix='cities')
+    df_om_offshore, df_om_offshore_f = load_combine_continous_weather(c_dict,db_path, freq, suffix='offshore')
+    df_om_onshore, df_om_onshore_f = load_combine_continous_weather(c_dict,db_path, freq, suffix='onshore')
+    df_om_solar, df_om_solar_f = load_combine_continous_weather(c_dict,db_path, freq, suffix='solar')
+    df_om_cities, df_om_cities_f = load_combine_continous_weather(c_dict,db_path, freq, suffix='cities')
 
 
 
@@ -231,7 +229,8 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, freq:str, ver
     target_label_notso = ''
     tso_dict = {}
 
-    for de_reg in de_regions:
+    regions = c_dict['regions']
+    for de_reg in regions:
         if target_label.__contains__(de_reg['suffix']) and tso_name != de_reg['name']:
             raise IOError(f"The region must be {de_reg} for target_label={target_label}")
         if target_label.endswith(de_reg['suffix']):
@@ -239,7 +238,7 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, freq:str, ver
             tso_dict = de_reg
             break
     if target_label_notso == '':
-        raise ValueError(f"target_label={target_label} does not contain {[de_reg['suffix'] for de_reg in de_regions]}")
+        raise ValueError(f"target_label={target_label} does not contain {[de_reg['suffix'] for de_reg in regions]}")
 
 
     suffix = tso_dict['suffix']
@@ -272,11 +271,11 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, freq:str, ver
 
         # select locations
         locations = []
-        if 'wind_offshore' in target: locations = loc_offshore_windfarms
-        elif 'wind_onshore' in target: locations = loc_onshore_windfarms
-        elif 'solar' in target: locations = loc_solarfarms
-        elif 'load' in target: locations = loc_cities
-        elif 'other_renewables_agg' in target: locations = loc_cities
+        if 'wind_offshore' in target: locations = c_dict['locations']['offshore']
+        elif 'wind_onshore' in target: locations = c_dict['locations']['onshore']
+        elif 'solar' in target: locations = c_dict['locations']['solar']
+        elif 'load' in target: locations = c_dict['locations']['cities']
+        elif 'other_renewables_agg' in target: locations = c_dict['locations']['cities']
         else: raise NotImplementedError(f"Locations are not available for target={target} tso_name={tso_name}")
         # build df_hist and df_forecast
         om_suffixes = [loc['suffix'] for loc in locations if loc['TSO'] == tso_dict['TSO']]
@@ -342,7 +341,7 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, freq:str, ver
 
         # fixed weather dataframes and locations
         dataframe, dataframe_f = df_om_cities, df_om_cities_f
-        locations = loc_cities
+        locations = c_dict['locations']['cities']
         # build df_hist and df_forecast
         om_suffixes = [loc['suffix'] for loc in locations if loc['TSO'] == tso_dict['TSO']]
         feature_col_names = dataframe.columns[dataframe.columns.str.endswith(tuple(om_suffixes))]
@@ -382,7 +381,7 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, freq:str, ver
         )
 
         for exog in add_exog:
-            for tso_dict in de_regions:
+            for tso_dict in regions:
                 # load historic data
                 exog_tso_ = exog + tso_dict['suffix']
                 suffix_ = tso_dict['suffix']
@@ -498,7 +497,11 @@ def extract_from_database(main_pars:dict, db_path:str, outdir:str, freq:str, ver
     #     raise ValueError("full_index must be continuous with hourly frequency.")
 
     if df_forecast.isna().any().any():
-        raise ValueError(f"df_forecast contains NaN entries. df_forecast={df_forecast[df_forecast.isna()]}")
+        raise ValueError(
+            f"df_forecast contains NaN entries."
+            f"Target: {targets} country: {c_dict['code']} TSO: {tso_dict['TSO']}"
+            f" df_forecast={df_forecast[df_forecast.isna()]}"
+        )
 
     return df_hist, df_forecast
 

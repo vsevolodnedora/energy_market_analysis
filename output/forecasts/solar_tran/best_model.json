@@ -1,7 +1,0 @@
-{
-    "solar_tran": {
-        "method": "trained",
-        "model_label": "ensemble[XGBoost](XGBoost,ElasticNet)",
-        "avg_rmse": 403.54673172511815
-    }
-}

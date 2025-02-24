@@ -406,7 +406,7 @@ def update_openmeteo_from_api(
 ):
 
     if len(locations) == 0:
-        logger.info(f"No locations provided for {datadir} and freq={freq}. Exiting...")
+        logger.warning(f"No locations provided for {datadir} and freq={freq}. Exiting...")
         return
 
     def _update_historic(

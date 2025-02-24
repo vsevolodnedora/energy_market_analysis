@@ -256,7 +256,7 @@ const forecastDataCache = {};
  * 0) Fetches a data file and returns it as an array of { x: Date, y: number }.
  ************************************************************/
 async function getCachedData(variable, file, errorElementId) {
-  const locDir = 'data/forecasts';  // local directory
+  const locDir = 'data/DE/forecasts';  // local directory
   const cacheKey = `${variable}-${file}`;
 
   // If data is already in cache, return immediately
@@ -1178,7 +1178,7 @@ function setupChartEvents({
         // Determine the language and load
         const language = i18next.language; // e.g. 'en' or 'de'
         const fileName = `${filePrefix}_${language}.md`;
-        await loadMarkdown(`data/forecasts/${fileName}`, descriptionContainerId);
+        await loadMarkdown(`data/DE/forecasts/${fileName}`, descriptionContainerId);
       }
     });
 
@@ -1494,7 +1494,7 @@ async function fetchForecastData(varLabel, fileName) {
      * @param {string} fileName - The filename of the forecast data.
      * @returns {Array} - An array of processed series objects with sorted time-series data.
      */
-    const basePath = `./data/forecasts/${varLabel}`;
+    const basePath = `./data/DE/forecasts/${varLabel}`;
     const allSeriesMap = {}; // Stores the fetched data categorized by series name
 
     try {
@@ -2197,7 +2197,7 @@ function setupDescriptionToggleEvent({
       stackedChartState[descLoadedKey] = true;
       const language = 'en'; // Adjust if localization is used
       const fileName = `${filePrefix}_${language}.md`;
-      await loadMarkdown(`data/forecasts/${fileName}`, descriptionContainerId);
+      await loadMarkdown(`data/DE/forecasts/${fileName}`, descriptionContainerId);
     }
   });
 }

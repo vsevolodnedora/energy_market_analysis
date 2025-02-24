@@ -1,0 +1,42 @@
+{
+    "biomass_ampr": {
+        "method": "trained",
+        "model_label": "MultiTargetLGBM",
+        "avg_rmse": 28.595165903976604
+    },
+    "coal_derived_gas_ampr": {
+        "method": "trained",
+        "model_label": "MultiTargetElasticNet",
+        "avg_rmse": 112.03787042436193
+    },
+    "gas_ampr": {
+        "method": "trained",
+        "model_label": "MultiTargetLGBM",
+        "avg_rmse": 760.6301932233613
+    },
+    "hard_coal_ampr": {
+        "method": "trained",
+        "model_label": "MultiTargetLGBM",
+        "avg_rmse": 844.1052608218031
+    },
+    "lignite_ampr": {
+        "method": "trained",
+        "model_label": "MultiTargetElasticNet",
+        "avg_rmse": 932.7359905174822
+    },
+    "other_fossil_ampr": {
+        "method": "trained",
+        "model_label": "MultiTargetElasticNet",
+        "avg_rmse": 1.1061403508771903
+    },
+    "renewables_ampr": {
+        "method": "trained",
+        "model_label": "MultiTargetLGBM",
+        "avg_rmse": 189.84640422491813
+    },
+    "waste_ampr": {
+        "method": "trained",
+        "model_label": "MultiTargetLGBM",
+        "avg_rmse": 9.6744073570526
+    }
+}

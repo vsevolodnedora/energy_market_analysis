@@ -3,12 +3,8 @@ import os.path; from datetime import datetime, timedelta
 
 from data_collection_modules import OpenMeteo
 from forecasting_modules.tasks import ForecastingTaskSingleTarget
-from data_collection_modules.german_locations import (
-    loc_offshore_windfarms,
-    loc_onshore_windfarms,
-    loc_solarfarms,
-    loc_cities,
-    de_regions
+from data_collection_modules.eu_locations import (
+    countries_metadata
 )
 from data_modules.data_loaders import (
     extract_from_database,
@@ -18,7 +14,7 @@ from data_modules.data_loaders import (
 from logger import get_logger
 logger = get_logger(__name__)
 
-def main_forecasting_pipeline(task_list:list, outdir:str, database:str, freq:str, verbose:bool):
+def main_forecasting_pipeline(c_dict:dict,task_list:list, outdir:str, database:str, freq:str, verbose:bool):
 
     if not os.path.isdir(outdir):
         if verbose: logger.info("Creating output directory {}".format(outdir))
@@ -34,7 +30,7 @@ def main_forecasting_pipeline(task_list:list, outdir:str, database:str, freq:str
 
         # get features + target (historic) and features (forecast) from database
         df_hist, df_forecast = extract_from_database(
-            main_pars=task, db_path=database, outdir=outdir, verbose=verbose, freq=freq,
+            main_pars=task, c_dict=c_dict, db_path=database, outdir=outdir, verbose=verbose, freq=freq,
         )
         if len(df_hist.columns) - len(df_forecast.columns) < len(task['targets']):
             logger.warning(f"ETL returned dataframe with less targets then requested. "
@@ -90,7 +86,7 @@ def main_forecasting_pipeline(task_list:list, outdir:str, database:str, freq:str
 
         gc.collect()
 
-def update_forecast_production(database:str, outdir:str, variable:str, freq:str, verbose:bool):
+def update_forecast_production(country_dict, database:str, outdir:str, variable:str, freq:str, verbose:bool):
     cv_folds_ft = 3
     cv_folds_eval = 5
     task_list = [{
@@ -113,79 +109,79 @@ def update_forecast_production(database:str, outdir:str, variable:str, freq:str,
                 #  },
                 # 'finetuning_pars':{'n_trials':120,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
 
-                # {'model':'LightGBM',
-                #  'dataset_pars':{
-                #      'log_target':False,
-                #      'forecast_horizon':None,
-                #      'target_scaler':'StandardScaler',
-                #      'feature_scaler':'StandardScaler',
-                #      'copy_input':True,
-                #      'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
-                #      'add_cyclical_time_features':True,
-                #      'feature_engineer':'WeatherWindPowerFE'
-                #  },
-                #  'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+                {'model':'LightGBM',
+                 'dataset_pars':{
+                     'log_target':False,
+                     'forecast_horizon':None,
+                     'target_scaler':'StandardScaler',
+                     'feature_scaler':'StandardScaler',
+                     'copy_input':True,
+                     'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
+                     'add_cyclical_time_features':True,
+                     'feature_engineer':'WeatherWindPowerFE'
+                 },
+                 'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+
+                {'model':'XGBoost',
+                 'dataset_pars':{
+                     'log_target':False,
+                     'forecast_horizon':None,
+                     'target_scaler':'StandardScaler',
+                     'feature_scaler':'StandardScaler',
+                     'copy_input':True,
+                     'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
+                     'add_cyclical_time_features':True,
+                     'feature_engineer':'WeatherWindPowerFE'
+                 },
+                 'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
                 #
-                # {'model':'XGBoost',
-                #  'dataset_pars':{
-                #      'log_target':False,
-                #      'forecast_horizon':None,
-                #      'target_scaler':'StandardScaler',
-                #      'feature_scaler':'StandardScaler',
-                #      'copy_input':True,
-                #      'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
-                #      'add_cyclical_time_features':True,
-                #      'feature_engineer':'WeatherWindPowerFE'
-                #  },
-                #  'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
-                #
-                # {'model':'ElasticNet',
-                #  'dataset_pars':{
-                #      'log_target':False,
-                #      'forecast_horizon':None,
-                #      'target_scaler':'StandardScaler',
-                #      'feature_scaler':'StandardScaler',
-                #      'copy_input':True,
-                #      'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
-                #      'add_cyclical_time_features':True,
-                #      'feature_engineer':'WeatherWindPowerFE'
-                #  },
-                #  'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
-                #
-                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)',
-                #  'dataset_pars': {
-                #      'log_target':False,
-                #      'forecast_horizon':None,
-                #      'target_scaler':'StandardScaler',
-                #      'feature_scaler':'StandardScaler',
-                #      'add_cyclical_time_features':True,
-                #      'locations':[loc for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
-                #      'feature_engineer': None,#'WeatherWindPowerFE',
-                #      'lags_target': None,
-                #      'copy_input':True
-                #  },
-                #  'finetuning_pars':{'n_trials':20,
-                #                     'optim_metric':'rmse',
-                #                     'cv_folds':cv_folds_ft,
-                #                     'cv_folds_base':40,#35, # at least cv_folds_eval + 1
-                #                     'use_base_models_pred_intervals':False}},
-                # {'model':'ensemble[LightGBM](LightGBM,ElasticNet)',
-                #  'dataset_pars': {
-                #      'log_target':False,
-                #      'forecast_horizon':None,
-                #      'target_scaler':'StandardScaler',
-                #      'feature_scaler':'StandardScaler',
-                #      'add_cyclical_time_features':True,
-                #      'locations':[loc for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
-                #      'feature_engineer': None,#'WeatherWindPowerFE',
-                #      'lags_target': None,
-                #      'copy_input':True
-                #  },
-                #  'finetuning_pars':{'n_trials':20,
-                #                     'optim_metric':'rmse',
-                #                     'cv_folds':cv_folds_ft,
-                #                     'cv_folds_base':40,#35, # at least cv_folds_eval + 1
-                #                     'use_base_models_pred_intervals':False}}
+                {'model':'ElasticNet',
+                 'dataset_pars':{
+                     'log_target':False,
+                     'forecast_horizon':None,
+                     'target_scaler':'StandardScaler',
+                     'feature_scaler':'StandardScaler',
+                     'copy_input':True,
+                     'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
+                     'add_cyclical_time_features':True,
+                     'feature_engineer':'WeatherWindPowerFE'
+                 },
+                 'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+
+                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)',
+                 'dataset_pars': {
+                     'log_target':False,
+                     'forecast_horizon':None,
+                     'target_scaler':'StandardScaler',
+                     'feature_scaler':'StandardScaler',
+                     'add_cyclical_time_features':True,
+                     'locations':[loc for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
+                     'feature_engineer': None,#'WeatherWindPowerFE',
+                     'lags_target': None,
+                     'copy_input':True
+                 },
+                 'finetuning_pars':{'n_trials':20,
+                                    'optim_metric':'rmse',
+                                    'cv_folds':cv_folds_ft,
+                                    'cv_folds_base':40,#35, # at least cv_folds_eval + 1
+                                    'use_base_models_pred_intervals':False}},
+                {'model':'ensemble[LightGBM](LightGBM,ElasticNet)',
+                 'dataset_pars': {
+                     'log_target':False,
+                     'forecast_horizon':None,
+                     'target_scaler':'StandardScaler',
+                     'feature_scaler':'StandardScaler',
+                     'add_cyclical_time_features':True,
+                     'locations':[loc for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
+                     'feature_engineer': None,#'WeatherWindPowerFE',
+                     'lags_target': None,
+                     'copy_input':True
+                 },
+                 'finetuning_pars':{'n_trials':20,
+                                    'optim_metric':'rmse',
+                                    'cv_folds':cv_folds_ft,
+                                    'cv_folds_base':40,#35, # at least cv_folds_eval + 1
+                                    'use_base_models_pred_intervals':False}}
             ],
             "task_training":[
                 # {'model':'Prophet', 'pars':{'cv_folds':cv_folds_eval}},
@@ -204,19 +200,19 @@ def update_forecast_production(database:str, outdir:str, variable:str, freq:str,
                 {'model':'ensemble[LightGBM](LightGBM,ElasticNet)','past_folds':cv_folds_eval},
             ],
             "task_plot":[
-                # {'model':'Prophet', 'n':2, 'name':"Prophet",'lw':0.7,'color':"red",'ci_alpha':0.0},
-                # {'model':'XGBoost','n':2, 'name':'XGBoost','lw':0.7,'color':"green",'ci_alpha':0.0,
-                #  'train_forecast':'train'},
-                # {'model':'LightGBM','n':2, 'name':'LightGBM','lw':0.7,'color':"orange",'ci_alpha':0.0,
-                #  'train_forecast':'train'},
-                # {'model':'ElasticNet','n':2, 'name':'ElasticNet','lw':0.7,'color':"blue",'ci_alpha':0.0,
-                #  'train_forecast':'train'},
-                # {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','n':2,
-                #  'name':'Ensemble','lw':1.0,'color':"purple",'ci_alpha':0.2, 'train_forecast':'train'},
-                # {'model':'ensemble[LightGBM](LightGBM,ElasticNet)','n':2, 'name':'ensemble','lw':0.7,'color':"purple",'ci_alpha':0.0,
-                #  'train_forecast':'train'},
-                # {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','n':2,
-                #  'name':'Ensemble','lw':1.0,'color':"magenta",'ci_alpha':0.2, 'train_forecast':'train'},
+                {'model':'Prophet', 'n':2, 'name':"Prophet",'lw':0.7,'color':"red",'ci_alpha':0.0},
+                {'model':'XGBoost','n':2, 'name':'XGBoost','lw':0.7,'color':"green",'ci_alpha':0.0,
+                 'train_forecast':'train'},
+                {'model':'LightGBM','n':2, 'name':'LightGBM','lw':0.7,'color':"orange",'ci_alpha':0.0,
+                 'train_forecast':'train'},
+                {'model':'ElasticNet','n':2, 'name':'ElasticNet','lw':0.7,'color':"blue",'ci_alpha':0.0,
+                 'train_forecast':'train'},
+                {'model':'ensemble[XGBoost](XGBoost,ElasticNet)','n':2,
+                 'name':'Ensemble','lw':1.0,'color':"purple",'ci_alpha':0.2, 'train_forecast':'train'},
+                {'model':'ensemble[LightGBM](LightGBM,ElasticNet)','n':2, 'name':'ensemble','lw':0.7,'color':"purple",'ci_alpha':0.0,
+                 'train_forecast':'train'},
+                {'model':'ensemble[ElasticNet](XGBoost,ElasticNet)','n':2,
+                 'name':'Ensemble','lw':1.0,'color':"magenta",'ci_alpha':0.2, 'train_forecast':'train'},
             ],
             "task_summarize":[
                 # {'model':'Prophet', 'pars':{'cv_folds':5}},
@@ -343,97 +339,97 @@ def update_forecast_production(database:str, outdir:str, variable:str, freq:str,
         "plot_label": "Energy Mix (TenneT) [MW]",
         "aggregations": {},
         "task_fine_tuning":[
-            # {'model':'MultiTargetCatBoost',
-            #  'dataset_pars':{
-            #      'log_target':False,
-            #      # 'lags_target': None,
-            #      'forecast_horizon':None,
-            #      'target_scaler':'StandardScaler',
-            #      'feature_scaler':'StandardScaler',
-            #      'copy_input':True,
-            #      'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
-            #      'add_cyclical_time_features':True,
-            #      'feature_engineer':None,#'WeatherLoadPowerFE',
-            #      'spatial_agg_method': 'mean' # fix
-            #
-            #  },
-            #  'finetuning_pars':{'n_trials':20,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
-            # {'model':'MultiTargetLGBM',
-            #  'dataset_pars':{
-            #      'log_target':False,
-            #      # 'lags_target': None,
-            #      'forecast_horizon':None,
-            #      'target_scaler':'StandardScaler',
-            #      'feature_scaler':'StandardScaler',
-            #      'copy_input':True,
-            #      'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
-            #      'add_cyclical_time_features':True,
-            #      'feature_engineer':None,#'WeatherLoadPowerFE',
-            #      'spatial_agg_method': 'mean' # fix
-            #
-            #  },
-            #  'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
-            # {'model':'MultiTargetElasticNet',
-            #  'dataset_pars':{
-            #      'log_target':False,
-            #      # 'lags_target': None,
-            #      'forecast_horizon':None,
-            #      'target_scaler':'StandardScaler',
-            #      'feature_scaler':'StandardScaler',
-            #      'copy_input':True,
-            #      'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
-            #      'add_cyclical_time_features':True,
-            #      'feature_engineer':None,#'WeatherLoadPowerFE',
-            #      'spatial_agg_method': 'mean' # fix
-            #
-            #  },
-            #  'finetuning_pars':{'n_trials':50,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
-            # {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)',
-            #  'dataset_pars': {
-            #      'log_target':False,
-            #      'forecast_horizon':None,
-            #      'target_scaler':'StandardScaler',
-            #      'feature_scaler':'StandardScaler',
-            #      'add_cyclical_time_features':True,
-            #      'locations':[loc for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
-            #      'feature_engineer': None,#'WeatherWindPowerFE',
-            #      'lags_target': None,
-            #      'copy_input':True
-            #  },
-            #  'finetuning_pars':{'n_trials':40,
-            #                     'optim_metric':'rmse',
-            #                     'cv_folds':cv_folds_ft,
-            #                     'cv_folds_base':40,#35, # at least cv_folds_eval + 1
-            #                     'use_base_models_pred_intervals':False}}
+            {'model':'MultiTargetCatBoost',
+             'dataset_pars':{
+                 'log_target':False,
+                 # 'lags_target': None,
+                 'forecast_horizon':None,
+                 'target_scaler':'StandardScaler',
+                 'feature_scaler':'StandardScaler',
+                 'copy_input':True,
+                 'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
+                 'add_cyclical_time_features':True,
+                 'feature_engineer':None,#'WeatherLoadPowerFE',
+                 'spatial_agg_method': 'mean' # fix
+
+             },
+             'finetuning_pars':{'n_trials':20,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+            {'model':'MultiTargetLGBM',
+             'dataset_pars':{
+                 'log_target':False,
+                 # 'lags_target': None,
+                 'forecast_horizon':None,
+                 'target_scaler':'StandardScaler',
+                 'feature_scaler':'StandardScaler',
+                 'copy_input':True,
+                 'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
+                 'add_cyclical_time_features':True,
+                 'feature_engineer':None,#'WeatherLoadPowerFE',
+                 'spatial_agg_method': 'mean' # fix
+
+             },
+             'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+            {'model':'MultiTargetElasticNet',
+             'dataset_pars':{
+                 'log_target':False,
+                 # 'lags_target': None,
+                 'forecast_horizon':None,
+                 'target_scaler':'StandardScaler',
+                 'feature_scaler':'StandardScaler',
+                 'copy_input':True,
+                 'locations':[loc['name'] for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
+                 'add_cyclical_time_features':True,
+                 'feature_engineer':None,#'WeatherLoadPowerFE',
+                 'spatial_agg_method': 'mean' # fix
+
+             },
+             'finetuning_pars':{'n_trials':50,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+            {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)',
+             'dataset_pars': {
+                 'log_target':False,
+                 'forecast_horizon':None,
+                 'target_scaler':'StandardScaler',
+                 'feature_scaler':'StandardScaler',
+                 'add_cyclical_time_features':True,
+                 'locations':[loc for loc in loc_offshore_windfarms if loc['TSO']=='TenneT'],
+                 'feature_engineer': None,#'WeatherWindPowerFE',
+                 'lags_target': None,
+                 'copy_input':True
+             },
+             'finetuning_pars':{'n_trials':40,
+                                'optim_metric':'rmse',
+                                'cv_folds':cv_folds_ft,
+                                'cv_folds_base':40,#35, # at least cv_folds_eval + 1
+                                'use_base_models_pred_intervals':False}}
 
         ],
         "task_training":[
-            # {'model':'MultiTargetCatBoost', 'pars':{'cv_folds':cv_folds_eval}},
-            # {'model':'MultiTargetLGBM', 'pars':{'cv_folds':cv_folds_eval}},
-            # {'model':'MultiTargetElasticNet', 'pars':{'cv_folds':cv_folds_eval}},
-            # {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'pars':{'cv_folds':cv_folds_eval}}
+            {'model':'MultiTargetCatBoost', 'pars':{'cv_folds':cv_folds_eval}},
+            {'model':'MultiTargetLGBM', 'pars':{'cv_folds':cv_folds_eval}},
+            {'model':'MultiTargetElasticNet', 'pars':{'cv_folds':cv_folds_eval}},
+            {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'pars':{'cv_folds':cv_folds_eval}}
         ],
         "task_forecasting":[
             {'model':'MultiTargetCatBoost', 'past_folds':cv_folds_eval},
             {'model':'MultiTargetLGBM', 'past_folds':cv_folds_eval},
             {'model':'MultiTargetElasticNet', 'past_folds':cv_folds_eval},
-            # {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'past_folds':cv_folds_eval}
+            {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'past_folds':cv_folds_eval}
         ],
         "task_summarize":[
             { 'model':'MultiTargetCatBoost', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
             { 'model':'MultiTargetLGBM', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
             { 'model':'MultiTargetElasticNet', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'},
-            # { 'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'}
+            { 'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)', 'summary_metric':'rmse', 'n_folds_best':3, 'method_for_best':'trained'}
         ],
         "task_plot":[
-            # {'model':'MultiTargetCatBoost','n':2,  'name':'MultiTargetCatBoost','lw':1.0,
-            #  'color':"blue", 'ci_alpha':0.2, 'train_forecast':'train'},
-            # {'model':'MultiTargetLGBM','n':2,  'name':'MultiTargetLGBM','lw':1.0,
-            #  'color':"green", 'ci_alpha':0.2, 'train_forecast':'train'},
-            # {'model':'MultiTargetElasticNet','n':2,  'name':'MultiTargetElasticNet','lw':1.0,
-            #  'color':"red", 'ci_alpha':0.2, 'train_forecast':'train'},
-            # {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)','n':2,  'name':'ensemble','lw':1.0,
-            #  'color':"magenta", 'ci_alpha':0.2, 'train_forecast':'train'}
+            {'model':'MultiTargetCatBoost','n':2,  'name':'MultiTargetCatBoost','lw':1.0,
+             'color':"blue", 'ci_alpha':0.2, 'train_forecast':'train'},
+            {'model':'MultiTargetLGBM','n':2,  'name':'MultiTargetLGBM','lw':1.0,
+             'color':"green", 'ci_alpha':0.2, 'train_forecast':'train'},
+            {'model':'MultiTargetElasticNet','n':2,  'name':'MultiTargetElasticNet','lw':1.0,
+             'color':"red", 'ci_alpha':0.2, 'train_forecast':'train'},
+            {'model':'ensemble[MultiTargetLGBM](MultiTargetLGBM,MultiTargetCatBoost,MultiTargetElasticNet)','n':2,  'name':'ensemble','lw':1.0,
+             'color':"magenta", 'ci_alpha':0.2, 'train_forecast':'train'}
         ]
     }]
     # task_list_[0]['task_fine_tuning'] = [

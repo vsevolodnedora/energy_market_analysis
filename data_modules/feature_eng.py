@@ -11,8 +11,12 @@ import gc
 from pysolar.solar import get_altitude, get_azimuth
 
 from data_collection_modules.collect_data_openmeteo import OpenMeteo
-from data_collection_modules.german_locations import all_locations
 from data_modules.utils import validate_dataframe
+
+from data_collection_modules.eu_locations import (
+    countries_metadata,
+    all_locations
+)
 
 
 from logger import get_logger

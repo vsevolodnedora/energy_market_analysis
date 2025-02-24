@@ -1,0 +1,116 @@
+{
+    "start_date": "2023-03-26T00:00:00+00:00",
+    "end_date": "2025-02-22T23:00:00+00:00",
+    "horizon": 168,
+    "features": [
+        "temperature_2m_agg",
+        "relative_humidity_2m_agg",
+        "surface_pressure_agg",
+        "precipitation_agg",
+        "cloud_cover_agg",
+        "solar_elevation_deg_agg",
+        "solar_azimuth_deg_agg",
+        "cloud_cover_fraction_agg",
+        "clear_sky_fraction_agg",
+        "air_density_moist_agg",
+        "diffuse_ratio_agg",
+        "global_tilted_ratio_agg",
+        "vapor_pressure_agg",
+        "precip_lag_1_agg",
+        "precip_lag_6_agg",
+        "shortwave_lag_1_agg",
+        "shortwave_lag_3_agg",
+        "solar_elevation_deg_sol_lauingen",
+        "solar_azimuth_deg_sol_lauingen",
+        "solar_elevation_deg_sol_schlechtenberg",
+        "solar_azimuth_deg_sol_schlechtenberg",
+        "solar_elevation_deg_sol_mengkofen",
+        "solar_azimuth_deg_sol_mengkofen",
+        "solar_elevation_deg_sol_eggebek",
+        "solar_azimuth_deg_sol_eggebek",
+        "hour",
+        "dayofweek",
+        "is_holiday",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos"
+    ],
+    "error_metrics": {
+        "2025-01-19T00:00:00+00:00": {
+            "solar_tenn": {
+                "mse": 36224.949927802394,
+                "rmse": 190.32853156529737,
+                "mae": 91.9234427276644,
+                "mape": 3067444231628.7563,
+                "smape": 244.1875769322187,
+                "bias": -2.4581671793545996,
+                "variance": 36218.907341920734,
+                "std": 190.31265680957935,
+                "r2": 0.9916801696626212,
+                "prediction_interval_coverage": 0.8333333333333334,
+                "prediction_interval_width": 449.9338916492285
+            }
+        },
+        "2025-01-26T00:00:00+00:00": {
+            "solar_tenn": {
+                "mse": 52670.64774388105,
+                "rmse": 229.50086654276723,
+                "mae": 102.68580965662287,
+                "mape": 3892413467610.9536,
+                "smape": 243.86976770304898,
+                "bias": -36.675971085471765,
+                "variance": 51325.52088881868,
+                "std": 226.55136479133972,
+                "r2": 0.9879428738182224,
+                "prediction_interval_coverage": 0.8690476190476191,
+                "prediction_interval_width": 449.9338916492285
+            }
+        },
+        "2025-02-02T00:00:00+00:00": {
+            "solar_tenn": {
+                "mse": 132677.51956851085,
+                "rmse": 364.2492547260884,
+                "mae": 156.12647609363887,
+                "mape": 2305648972854.279,
+                "smape": 238.7394957289315,
+                "bias": -3.4619030581255044,
+                "variance": 132665.53479572697,
+                "std": 364.2328030198913,
+                "r2": 0.9795189646557882,
+                "prediction_interval_coverage": 0.7916666666666666,
+                "prediction_interval_width": 449.9338916492285
+            }
+        },
+        "2025-02-09T00:00:00+00:00": {
+            "solar_tenn": {
+                "mse": 366670.1256101656,
+                "rmse": 605.532926941356,
+                "mae": 243.9509501840387,
+                "mape": 7626564802410.148,
+                "smape": 252.11261783952415,
+                "bias": 176.4703155401207,
+                "variance": 335528.3533433358,
+                "std": 579.2480930856275,
+                "r2": 0.8768870346540305,
+                "prediction_interval_coverage": 0.7916666666666666,
+                "prediction_interval_width": 449.9338916492285
+            }
+        },
+        "2025-02-16T00:00:00+00:00": {
+            "solar_tenn": {
+                "mse": 1179241.8886738312,
+                "rmse": 1085.9290440327266,
+                "mae": 543.1100499392265,
+                "mape": 11462257416147.092,
+                "smape": 247.1173902522331,
+                "bias": -221.5691863472263,
+                "variance": 1130148.984335259,
+                "std": 1063.0846553004417,
+                "r2": 0.9256315583096748,
+                "prediction_interval_coverage": 0.6488095238095238,
+                "prediction_interval_width": 449.9338916492285
+            }
+        }
+    }
+}

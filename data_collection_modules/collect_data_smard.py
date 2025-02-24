@@ -738,7 +738,7 @@ def collect_smard_from_api(start_date:pd.Timestamp, end_date:pd.Timestamp, datad
         df_smard_con_realized = pd.read_parquet(fname4)
         if verbose: logger.info(f"Loading file {fname4} for freq: {freq} ")
     else:
-        if verbose: print(f"Collecting realized power consumption for {start_date} to {end_date} for freq: {freq} ")
+        if verbose: logger.info(f"Collecting realized power consumption for {start_date} to {end_date} for freq: {freq} ")
         df_smard_con_realized = o_smard.request_data(modules_id=DataEnergySMARD.REALIZED_POWER_CONSUMPTION)
         df_smard_con_realized = o_smard._check_freq(df_smard_con_realized, freq, 'realized_consumption')
         # df_smard_con_realized = df_smard_con_realized.resample('h', on='date').sum()

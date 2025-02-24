@@ -1,0 +1,7 @@
+{
+    "solar_tran": {
+        "method": "trained",
+        "model_label": "LightGBM",
+        "avg_rmse": 399.65136583127634
+    }
+}

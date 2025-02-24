@@ -15,12 +15,7 @@ from .collect_data_entsoe import (
     create_entsoe_from_api,
     update_entsoe_from_api
 )
-from .german_locations import (
-    loc_offshore_windfarms,
-    loc_onshore_windfarms,
-    loc_solarfarms,
-    loc_cities,
-    all_locations,
-    de_regions
+from .eu_locations import (
+    countries_metadata
 )
 

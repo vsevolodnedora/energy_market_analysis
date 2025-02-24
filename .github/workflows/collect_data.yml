@@ -32,25 +32,25 @@ jobs:
         run: pipenv install
 
       - name: Update ENTSOE Data
-        run: pipenv run python update_database.py update_entsoe hourly
+        run: pipenv run python update_database.py all update_entsoe hourly
 
       - name: Update SMARD Data
-        run: pipenv run python update_database.py update_smard hourly
+        run: pipenv run python update_database.py DE update_smard hourly
 
       - name: Update EPEXSPOT Data
-        run: pipenv run python update_database.py update_epexspot hourly
+        run: pipenv run python update_database.py all update_epexspot hourly
         
       - name: Update OpenMeteo Offshore Windfarms Data
-        run: pipenv run python update_database.py update_openmeteo_windfarms_offshore hourly
+        run: pipenv run python update_database.py all update_openmeteo_windfarms_offshore hourly
 
       - name: Update OpenMeteo Onshore Windfarms Data
-        run: pipenv run python update_database.py update_openmeteo_windfarms_onshore hourly
+        run: pipenv run python update_database.py all update_openmeteo_windfarms_onshore hourly
 
       - name: Update OpenMeteo Solarfarms Data
-        run: pipenv run python update_database.py update_openmeteo_solarfarms hourly
+        run: pipenv run python update_database.py all update_openmeteo_solarfarms hourly
 
       - name: Update OpenMeteo Cities Data
-        run: pipenv run python update_database.py update_openmeteo_cities hourly
+        run: pipenv run python update_database.py all update_openmeteo_cities hourly
 
       - name: Commit Updated Data
         run: |

@@ -9,13 +9,18 @@ from logger import get_logger
 logger = get_logger(__name__)
 
 def update_epexspot_from_files(
-        today:pd.Timestamp,data_dir:str,verbose:bool,freq:str,raw_data_dir='./data/DE-LU/DayAhead_MRC/'
+        country_dict:dict,today:pd.Timestamp,data_dir:str,verbose:bool,freq:str,raw_data_dir='./data/DE-LU/DayAhead_MRC/'
 ):
 
     if not freq in ['hourly','minutely_15']:
         raise ValueError(f'freq must be hourly or minutely_15. Got {freq}')
     if freq != 'hourly':
         logger.warning(f'EPEXSPOT data collection for frequency {freq} is not implemented yet. Skipping...')
+        return
+    if country_dict != 'DE':
+        logger.warning(
+            f"EPEXSPOT data collection for country {country_dict['code']} is not implemented yet. Skipping..."
+        )
         return
 
     fname = data_dir + f'history_{freq}.parquet'

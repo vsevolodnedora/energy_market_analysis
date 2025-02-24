@@ -11,9 +11,11 @@ import os
 import copy
 import numpy as np
 from datetime import datetime, timedelta
+import sys
+import time
 
 from forecasting_modules import compute_error_metrics, analyze_model_performance, convert_ensemble_string
-from data_collection_modules.german_locations import de_regions
+from data_collection_modules.eu_locations import countries_metadata
 from data_collection_modules.collect_data_entsoe import entsoe_generation_type_mapping
 from data_collection_modules.collect_data_smard import DataEnergySMARD
 from data_modules.utils import (
@@ -812,7 +814,7 @@ def publish_forecasts(db_path:str, target_settings:list[dict], verbose:bool):
             n_folds = 3,
             metric = 'rmse',
             method_type = 'trained', # 'trained'
-            results_root_dir = './output/forecasts/',
+            results_root_dir ='output/DE/forecasts/',
             database_dir = db_path,
             output_dir = data_dir_web
         )
@@ -1720,7 +1722,9 @@ def save_carbon_intensity_json(dts:dict[str:TargetData],suffix:str,output_dir_fo
 
 class PublishGenerationLoad:
 
-    def __init__(self, db_path:str, results_root_dir:str, output_dir_for_figs:str, output_dir_for_api:str, verbose:bool):
+    def __init__(self, country_dict:dict, db_path:str, results_root_dir:str,
+                 output_dir_for_figs:str, output_dir_for_api:str, verbose:bool):
+        self.c_dict = country_dict
         self.db_path = db_path
         self.verbose = verbose
         self.results_root_dir = results_root_dir # 'forecasting_modules/output/',
@@ -1893,7 +1897,7 @@ class PublishGenerationLoad:
         self.df_entsoe = validate_dataframe(self.df_entsoe, 'df_entsoe', logger.warning, self.verbose)
 
         # compute total generation
-        for de_reg in de_regions:
+        for de_reg in self.c_dict['regions']:
             suffix = de_reg['suffix']
             self.df_entsoe['generation'+suffix] = \
                 self.df_entsoe[[
@@ -2083,7 +2087,7 @@ For a detailed breakdown of forecast error metrics, see the **'Individual Foreca
         dts_tso = {}
         dt_tso = {}
         metadatas_tso = {}
-        regions = [region for region in de_regions if region['name'] in avail_regions]
+        regions = [region for region in self.c_dict['regions'] if region['name'] in avail_regions]
         for region_dict in regions:
             if not os.path.exists(f"{self.results_root_dir}/{target_label}{region_dict['suffix']}/"):
                 logger.warning(f"Missing output directory: {self.results_root_dir}/{target_label}{region_dict['suffix']}/")
@@ -2208,10 +2212,10 @@ Die SMARD __Tagesprognose__ weist eine durchschnittliche Genauigkeit von __{ave_
 def publish_main():
 
     publisher = PublishGenerationLoad(
-        db_path='./database/',
-        results_root_dir='./output/forecasts/',
-        output_dir_for_figs = './deploy/data/forecasts/',
-        output_dir_for_api = './deploy/data/api/forecasts/',
+        db_path='./database/DE/',
+        results_root_dir='output/DE/forecasts/',
+        output_dir_for_figs ='deploy/data/DE/forecasts/',
+        output_dir_for_api ='deploy/data/DE/api/forecasts/',
         verbose=True
     )
     target_settings = [
@@ -2229,21 +2233,108 @@ def publish_main():
         )
 
 
+def main(country_code:str, target:str, freq:str, verboose:bool):
+
+    countries = ['DE', 'FR', 'all']
+    if not country_code in countries:
+        raise ValueError(f'country_code must be in {countries}. Given: {country_code}')
+    if country_code == 'all': country_code_ = countries[:-1] # all countries
+    else: country_code_ = [country_code]
+
+    targets = ['wind_offshore', 'wind_onshore', 'solar', 'load', 'energy_mix', 'all']
+    if not target in targets:
+        raise ValueError(f'target must be in {targets}. Given: {target}')
+    if target == 'all': target_ = targets[:-1]
+    else: target_ = [target]
+
+    for country_code in country_code_:
+        # check country
+        c_dict:dict = [dict_ for dict_ in countries_metadata if dict_["code"] == country_code][0]
+        if len(list(c_dict.keys())) == 0:
+            raise KeyError(f"No country dict found for country code {country_code}. Check your country code.")
+        regions = c_dict["regions"]
+        if len(regions) == 0:
+            logger.warning(f"No regions (TSOs) dicts found for country code {country_code}.")
+        locations = list(c_dict['locations'].keys())
+        if len(locations) == 0:
+            logger.warning(f"No locations (for weather data) found for country code {country_code}.")
+
+        # set database location
+        db_path = f'./database/{country_code}/'
+        results = f'./output/{country_code}/forecasts/'
+
+        start_time = time.time()  # Start the timer
+
+        publisher = PublishGenerationLoad(
+            country_dict=c_dict,
+            db_path=db_path,
+            results_root_dir=results,
+            output_dir_for_figs = f'./deploy/data/{country_code}/forecasts/',
+            output_dir_for_api = f'./deploy/data/{country_code}/api/forecasts/',
+            verbose=True
+        )
+
+        target_settings = [
+            {'label' : 'wind_offshore', 'target' : 'wind_offshore', "regions" : ('DE_50HZ', 'DE_TENNET'), 'positive_floor':0},
+            {'label' : 'wind_onshore', 'target' : 'wind_onshore', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0},
+            {'label' : 'solar', 'target' : 'solar', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0},
+            {'label' : 'load', 'target' : 'load', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0},
+            {'label' : 'energy_mix', 'target' : 'energy_mix', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0}
+        ]
+        for target__ in target_:
+            target_dict = [t for t in target_settings if t["target"] == target__][0]
+            publisher.process(
+                target_label=target_dict['label'],
+                avail_regions=target_dict['regions'],
+                positive_floor=target_dict['positive_floor']
+            )
+
+
+        end_time = time.time()  # End the timer
+        elapsed_time = end_time - start_time
+        hours, minutes = divmod(elapsed_time // 60, 60)
+
+        logger.info(
+            f"All tasks for country {country_code} are completed successfully! Execution time: "
+            f"{int(hours)} hours and {int(minutes)} minutes."
+        )
+
 if __name__ == '__main__':
-    db_path = './database/'
-    #
-    #
-    # target_settings = [
-    #     {'label' : 'wind_offshore', 'target' : 'wind_offshore', "regions" : ('DE_50HZ', 'DE_TENNET')},
-    #     # {'label' : 'wind_onshore', 'target' : 'wind_onshore', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')},
-    #     # {'label' : 'solar', 'target' : 'solar', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')},
-    #     # {'label' : 'load', 'target' : 'load', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')},
-    #     # {'label' : 'energy_mix', 'target' : 'energy_mix', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')}
-    # ]
-    #
-    # # publish_forecasts(target_settings=target_settings, db_path=db_path, verbose=True)
-    publish_main()
+
+    print("launching publish_data.py")
+
+    if len(sys.argv) != 4:
+        # raise KeyError("Usage: python update_database.py <country_code> <task> <freq>")
+        country_code = str( 'DE' )
+        target = str( 'all' )
+        freq = str( 'hourly' )
+    else:
+        country_code = str( sys.argv[1] )
+        target = str( sys.argv[2] )
+        freq = str( sys.argv[3] )
+
+    main(country_code, target, freq, True)
 
 
 
-    logger.info(f"All tasks in update are completed successfully!")
+# if __name__ == '__main__':
+#     db_path = './database/'
+#     #
+#     #
+#     # target_settings = [
+#     #     {'label' : 'wind_offshore', 'target' : 'wind_offshore', "regions" : ('DE_50HZ', 'DE_TENNET')},
+#     #     # {'label' : 'wind_onshore', 'target' : 'wind_onshore', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')},
+#     #     # {'label' : 'solar', 'target' : 'solar', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')},
+#     #     # {'label' : 'load', 'target' : 'load', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')},
+#     #     # {'label' : 'energy_mix', 'target' : 'energy_mix', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')}
+#     # ]
+#     #
+#     # # publish_forecasts(target_settings=target_settings, db_path=db_path, verbose=True)
+#     publish_main()
+#
+#
+#
+#     logger.info(f"All tasks in update are completed successfully!")
+#
+#
+#

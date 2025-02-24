@@ -1,0 +1,141 @@
+{
+    "start_date": "2023-04-02T00:00:00+00:00",
+    "end_date": "2025-02-22T23:00:00+00:00",
+    "horizon": 168,
+    "features": [
+        "temperature_2m_agg",
+        "relative_humidity_2m_agg",
+        "surface_pressure_agg",
+        "precipitation_agg",
+        "cloud_cover_agg",
+        "shortwave_radiation_agg",
+        "direct_radiation_agg",
+        "diffuse_radiation_agg",
+        "direct_normal_irradiance_agg",
+        "global_tilted_irradiance_agg",
+        "terrestrial_radiation_agg",
+        "solar_elevation_deg_agg",
+        "solar_azimuth_deg_agg",
+        "cloud_cover_fraction_agg",
+        "air_density_agg",
+        "air_density_moist_agg",
+        "dni_ratio_agg",
+        "global_tilted_ratio_agg",
+        "dew_point_temperature_agg",
+        "precip_lag_1_agg",
+        "precip_lag_6_agg",
+        "precip_lag_12_agg",
+        "precip_lag_24_agg",
+        "cloud_lag_1_agg",
+        "cloud_lag_3_agg",
+        "cloud_lag_6_agg",
+        "shortwave_lag_1_agg",
+        "shortwave_lag_3_agg",
+        "shortwave_lag_6_agg",
+        "shortwave_lag_12_agg",
+        "solar_elevation_deg_sol_lauingen",
+        "solar_azimuth_deg_sol_lauingen",
+        "solar_elevation_deg_sol_schlechtenberg",
+        "solar_azimuth_deg_sol_schlechtenberg",
+        "solar_elevation_deg_sol_mengkofen",
+        "solar_azimuth_deg_sol_mengkofen",
+        "solar_elevation_deg_sol_eggebek",
+        "solar_azimuth_deg_sol_eggebek",
+        "hour",
+        "dayofweek",
+        "is_holiday",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos",
+        "solar_tenn_lag_1",
+        "solar_tenn_lag_2",
+        "solar_tenn_lag_3",
+        "solar_tenn_lag_4",
+        "solar_tenn_lag_5",
+        "solar_tenn_lag_6",
+        "solar_tenn_lag_7",
+        "solar_tenn_lag_8",
+        "solar_tenn_lag_9",
+        "solar_tenn_lag_10",
+        "solar_tenn_lag_11",
+        "solar_tenn_lag_12"
+    ],
+    "error_metrics": {
+        "2025-01-19T00:00:00+00:00": {
+            "solar_tenn": {
+                "mse": 299603.80925702007,
+                "rmse": 547.360767005656,
+                "mae": 241.26244056016384,
+                "mape": 5987749499442.688,
+                "smape": 261.8395440908409,
+                "bias": -98.17864135967656,
+                "variance": 289964.76363778807,
+                "std": 538.4837635786134,
+                "r2": 0.9311896119547782,
+                "prediction_interval_coverage": 0.8095238095238095,
+                "prediction_interval_width": 451.91508641771776
+            }
+        },
+        "2025-01-26T00:00:00+00:00": {
+            "solar_tenn": {
+                "mse": 146551.35810320728,
+                "rmse": 382.8202686682189,
+                "mae": 184.6885228138722,
+                "mape": 4829073276973.178,
+                "smape": 255.87698076746824,
+                "bias": -61.042997595751544,
+                "variance": 142825.11054773233,
+                "std": 377.9220958712686,
+                "r2": 0.9664521267072034,
+                "prediction_interval_coverage": 0.7797619047619048,
+                "prediction_interval_width": 451.9150864177179
+            }
+        },
+        "2025-02-02T00:00:00+00:00": {
+            "solar_tenn": {
+                "mse": 784331.8299940802,
+                "rmse": 885.6251069126712,
+                "mae": 424.798607638904,
+                "mape": 5104033310160.877,
+                "smape": 253.72547879841093,
+                "bias": -52.0047056582712,
+                "variance": 781627.3405834767,
+                "std": 884.0969067831177,
+                "r2": 0.8789250207273878,
+                "prediction_interval_coverage": 0.7023809523809523,
+                "prediction_interval_width": 451.91508641771776
+            }
+        },
+        "2025-02-09T00:00:00+00:00": {
+            "solar_tenn": {
+                "mse": 795853.6628265374,
+                "rmse": 892.1063069088444,
+                "mae": 352.2245626876885,
+                "mape": 5454698729112.156,
+                "smape": 264.0237743053982,
+                "bias": 77.12556177583922,
+                "variance": 789905.3105472986,
+                "std": 888.7661731565275,
+                "r2": 0.7327845996480331,
+                "prediction_interval_coverage": 0.7559523809523809,
+                "prediction_interval_width": 451.91508641771776
+            }
+        },
+        "2025-02-16T00:00:00+00:00": {
+            "solar_tenn": {
+                "mse": 3284897.6471030684,
+                "rmse": 1812.4286598658355,
+                "mae": 912.1438314198915,
+                "mape": 8045422117005.457,
+                "smape": 257.0386219985712,
+                "bias": -833.5320194548972,
+                "variance": 2590122.0196465096,
+                "std": 1609.3856031562198,
+                "r2": 0.7928391778874129,
+                "prediction_interval_coverage": 0.6369047619047619,
+                "prediction_interval_width": 451.91508641771776
+            }
+        }
+    }
+}

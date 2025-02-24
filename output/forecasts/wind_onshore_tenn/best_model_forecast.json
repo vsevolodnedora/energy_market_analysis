@@ -1,7 +1,0 @@
-{
-    "wind_onshore_tenn": {
-        "method": "trained",
-        "model_label": "XGBoost",
-        "avg_rmse": 686.0491899003367
-    }
-}
