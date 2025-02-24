@@ -1453,6 +1453,242 @@ fr_loc_solarfarms = [
     }
 ]
 
+fr_loc_cities = [
+    {
+        "name": "Paris",
+        "label": "paris",
+        "type": "city",
+        "suffix": "_city_paris",
+        "TSO": "RTE",
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "population": 2148000,
+        "population_density": 25200,
+        "area": 105.4,
+        "industrial_activity_fraction": 0.1,
+        "renewable_energy_fraction": {
+            "solar": 0.05,
+            "wind": 0.02,
+            "others": 0.08
+        },
+        "non_renewable_energy_fraction": 0.85,
+        "total_energy_consumption": 208000,
+        "peak_demand": 5000,
+        "avg_temperature": 12.3,
+        "heating_degree_days": 2400,
+        "cooling_degree_days": 450,
+        "avg_humidity": 75,
+        "avg_wind_speed": 15,
+        "installed_renewable_capacity": {
+            "solar": 150,
+            "wind": 50
+        },
+        "electric_vehicle_count": 50000,
+        "timezone": "CET",
+        "daylight_savings": True,
+        "nearest_nuclear_power_plant": {
+            "name": "Nogent Nuclear Power Plant",
+            "distance_from_city": 120,
+            "power": 2620,
+            "note": "Located in Nogent-sur-Seine, this plant houses two reactors with a combined capacity of around 2,620 MW"
+        }
+    },
+    {
+        "name": "Marseille",
+        "label": "marseille",
+        "type": "city",
+        "suffix": "_city_marseille",
+        "TSO": "RTE",
+        "lat": 43.2965,
+        "lon": 5.3698,
+        "population": 877215,
+        "population_density": 3646,
+        "area": 240.62,
+        "industrial_activity_fraction": 0.30,
+        "renewable_energy_fraction": {
+            "solar": 0.04,
+            "wind": 0.08,
+            "others": 0.10
+        },
+        "non_renewable_energy_fraction": 0.78,
+        "total_energy_consumption": 5000,
+        "peak_demand": 1000,
+        "avg_temperature": 15.5,
+        "heating_degree_days": 1500,
+        "cooling_degree_days": 500,
+        "avg_humidity": 70,
+        "avg_wind_speed": 20,
+        "installed_renewable_capacity": {
+            "solar": 200,
+            "wind": 150
+        },
+        "electric_vehicle_count": 5000,
+        "timezone": "CET",
+        "daylight_savings": True,
+        "nearest_nuclear_power_plant": {
+            "name": "Tricastin Nuclear Power Plant",
+            "distance_from_city": 140,
+            "power": 3660,
+            "note": "Situated near the Rhône River, Tricastin comprises four reactors with a total capacity of about 3,660 MW"
+        }
+    },
+    {
+        "name": "Lyon",
+        "label": "lyon",
+        "type": "city",
+        "suffix": "_city_lyon",
+        "TSO": "RTE",
+        "lat": 45.7578,
+        "lon": 4.8322,
+        "population": 522228,
+        "population_density": 10908,
+        "area": 47.87,
+        "industrial_activity_fraction": 29.1,
+        "renewable_energy_fraction": {
+            "solar": 0.12,
+            "wind": 0.05,
+            "others": 0.10
+        },
+        "non_renewable_energy_fraction": 0.73,
+        "total_energy_consumption": 8000,  # in GWh
+        "peak_demand": 1500,  # in MW
+        "avg_temperature": 12.0,
+        "heating_degree_days": 2800,
+        "cooling_degree_days": 450,
+        "avg_humidity": 76,
+        "avg_wind_speed": 12.2,
+        "installed_renewable_capacity": {
+            "solar": 20,
+            "wind": 10
+        },
+        "electric_vehicle_count": 25000,
+        "timezone": "CET",
+        "daylight_savings": True,
+        "nearest_nuclear_power_plant": {
+            "name": "Bugey Nuclear Power Plant",
+            "distance_from_city": 35,
+            "power": 3580,
+            "note": "Located in Saint-Vulbas, Bugey has four operational reactors with a combined capacity of around 3,580 MW"
+        }
+    },
+    {
+        "name": "Toulouse",
+        "label": "Toulouse",
+        "type": "city",
+        "suffix": "_city_toulouse",
+        "TSO": "RTE",
+        "lat": 43.6045,
+        "lon": 1.444,
+        "population": 511684,
+        "population_density": 3893,
+        "area": 118.3,
+        "industrial_activity_fraction": 0.086,
+        "renewable_energy_fraction": {
+            "solar": 0.03,
+            "wind": 0.00,
+            "others": 0.07
+        },
+        "non_renewable_energy_fraction": 0.90,
+        "total_energy_consumption": 19350,
+        "peak_demand": None, # unknown
+        "avg_temperature": 15.2,
+        "heating_degree_days": 2000,
+        "cooling_degree_days": 500,
+        "avg_humidity": 70,
+        "avg_wind_speed": 14.3,
+        "installed_renewable_capacity": {
+            "solar": 15,
+            "wind": 0
+        },
+        "electric_vehicle_count": 5000,
+        "timezone": "CET",
+        "daylight_savings": True,
+        "nearest_nuclear_power_plant": {
+            "name": "Golfech Nuclear Power Plant",
+            "distance_from_city": 90,
+            "power": 2620,
+            "note": "This facility consists of two reactors with a total capacity of about 2,620 MW."
+        }
+    },
+    {
+        "name": "Lille",
+        "label": "Lille",
+        "type": "city",
+        "suffix": "_city_lille",
+        "TSO": "RTE",
+        "lat": 50.6372,
+        "lon": 3.0633,
+        "population": 236234,
+        "population_density": 6788.9,
+        "area": 34.8,
+        "industrial_activity_fraction": 0.25,
+        "renewable_energy_fraction": {
+            "solar": 0.05,
+            "wind": 0.10,
+            "others": 0.45
+        },
+        "non_renewable_energy_fraction": 0.4,
+        "total_energy_consumption": 732,
+        "peak_demand": 200,
+        "avg_temperature": 11.0,
+        "heating_degree_days": 2800,
+        "cooling_degree_days": 50,
+        "avg_humidity": 77,
+        "avg_wind_speed": 17.7,
+        "installed_renewable_capacity": {
+            "solar": 50,
+            "wind": 100
+        },
+        "electric_vehicle_count": 5000,
+        "timezone": "CET",
+        "daylight_savings": True,
+        "nearest_nuclear_power_plant": {
+            "name": "Gravelines Nuclear Power Plant",
+            "distance_from_city": 70,
+            "power": 5460,
+            "note": "Gravelines is one of France's largest nuclear facilities, housing six reactors with a combined capacity of around 5,460 MW."
+        }
+    },
+    # {
+    #     "name": "Lille",
+    #     "label":'Lille',
+    #     "type": "city",
+    #     "suffix":"_city_lille",
+    #     "TSO": "RTE", # France only has one TSO
+    #     "lat": None, # float; decimal latitude;
+    #     "lon": None, # float; decimal latitude;
+    #     "population": None,  # int; Total population
+    #     "population_density": None,  # float; Persons per square kilometer (approx.)
+    #     "area": None,  # float; Square kilometers
+    #     "industrial_activity_fraction":None,  # float; Fraction of energy consumed by industry
+    #     "renewable_energy_fraction": {
+    #         "solar": None,  # float; Fraction of total energy from solar
+    #         "wind": None,   # float; Fraction of total energy from wind
+    #         "others": None  # float; Fraction of other renewable sources
+    #     },
+    #     "non_renewable_energy_fraction": None,  # float; Fraction of energy from non-renewables
+    #     "total_energy_consumption": None,  # float; Annual energy consumption in GWh
+    #     "peak_demand": None,  # float; Peak energy demand in MW
+    #     "avg_temperature": None,  # float; Annual average temperature in °C
+    #     "heating_degree_days": None,  # int; HDD (indicative of heating demand)
+    #     "cooling_degree_days": None,  # int; CDD (indicative of cooling demand)
+    #     "avg_humidity": None,  # float; Annual average relative humidity in %
+    #     "avg_wind_speed": None,  # float; Average wind speed in km/h
+    #     "installed_renewable_capacity": {
+    #         "solar": None,  # float; Installed solar capacity in MW
+    #         "wind": None    # float; Installed wind capacity in MW
+    #     },
+    #     "electric_vehicle_count": None,  # int; Number of EVs in the city
+    #     "timezone": "CET",
+    #     "daylight_savings": True,  # Whether the city observes daylight savings
+    #     "nearest_nuclear_power_plant":{
+    #         "name":"Gravelines Nuclear Power Plant",
+    #         "distance_from_city":70,#km
+    #         "power": 5460, # MW
+    #         "note":"Gravelines is one of France's largest nuclear facilities, housing six reactors with a combined capacity of around 5,460 MW."
+    #     }
+    # },
+]
 
 
 ''' -------------- SUMMARY -------------- '''
@@ -1484,7 +1720,7 @@ countries_metadata = [
             {'name':'DE_TENNET', 'suffix':'_tenn', 'TSO':'TenneT'},
             {'name':'DE_TRANSNET', 'suffix':'_tran', 'TSO':'TransnetBW'},
         ],
-        "entsoe_neighbors":["AT","BE","CH","CZ","DK_1","DK_2","FR","NO_2","NL","PL","SE_4"],
+        # "entsoe_neighbors":["AT","BE","CH","CZ","DK_1","DK_2","FR","NO_2","NL","PL","SE_4"],
         "locations":{
             "cities":de_loc_cities,
             "solar":de_loc_solarfarms,
@@ -1500,7 +1736,12 @@ countries_metadata = [
         'regions':[
             {'name':'FR', 'suffix':'_rte', 'TSO':'RTE'},
         ],
-        'locations': {}
+        'locations': {
+            "cities":fr_loc_cities,
+            "solar":fr_loc_solarfarms,
+            "offshore":fr_loc_offshore_windfarms,
+            "onshore":fr_loc_onshore_windfarms,
+        }
     }
 ]
 

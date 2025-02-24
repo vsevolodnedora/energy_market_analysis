@@ -7,6 +7,7 @@ import requests
 import openmeteo_requests
 from openmeteo_requests.Client import OpenMeteoRequestsError
 from openmeteo_sdk.WeatherApiResponse import WeatherApiResponse
+from urllib.parse import urlencode
 
 
 from datetime import datetime, timedelta
@@ -203,11 +204,14 @@ class OpenMeteo:
         # No caching session, just a regular retry session
         retry_session = retry(requests.Session(), retries=5, backoff_factor=0.2)
         openmeteo = openmeteo_requests.Client(session=retry_session)
+        # Construct full URL for debugging
+        full_url = f"{url}?{urlencode(params)}"
+        # logger.info(f"Full request URL: {full_url}")  # Print or log this
 
         hourly = []
         for i in range(5):
             try:
-                responses = openmeteo.weather_api(url, params=params)
+                responses = openmeteo.weather_api(url, params=params, method="GET", verify=True)
                 hourly = []
                 for response in responses:
                     hourly.append( response.Hourly() )
@@ -215,7 +219,7 @@ class OpenMeteo:
                 if self.verbose: logger.error(
                     f"Failed to fetch weather data from openmeteo {i}/{5} "
                     f"for {params.get('start_date', 'N/A')} -> {params.get('end_date', 'N/A')} "
-                    f"url={url} "
+                    f"url={full_url} "
                     f"with Error:\n{e}"
                 )
                 time.sleep(20*i)  # in case API is overloaded
@@ -283,25 +287,27 @@ class OpenMeteo:
     def _collect_past_forecast(self,data_dir:str, freq:str)->pd.DataFrame:
         # collect historic data
         params = {
-            "latitude": [loc['lat'] for loc in self.location_list],
-            "longitude": [loc['lon'] for loc in self.location_list],
+            "latitude": ",".join(str(loc["lat"]) for loc in self.location_list),#[loc['lat'] for loc in self.location_list],
+            "longitude": ",".join(str(loc["lon"]) for loc in self.location_list),#[loc['lon'] for loc in self.location_list],
             "start_date": self.start_date.strftime('%Y-%m-%d'),
             "end_date": self.today.strftime('%Y-%m-%d'),
+            "timeout":360
         }
         # collect historic forecast (to bridge the data till forecasts starts)
         # params['start_date'] = self.day_before_yesterday.strftime('%Y-%m-%d')
         # params['end_date'] = self.today.strftime('%Y-%m-%d')
         url = "https://historical-forecast-api.open-meteo.com/v1/forecast"
         fname = data_dir  + '/' + f"tmp_hist_forecast_{freq}.parquet"
+        var_string = ",".join(self.variable_list)
         if os.path.exists(fname):
             if self.verbose: logger.info(f"Loading temporary file: {fname}")
             hist_forecast_data = pd.read_parquet(fname)
         else:
             if freq == 'hourly':
-                params['hourly'] = ''.join([var + ',' for var in self.variable_list])[:-1]
+                params['hourly'] = var_string
                 hist_forecast_data = self.make_request_hourly(url, params)
             else:
-                params['minutely_15'] = ''.join([var + ',' for var in self.variable_list])[:-1]
+                params['minutely_15'] = var_string
                 hist_forecast_data = self.make_request_15min(url, params)
         return hist_forecast_data
 
@@ -357,7 +363,10 @@ def create_openmeteo_from_api(
         locations:list, variables:tuple, start_date:pd.Timestamp, freq:str, verbose:bool
 ):
 
-    om = OpenMeteo(start_date, locations, variables, freq=freq, verbose=verbose)
+
+    if not os.path.isdir(datadir):
+        logger.info(f"Output directory {datadir} does not exist. Creating...")
+        os.makedirs(datadir)
 
     # --- collect past actual data and update database
 
@@ -366,27 +375,35 @@ def create_openmeteo_from_api(
         f"{[loc['name'] for loc in locations]} locations"
     )
     if freq == 'hourly':
-        df_hist_ = om._collect_past_actual(data_dir=datadir, freq=freq)
-        if 'solar' in datadir:
-            df_hist_ = add_solar_elevation_and_azimuth(df_hist_, locations, verbose=verbose)
         fpath = datadir + f'history_{freq}.parquet'
-        logger.info(f"Writing historical data in {fpath} (shape={df_hist_.shape})")
-        df_hist_.to_parquet(fpath)
+        if os.path.exists(fpath):
+            logger.info(f"File already exists: {fpath}. Skipping...")
+        else:
+            om = OpenMeteo(start_date, locations, variables, freq=freq, verbose=verbose)
+            df_hist_ = om._collect_past_actual(data_dir=datadir, freq=freq)
+            if 'solar' in datadir:
+                df_hist_ = add_solar_elevation_and_azimuth(df_hist_, locations, verbose=verbose)
+            logger.info(f"Writing historical data in {fpath} (shape={df_hist_.shape})")
+            df_hist_.to_parquet(fpath)
     else:
         logger.info(f"Openmeteo does not have actual historical data for freq={freq}. Skipping...")
 
     # --- collect past forecast
-
+    start_date_ = pd.Timestamp(datetime(year=2025, month=1, day=1),tz='UTC') # openmeteo does not give past forecasts before that
     logger.info(
-        f"Collecting historical forecasts from OpenMeteo from {start_date} ({len(locations)})"
+        f"Collecting historical forecasts from OpenMeteo from {start_date_} ({len(locations)})"
         f"freq={freq} and {[loc['name'] for loc in locations]} locations"
     )
-    df_hist_forecast_ = om._collect_past_forecast(data_dir=datadir, freq=freq)
-    if 'solar' in datadir:
-        df_hist_forecast_ = add_solar_elevation_and_azimuth(df_hist_forecast_, locations, verbose=verbose)
     fpath = datadir + f'hist_forecast_{freq}.parquet'
-    logger.info(f"Writing historical forecasts for in {fpath} (shape={df_hist_forecast_.shape})")
-    df_hist_forecast_.to_parquet(fpath)
+    if os.path.exists(fpath):
+        logger.info(f"File already exists: {fpath}. Skipping...")
+    else:
+        om = OpenMeteo(start_date_, locations, variables, freq=freq, verbose=verbose)
+        df_hist_forecast_ = om._collect_past_forecast(data_dir=datadir, freq=freq)
+        if 'solar' in datadir:
+            df_hist_forecast_ = add_solar_elevation_and_azimuth(df_hist_forecast_, locations, verbose=verbose)
+        logger.info(f"Writing historical forecasts for in {fpath} (shape={df_hist_forecast_.shape})")
+        df_hist_forecast_.to_parquet(fpath)
 
     # --- collect current forecast
 
@@ -394,12 +411,16 @@ def create_openmeteo_from_api(
         f"Collecting forecasts from OpenMeteo ({len(locations)}) for "
         f"freq={freq} and {[loc['name'] for loc in locations]} locations"
     )
-    df_forecast_ = om._collect_forecast(data_dir=datadir, freq=freq)
-    if 'solar' in datadir:
-        df_forecast_ = add_solar_elevation_and_azimuth(df_forecast_, locations, verbose=verbose)
     fpath = datadir + f'forecast_{freq}.parquet'
-    logger.info(f"Writing forecasts for {datadir} to {fpath} (shape={df_forecast_.shape})")
-    df_forecast_.to_parquet(fpath)
+    if os.path.exists(fpath):
+        logger.info(f"File already exists: {fpath}. Skipping...")
+    else:
+        om = OpenMeteo(start_date, locations, variables, freq=freq, verbose=verbose)
+        df_forecast_ = om._collect_forecast(data_dir=datadir, freq=freq)
+        if 'solar' in datadir:
+            df_forecast_ = add_solar_elevation_and_azimuth(df_forecast_, locations, verbose=verbose)
+        logger.info(f"Writing forecasts for {datadir} to {fpath} (shape={df_forecast_.shape})")
+        df_forecast_.to_parquet(fpath)
 
 def update_openmeteo_from_api(
         datadir:str, verbose:bool, locations:list, variables:tuple, freq:str

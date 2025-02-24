@@ -584,6 +584,9 @@ def fetch_entsoe_data_from_api(country_dict:dict, working_dir:str, start_date:pd
 
 def create_entsoe_from_api(country_dict:dict, start_date:pd.Timestamp or None, today:pd.Timestamp,data_dir:str,
                            api_key:str,freq:str,verbose:bool):
+    if not os.path.isdir(data_dir):
+        logger.info(f"Directory {data_dir} does not exist, creating it now...")
+        os.mkdir(data_dir)
     df = fetch_entsoe_data_from_api(country_dict, data_dir, start_date, today, api_key, freq, None, verbose)
     fname = data_dir + f'history_{freq}.parquet'
     if not country_dict["code"] in data_dir:
