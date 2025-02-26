@@ -32,12 +32,14 @@ def main_forecasting_pipeline(c_dict:dict,task_list:list, outdir:str, database:s
         df_hist, df_forecast = extract_from_database(
             main_pars=task, c_dict=c_dict, db_path=database, outdir=outdir, verbose=verbose, freq=freq,
         )
-        if len(df_hist.columns) - len(df_forecast.columns) < len(task['targets']):
-            logger.warning(f"ETL returned dataframe with less targets then requested. "
-                           f"({len(df_hist.columns) - len(df_forecast.columns)} vs {len(task['targets'])}) "
-                           f"Missing columns: { df_hist.columns.difference(df_forecast.columns) } "
-                           f"Updating task for consistency.")
-            task['targets'] = list(df_hist.columns.difference(df_forecast.columns))
+        task['targets'] = list(df_hist.columns.difference(df_forecast.columns))
+
+        # if len(df_hist.columns) - len(df_forecast.columns) < len(task['targets']):
+        #     logger.warning(f"ETL returned dataframe with less targets then requested. "
+        #                    f"({len(df_hist.columns) - len(df_forecast.columns)} vs {len(task['targets'])}) "
+        #                    f"Missing columns: { df_hist.columns.difference(df_forecast.columns) } "
+        #                    f"Updating task for consistency.")
+        #     task['targets'] = list(df_hist.columns.difference(df_forecast.columns))
 
         # clean data from nans and outliers
         df_hist, df_forecast = clean_and_impute(df_hist=df_hist,df_forecast=df_forecast,freq=freq,verbose=verbose)

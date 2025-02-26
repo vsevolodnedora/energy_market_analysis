@@ -1,12 +1,7 @@
 {
     "solar_50hz": {
         "method": "trained",
-<<<<<<< HEAD:output/DE/forecasts/solar_50hz/best_model_forecast.json
-        "model_label": "ensemble[LightGBM](LightGBM,ElasticNet)",
-        "avg_rmse": 526.8119000525471
-=======
-        "model_label": "LightGBM",
-        "avg_rmse": 399.65136583127634
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/solar_tran/best_model_forecast.json
+        "model_label": "XGBoost",
+        "avg_rmse": 282.4345540354124
     }
 }

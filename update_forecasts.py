@@ -528,6 +528,7 @@ def adjust_and_run_for_tasklist(database:str,c_dict:dict, task_list:list, variab
     de_regions = c_dict['regions']
 
     ''' -------------- OFFSHORE WIND POWER GENERATION (2 TSOs) ------------- '''
+
     if variable == "wind_offshore":
         avail_regions = [tso['name'] for tso in c_dict['regions'] if variable in tso['available_targets']]#["DE_50HZ", "DE_TENNET"]
         locations = c_dict['locations']['offshore']
@@ -627,7 +628,9 @@ def adjust_and_run_for_tasklist(database:str,c_dict:dict, task_list:list, variab
                 for t in task_list_:
                     t['label'] = f"energy_mix{tso_reg['suffix']}"
                     t['targets'] = [key+tso_reg['suffix'] for key in [
-                        "hard_coal", "lignite", "coal_derived_gas", "oil", "other_fossil", "gas", "renewables","biomass","waste"]
+                        "hard_coal", "lignite", "coal_derived_gas", "oil",
+                        "other_fossil", "gas", "renewables","biomass","waste",'nuclear'
+                    ]
                                     ]
                     t['aggregations'] = {f"renewables{tso_reg['suffix']}": [
                         key+tso_reg['suffix'] for key in
@@ -782,12 +785,12 @@ if __name__ == '__main__':
     print("launching update_forecasts.py")
 
     if len(sys.argv) != 6:
-        # raise KeyError("Usage: python update_database.py <country_code> <task> <freq>")
-        country_code = str( 'FR' )
-        target = str( 'wind_offshore' )
-        model = str( 'LightGBM' )
-        mode = str( 'finetune' )
-        freq = str( 'hourly' )
+        raise KeyError("Usage: python update_database.py <country_code> <target> <model> <task> <freq>")
+        # country_code = str( 'DE' )
+        # target = str( 'wind_offshore' )
+        # model = str( 'all' )
+        # mode = str( 'train' )
+        # freq = str( 'hourly' )
     else:
         country_code = str( sys.argv[1] )
         target = str( sys.argv[2] )

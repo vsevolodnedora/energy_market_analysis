@@ -1,11 +1,7 @@
 {
     "load_ampr": {
         "method": "trained",
-        "model_label": "ensemble[LightGBM](LightGBM,ElasticNet)",
-<<<<<<< HEAD:output/DE/forecasts/load_ampr/best_model_forecast.json
-        "avg_rmse": 900.0071111360903
-=======
-        "avg_rmse": 899.2944809044782
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/load_ampr/best_model_forecast.json
+        "model_label": "XGBoost",
+        "avg_rmse": 672.845743948278
     }
 }

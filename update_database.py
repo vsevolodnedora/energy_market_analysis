@@ -60,7 +60,7 @@ def main_country(country_code:str, task:str, freq:str, verbose:bool = True):
         'update_openmeteo_solarfarms',
         'update_openmeteo_cities',
     ]
-    if task not in tasks:
+    if not task in tasks:
         raise Exception(f"task {task} is not supported. Supported tasks are: {tasks}")
 
     logger.info(f"Starting task {task} for country {country_code} and frequency {freq}...")
@@ -85,7 +85,7 @@ def main_country(country_code:str, task:str, freq:str, verbose:bool = True):
             raw_data_dir='./data/DE-LU/DayAhead_MRC/'
         )
 
-    elif (task == 'update_openmeteo_windfarms_offshore') and ('offshore' in locations):
+    if (task == 'update_openmeteo_windfarms_offshore' or task == "all") and ('offshore' in locations):
         for tso_dict in regions:
             update_openmeteo_from_api(
                 datadir=db_path + f"openmeteo/offshore/{tso_dict['TSO']}/",
@@ -95,7 +95,7 @@ def main_country(country_code:str, task:str, freq:str, verbose:bool = True):
                 freq=freq, verbose = verbose
             )
 
-    elif (task == 'update_openmeteo_windfarms_onshore') and ("onshore" in locations):
+    if (task == 'update_openmeteo_windfarms_onshore' or task == "all") and ("onshore" in locations):
         for tso_dict in regions:
             update_openmeteo_from_api(
                 datadir=db_path + f"openmeteo/onshore/{tso_dict['TSO']}/",
@@ -105,7 +105,7 @@ def main_country(country_code:str, task:str, freq:str, verbose:bool = True):
                 freq=freq, verbose = verbose
             )
 
-    elif (task == 'update_openmeteo_solarfarms') and ("solar" in locations):
+    if (task == 'update_openmeteo_solarfarms' or task == "all") and ("solar" in locations):
         for tso_dict in regions:
             update_openmeteo_from_api(
                 datadir=db_path + f"openmeteo/solar/{tso_dict['TSO']}/",
@@ -115,7 +115,7 @@ def main_country(country_code:str, task:str, freq:str, verbose:bool = True):
                 freq=freq, verbose = verbose
             )
 
-    elif (task == 'update_openmeteo_cities') and ("cities" in locations):
+    if (task == 'update_openmeteo_cities' or task == "all") and ("cities" in locations):
         for tso_dict in regions:
             update_openmeteo_from_api(
                 datadir=db_path + f"openmeteo/cities/{tso_dict['TSO']}/",
@@ -125,10 +125,6 @@ def main_country(country_code:str, task:str, freq:str, verbose:bool = True):
                 locations = [loc for loc in c_dict['locations']['cities'] if loc['TSO'] == tso_dict['TSO']],
                 freq=freq, verbose = verbose
             )
-
-    else:
-        logger.warning(f"Task {task} is not supported for country {country_code} and freq {freq}. "
-                       f"Supported tasks are: {tasks}. Locations: {list(c_dict['locations'].keys())}")
 
     # End the timer
     end_time = time.time()

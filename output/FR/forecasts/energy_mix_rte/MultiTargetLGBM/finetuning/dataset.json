@@ -18,6 +18,7 @@
         "biomass_rte",
         "gas_rte",
         "hard_coal_rte",
+        "nuclear_rte",
         "oil_rte",
         "renewables_rte",
         "waste_rte"

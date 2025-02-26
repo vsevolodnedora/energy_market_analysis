@@ -137,11 +137,11 @@ if __name__ == '__main__':
     print("launching create_database.py")
 
     if len(sys.argv) != 4:
-        # raise KeyError("Usage: python update_database.py <country code> <task> <freq>")
+        raise KeyError("Usage: python update_database.py <country code> <task> <freq>")
 
-        country_code = 'FR'
-        task_argument = 'create_openmeteo_windfarms_offshore'
-        freq = 'hourly'
+        # country_code = 'FR'
+        # task_argument = 'create_openmeteo_windfarms_offshore'
+        # freq = 'hourly'
     else:
         country_code = sys.argv[1]
         task_argument = str(sys.argv[2])

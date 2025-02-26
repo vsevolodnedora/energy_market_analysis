@@ -443,6 +443,7 @@ def compute_carbon_intensity_simple(dfs: dict[str, pd.DataFrame], type:str, suff
 
     # Updated Carbon Intensity Values (gCO₂/kWh) for German Energy Mix
     carbon_intensity = {
+        'nuclear': 0,
         'wind_onshore': 0,         # No direct emissions
         'wind_offshore': 0,        # No direct emissions
         'solar': 0,                # No direct emissions
@@ -1128,20 +1129,23 @@ class PublishGenerationLoad:
 
         ''' error section '''
         output_mrkdown_text = \
-            f""" 
-### Energy Generation Forecast: Error Analysis
-
-The total energy generation week-ahead forecast has a RMSE of **{int(total_error['generation'])}**, compared to **{int(reference_error['generation'])}** for the SMARD reference forecast.  
-
+        f""" 
+The total energy generation week-ahead forecast has a RMSE of **{int(total_error['generation'])}**, compared to **{int(reference_error['generation'])}** for the TSO day-ahead reference forecast.  
+        """
+        if len(list(dts_tso_.keys())) > 0:
+            output_mrkdown_text+= \
+        f"""
 The largest contributor to the forecast error is **{metadatas_tso_.loc[metadatas_tso_['RMSE'].idxmax(), 'TSO/Region']}**, with an RMSE of **{int(metadatas_tso_.loc[metadatas_tso_['RMSE'].idxmax(), 'RMSE'])}**.  
 
 On average, our forecast RMSE is **{(metadatas_tso_['RMSE'] / metadatas_tso_['TSO RMSE']).mean():.1f}** times the TSO forecast RMSE,   
 and our forecast achieves lower error in the following regions:  **{", ".join(metadatas_tso_.loc[metadatas_tso_['RMSE'] < metadatas_tso_['TSO RMSE'], 'TSO/Region'].tolist())}**.  
-
+        """
+        output_mrkdown_text += \
+        """
 For a detailed breakdown of forecast error metrics, see the **'Individual Forecasts'** section.
 
 📊 *Detailed analytics coming soon!*
-"""
+        """
         summary_fpath = f"{self.output_dir_for_figs}/{'energy_mix'}_notes_en.md"
         with open(summary_fpath, "w") as file:
             file.write(output_mrkdown_text)
@@ -1203,14 +1207,14 @@ For a detailed breakdown of forecast error metrics, see the **'Individual Foreca
         )
 
         # compute smard total error
-        if self.df_smard:
+        if not self.df_smard is None:
             ave_smard_metric = dts_total[target].get_ave_metric(
                 self.df_smard, target, target, f"{target}_forecast", self.metric, self.n_folds
             )
         else:
             if len(regions) != 1:
                 raise ValueError("Expect one TSO for using ENTSOE average error as an overall error metric")
-            ave_smard_metric = metadatas_tso[region_dict['TSO']]['RMSE']
+            ave_smard_metric = metadatas_tso[region_dict['TSO']]['TSO RMSE']
 
         logger.info(f"For {target} average over {self.n_folds} "
                     f"total RMSE is {ave_total_metric:.0f} | SMARD RMSE is {ave_smard_metric:.0f}")
@@ -1349,9 +1353,9 @@ if __name__ == '__main__':
     print("launching publish_data.py")
 
     if len(sys.argv) != 3:
-        # raise KeyError("Usage: python update_database.py <country_code> <task> <freq>")
-        country_code = str( 'FR' )
-        target = str( 'all' )
+        raise KeyError("Usage: python update_database.py <country_code> <target>")
+        # country_code = str( 'FR' )
+        # target = str( 'all' )
         # freq = str( 'hourly' )
     else:
         country_code = str( sys.argv[1] )

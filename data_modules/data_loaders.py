@@ -185,16 +185,6 @@ def extract_from_database(main_pars:dict,c_dict:dict, db_path:str, outdir:str, f
     df_om_cities, df_om_cities_f = load_combine_continous_weather(regions,db_path, freq, suffix='cities')
 
 
-
-    # df_om_offshore = pd.read_parquet(db_path + 'openmeteo/' + 'offshore_history_hourly.parquet')
-    # df_om_offshore_f = pd.read_parquet(db_path + 'openmeteo/' + 'offshore_forecast_hourly.parquet')
-    # df_om_onshore = pd.read_parquet(db_path + 'openmeteo/' + 'onshore_history_hourly.parquet')
-    # df_om_onshore_f = pd.read_parquet(db_path + 'openmeteo/' + 'onshore_forecast_hourly.parquet')
-    # df_om_solar = pd.read_parquet(db_path + 'openmeteo/' + 'solar_history_hourly.parquet')
-    # df_om_solar_f = pd.read_parquet(db_path + 'openmeteo/' + 'solar_forecast_hourly.parquet')
-    # df_om_cities = pd.read_parquet(db_path + 'openmeteo/' + 'cities_history_hourly.parquet')
-    # df_om_cities_f = pd.read_parquet(db_path + 'openmeteo/' + 'cities_forecast_hourly.parquet')
-    # df_es = pd.read_parquet(db_path + 'epexspot/' + 'history_hourly.parquet')
     df_entsoe = pd.read_parquet(db_path + 'entsoe/' + 'history_hourly.parquet')
     df_entsoe = df_entsoe.apply(pd.to_numeric, errors='coerce')
 

@@ -359,7 +359,7 @@ def fetch_entsoe_data_from_api(country_dict:dict, working_dir:str, start_date:pd
                 try:
                     df_export = pd.DataFrame(client.query_crossborder_flows(
                         country, bidding_zone, start=start_date, end=today),
-                        columns=[country_code_name_mapping[country]+'_exchange_export']
+                        columns=[country_code_name_mapping[country]+'_flow_export']
                     )
 
                 except Exception as e:
@@ -386,7 +386,7 @@ def fetch_entsoe_data_from_api(country_dict:dict, working_dir:str, start_date:pd
                 try:
                     df_import = pd.DataFrame(client.query_crossborder_flows(
                         bidding_zone, country, start=start_date, end=today),
-                        columns=[country_code_name_mapping[country]+'_exchange_import']
+                        columns=[country_code_name_mapping[country]+'_flow_import']
                     )
 
                 except Exception as e:

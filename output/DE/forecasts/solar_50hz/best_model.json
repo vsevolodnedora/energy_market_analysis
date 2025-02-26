@@ -2,6 +2,6 @@
     "solar_50hz": {
         "method": "trained",
         "model_label": "LightGBM",
-        "avg_rmse": 640.7503202581024
+        "avg_rmse": 556.611800737303
     }
 }

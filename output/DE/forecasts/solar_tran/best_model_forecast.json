@@ -1,12 +1,7 @@
 {
     "solar_tran": {
         "method": "trained",
-<<<<<<< HEAD:output/DE/forecasts/solar_tran/best_model_forecast.json
-        "model_label": "LightGBM",
-        "avg_rmse": 399.65136583127634
-=======
         "model_label": "ensemble[LightGBM](LightGBM,ElasticNet)",
-        "avg_rmse": 150.50265082851035
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/wind_onshore_tran/best_model.json
+        "avg_rmse": 262.95711922507854
     }
 }

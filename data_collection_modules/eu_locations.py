@@ -1722,7 +1722,7 @@ countries_metadata = [
             {'name':'DE_TENNET', 'suffix':'_tenn', 'TSO':'TenneT',
                 "available_targets":["wind_offshore","wind_onshore","solar","load","energy_mix"]},
             {'name':'DE_TRANSNET', 'suffix':'_tran', 'TSO':'TransnetBW',
-                "available_targets":["wind_offshore","wind_onshore","solar","load","energy_mix"]},
+                "available_targets":["wind_onshore","solar","load","energy_mix"]},
         ],
         # "entsoe_neighbors":["AT","BE","CH","CZ","DK_1","DK_2","FR","NO_2","NL","PL","SE_4"],
         "locations":{
@@ -1738,7 +1738,7 @@ countries_metadata = [
         'code':'FR',
         'bidding_zone':'FR',
         'regions':[
-            {'name':'RTE', 'suffix':'_rte', 'TSO':'RTE',
+            {'name':'FR', 'suffix':'_rte', 'TSO':'RTE',
              "available_targets":["wind_offshore","wind_onshore","solar","load","energy_mix"]},
         ],
         'locations': {

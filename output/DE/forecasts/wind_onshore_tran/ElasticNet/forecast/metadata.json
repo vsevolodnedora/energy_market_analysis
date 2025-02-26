@@ -1,6 +1,6 @@
 {
-    "start_date": "2023-03-26T00:00:00+00:00",
-    "end_date": "2025-02-22T23:00:00+00:00",
+    "start_date": "2023-03-29T00:00:00+00:00",
+    "end_date": "2025-02-25T23:00:00+00:00",
     "horizon": 168,
     "features": [
         "temperature_2m_won_hohenlochen",
@@ -75,129 +75,79 @@
         "day_cos"
     ],
     "error_metrics": {
-        "2025-01-19T00:00:00+00:00": {
+        "2025-01-22T00:00:00+00:00": {
             "wind_onshore_tran": {
-                "mse": 22057.80668693977,
-                "rmse": 148.5187082051947,
-                "mae": 121.3011003759251,
-                "mape": 154.33193135975262,
-                "smape": 125.13502555374762,
-<<<<<<< HEAD:output/DE/forecasts/wind_onshore_tran/ElasticNet/forecast/metadata.json
-                "bias": -66.47161359969007,
-                "variance": 17639.331272393272,
-                "std": 132.81314420038882,
-=======
-                "bias": -66.47161359969009,
-                "variance": 17639.331272393265,
-                "std": 132.8131442003888,
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/wind_onshore_tran/ElasticNet/forecast/metadata.json
-                "r2": 0.8625037853965465,
-                "prediction_interval_coverage": 0.9285714285714286,
-                "prediction_interval_width": 534.0055482727743
+                "mse": 26114.108995847117,
+                "rmse": 161.59860456033374,
+                "mae": 136.4704418413267,
+                "mape": 22.56424284637304,
+                "smape": 48.13869926883238,
+                "bias": -65.98882067062556,
+                "variance": 21759.584542347136,
+                "std": 147.51130310029512,
+                "r2": 0.7823115732284824,
+                "prediction_interval_coverage": 0.9047619047619048,
+                "prediction_interval_width": 535.8327950874104
             }
         },
-        "2025-01-26T00:00:00+00:00": {
+        "2025-01-29T00:00:00+00:00": {
             "wind_onshore_tran": {
-<<<<<<< HEAD:output/DE/forecasts/wind_onshore_tran/ElasticNet/forecast/metadata.json
-                "mse": 24782.23743214129,
-                "rmse": 157.42375116907007,
-                "mae": 118.85120195567316,
-                "mape": 40.12578512027205,
-                "smape": 55.78321219157003,
-                "bias": -35.99495647467016,
-                "variance": 23486.600540527892,
-                "std": 153.25338671797076,
-                "r2": 0.870785225735942,
-=======
-                "mse": 24782.237432141283,
-                "rmse": 157.42375116907004,
-                "mae": 118.85120195567313,
-                "mape": 40.125785120272035,
-                "smape": 55.78321219157003,
-                "bias": -35.99495647467019,
-                "variance": 23486.600540527885,
-                "std": 153.25338671797073,
-                "r2": 0.8707852257359421,
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/wind_onshore_tran/ElasticNet/forecast/metadata.json
-                "prediction_interval_coverage": 0.9107142857142857,
-                "prediction_interval_width": 532.394329381683
-            }
-        },
-        "2025-02-02T00:00:00+00:00": {
-            "wind_onshore_tran": {
-<<<<<<< HEAD:output/DE/forecasts/wind_onshore_tran/ElasticNet/forecast/metadata.json
-                "mse": 16355.805935364577,
-                "rmse": 127.8898195141606,
-                "mae": 99.39968455095814,
-                "mape": 248.43242784703054,
-                "smape": 165.00290860952427,
-                "bias": 32.54730056379602,
-                "variance": 15296.4791613745,
-                "std": 123.67893580304813,
-=======
-                "mse": 16355.805935364575,
-                "rmse": 127.8898195141606,
-                "mae": 99.39968455095814,
-                "mape": 248.4324278470306,
-                "smape": 165.00290860952416,
-                "bias": 32.54730056379603,
-                "variance": 15296.479161374498,
-                "std": 123.67893580304812,
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/wind_onshore_tran/ElasticNet/forecast/metadata.json
-                "r2": 0.7227738702306046,
-                "prediction_interval_coverage": 0.9821428571428571,
-                "prediction_interval_width": 532.8907518042496
-            }
-        },
-        "2025-02-09T00:00:00+00:00": {
-            "wind_onshore_tran": {
-<<<<<<< HEAD:output/DE/forecasts/wind_onshore_tran/ElasticNet/forecast/metadata.json
-                "mse": 17440.852639652596,
-                "rmse": 132.0638203280997,
-                "mae": 108.57957954035064,
-                "mape": 74.17149205232701,
-                "smape": 122.8047632925665,
-                "bias": 8.474110155866732,
-                "variance": 17369.042096718833,
-                "std": 131.79166171165318,
-                "r2": 0.5265558064616648,
-=======
-                "mse": 17440.85263965259,
-                "rmse": 132.06382032809967,
-                "mae": 108.57957954035064,
-                "mape": 74.17149205232701,
-                "smape": 122.80476329256653,
-                "bias": 8.474110155866725,
-                "variance": 17369.04209671883,
-                "std": 131.79166171165318,
-                "r2": 0.526555806461665,
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/wind_onshore_tran/ElasticNet/forecast/metadata.json
+                "mse": 17078.11490368302,
+                "rmse": 130.683261757897,
+                "mae": 91.92964637262959,
+                "mape": 224.25821679755109,
+                "smape": 145.06746086165256,
+                "bias": -8.60880996072116,
+                "variance": 17004.00329474321,
+                "std": 130.39939913490096,
+                "r2": 0.8794598687507934,
                 "prediction_interval_coverage": 0.9583333333333334,
-                "prediction_interval_width": 532.5223109112663
+                "prediction_interval_width": 536.0271398883184
             }
         },
-        "2025-02-16T00:00:00+00:00": {
+        "2025-02-05T00:00:00+00:00": {
             "wind_onshore_tran": {
-                "mse": 21889.979152176846,
-                "rmse": 147.9526246883672,
-<<<<<<< HEAD:output/DE/forecasts/wind_onshore_tran/ElasticNet/forecast/metadata.json
-                "mae": 110.20227044556428,
-                "mape": 48.202714157465046,
-                "smape": 93.66719612715742,
-                "bias": -21.08975293346492,
-                "variance": 21445.201473382258,
-                "std": 146.44180234271312,
-=======
-                "mae": 110.20227044556425,
-                "mape": 48.202714157465046,
-                "smape": 93.66719612715742,
-                "bias": -21.08975293346492,
-                "variance": 21445.20147338225,
-                "std": 146.4418023427131,
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/wind_onshore_tran/ElasticNet/forecast/metadata.json
-                "r2": 0.7469059685410353,
-                "prediction_interval_coverage": 0.875,
-                "prediction_interval_width": 533.5740379404947
+                "mse": 18507.705885573145,
+                "rmse": 136.04302953688273,
+                "mae": 107.84674860205801,
+                "mape": 89.26869048399058,
+                "smape": 112.42108920117977,
+                "bias": 22.207062293813348,
+                "variance": 18014.552269851836,
+                "std": 134.21830080079184,
+                "r2": 0.7284236704405848,
+                "prediction_interval_coverage": 0.9702380952380952,
+                "prediction_interval_width": 535.9699666021494
+            }
+        },
+        "2025-02-12T00:00:00+00:00": {
+            "wind_onshore_tran": {
+                "mse": 19395.5439086873,
+                "rmse": 139.26788541759117,
+                "mae": 110.80789727213144,
+                "mape": 54.33679470920796,
+                "smape": 91.19264353977312,
+                "bias": 10.473052182705315,
+                "variance": 19285.859086665634,
+                "std": 138.87353630791446,
+                "r2": 0.6277118000120474,
+                "prediction_interval_coverage": 0.9345238095238095,
+                "prediction_interval_width": 535.6976540582685
+            }
+        },
+        "2025-02-19T00:00:00+00:00": {
+            "wind_onshore_tran": {
+                "mse": 18791.28427451852,
+                "rmse": 137.08130534291874,
+                "mae": 99.81524428448085,
+                "mape": 55.01115331262102,
+                "smape": 106.75385289860604,
+                "bias": -12.789427530621273,
+                "variance": 18627.71481795751,
+                "std": 136.4833866005585,
+                "r2": 0.7272730159542908,
+                "prediction_interval_coverage": 0.9107142857142857,
+                "prediction_interval_width": 536.235359743945
             }
         }
     }

@@ -18,12 +18,13 @@
         "biomass_rte",
         "gas_rte",
         "hard_coal_rte",
+        "nuclear_rte",
         "oil_rte",
         "renewables_rte",
         "waste_rte"
     ],
     "label": "energy_mix_rte",
     "verbose": true,
-    "l1_ratio": 0.6311504650519009,
-    "alpha": 0.012187569215936188
+    "l1_ratio": 0.4832661423263461,
+    "alpha": 0.010433712243308397
 }

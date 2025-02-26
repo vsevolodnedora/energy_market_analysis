@@ -1,12 +1,7 @@
 {
     "solar_tenn": {
         "method": "trained",
-<<<<<<< HEAD:output/DE/forecasts/solar_tenn/best_model.json
-        "model_label": "ensemble[XGBoost](XGBoost,ElasticNet)",
-        "avg_rmse": 1044.2115098404556
-=======
         "model_label": "LightGBM",
-        "avg_rmse": 458.41443818792425
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/solar_tran/best_model.json
+        "avg_rmse": 865.2724016740822
     }
 }

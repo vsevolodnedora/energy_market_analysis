@@ -61,26 +61,26 @@ async function toggleLanguage() {
 
     updateContent(); // Updates text translations
 
-    if (chartState["chartInstance1"]) {
-        updateChart1(); // Force chart update to reformat labels/axes
-    }
-    if (chartState["chartInstance2"]) {
-        updateChart2();
-    }
-    if (chartState["chartInstance3"]) {
-        updateChart3();
-    }
-    // Reload the description in the new language if already loaded
-    if (chartState["chart1DescLoaded"]) {
-        const language = i18next.language; // Get the new current language
-        const fileName = `wind_offshore_notes_${language}.md`  ;
-        await loadMarkdown(`data/forecasts/${fileName}`, 'chart1-description-container');
-    }
+    // if (chartState["chartInstance1"]) {
+    //     updateChart1(); // Force chart update to reformat labels/axes
+    // }
+    // if (chartState["chartInstance2"]) {
+    //     updateChart2();
+    // }
+    // if (chartState["chartInstance3"]) {
+    //     updateChart3();
+    // }
+    // // Reload the description in the new language if already loaded
+    // if (chartState["chart1DescLoaded"]) {
+    //     const language = i18next.language; // Get the new current language
+    //     const fileName = `wind_offshore_notes_${language}.md`  ;
+    //     await loadMarkdown(`data/forecasts/${fileName}`, 'chart1-description-container');
+    // }
 
 
     // Reload HTML files with different languages (1/3)
     const mainInfoFileName = (newLang === 'en') ? 'main_info_en.html' : 'main_info_de.html';
-    await loadHTML(`${mainInfoFileName}`, './assets/html/main_info-content');
+    await loadHTML(`./assets/html/${mainInfoFileName}`, 'main_info-content');
 
     // Reload HTML files with different languages (1/3)
     const apiInfoFileName = (newLang === 'en') ? 'api_info_en.html' : 'api_info_de.html';
@@ -418,162 +418,191 @@ async function addSeries({
 
 // 4) The generic “updateChart” Pass a config object so you can re-use for onshore, solar, etc. */
 async function updateChartGeneric(config) {
-  const {
-    chartInstance,
-    yAxisLabel,
-    regionConfigs,
-    pastDataSliderId,
-    showIntervalId,
-    errorElementId,
-    isDarkMode
-  } = config;
+    const {
+        chartInstance,
+        yAxisLabel,
+        regionConfigs,
+        pastDataSliderId,
+        showIntervalId,
+        errorElementId,
+        isDarkMode
+    } = config;
 
-  // If the chart is not yet created, do nothing
-  if (!chartInstance) return;
+    // If the chart is not yet created, do nothing
+    if (!chartInstance) return;
 
-  // Clear old errors
-  document.getElementById(errorElementId).textContent = '';
+    // Clear old errors
+    document.getElementById(errorElementId).textContent = '';
 
-  // Prepare arrays for data
-  const seriesData = [];
-  const annotations = [];
+    // Prepare arrays for data
+    const seriesData = [];
+    const annotations = [];
 
-  // Get user preferences from the DOM
-  const pastDataRatio = document.getElementById(pastDataSliderId).value / 100;
-  const showInterval = document.getElementById(showIntervalId).checked;
+    // Get user preferences from the DOM
+    const pastDataRatio = document.getElementById(pastDataSliderId).value / 100;
+    const showInterval = document.getElementById(showIntervalId).checked;
 
-  // Fetch and build series data for each selected region
-  for (const region of regionConfigs) {
-    const checkbox = document.getElementById(region.checkboxId);
-    if (checkbox && checkbox.checked) {
-      // Fetch series for the region
-      await addSeries({
-        varpath: region.varpath,
-        alias: region.alias,
-        color: region.color,
-        pastDataRatio: pastDataRatio,
-        seriesData: seriesData,
-        annotations: annotations,
-        errorElementId:errorElementId
-      });
-    }
-  }
-
-  // attempt to split to remove artifacts from turning CI off
-  for (const region of regionConfigs) {
-    const checkbox = document.getElementById(region.checkboxId);
-    if (checkbox && checkbox.checked) {
-      // Fetch confidence intervals for the region if showInterval is enabled
-      if (showInterval) {
-        await addCI({
-          varpath: region.varpath,
-          alias: region.alias,
-          color: region.color,
-          showInterval: showInterval,
-          pastDataRatio: pastDataRatio,
-          seriesData: seriesData,
-          errorElementId: errorElementId
-        });
-      }
-    }
-  }
-
-  // Ensure no leftover CI data remains in seriesData
-  const filteredSeriesData = seriesData.filter(series => {
-    // Remove past CI series when `showInterval` is false
-    if (!showInterval && series.name.includes(i18next.t('prev-forecast-interval-label'))) {
-      return false;
-    }
-    return true;
-  });
-
-  // Add a “Now” line annotation
-  const now = new Date();
-  annotations.push({
-    x: now.getTime(),
-    borderColor: '#FF0000',
-    label: {
-      text: i18next.t('now-label'),
-      style: { color: '#FFF', background: '#FF0000' }
-    }
-  });
-
-  // Update the chart with filtered data and annotations
-  chartInstance.updateOptions({
-    series: filteredSeriesData,
-    annotations: {
-      xaxis: annotations,
-      yaxis: [],
-      points: [],
-      texts: [
-        {
-          x: '3%',
-          y: '3%',
-          text: yAxisLabel,
-          borderColor: 'transparent',
-          style: {
-            fontSize: '14px',
-            color: isDarkMode ? '#e0e0e0' : '#000',
-            fontWeight: 'bold',
-          },
-        },
-      ],
-    },
-    stroke: {
-      width: 1, // Set line width
-      dashArray: Array(regionConfigs.length).fill([3, 0, 3]).flat(), // Dynamically set dashArray
-    },
-
-    tooltip: {
-        theme: isDarkMode ? 'dark' : 'light' ,
-        format: 'dd MMM HH:mm', // e.g., "05 Feb 14:00"
-    },
-    xaxis: {
-      labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } },
-      title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } },
-    },
-    yaxis: {
-      labels: {
-        style: {
-          colors: isDarkMode ? '#e0e0e0' : '#000',
-          fontSize: '14px',
-        },
-        formatter: function (value) {
-          return Math.round(value);
-        },
-      },
-      tickAmount: 5,
-      min: 0,
-      forceNiceScale: true,
-    },
-    // legend: {
-    //   labels: { show:false, colors: isDarkMode ? '#e0e0e0' : '#000' },
-    // },
-    chart: {
-      zoom: {
-        enabled: true,
-        type: 'xy',
-      },
-
-    },
-
-    legend: {
-      show: true,
-      position: 'top', // Position of the legend
-      horizontalAlign: 'center', // Align legend in the center
-      offsetY: 20, // Adjust vertical position (positive values move it lower)
-      formatter: function (seriesName, opts) {
-        // Limit to 3 items
-        const index = opts.seriesIndex;
-        if (index < 3) {
-          return seriesName; // Show the series name for the first 3 items
+    // Fetch and build series data for each selected region
+    for (const region of regionConfigs) {
+        const checkbox = document.getElementById(region.checkboxId);
+        if (checkbox && checkbox.checked) {
+            // Fetch series for the region
+            await addSeries({
+                varpath: region.varpath,
+                alias: region.alias,
+                color: region.color,
+                pastDataRatio: pastDataRatio,
+                seriesData: seriesData,
+                annotations: annotations,
+                errorElementId:errorElementId
+            });
         }
-        return ''; // Hide the legend item for the rest
-      },
-    },
+    }
 
-  });
+    // Attempt to split to remove artifacts from turning CI off
+    for (const region of regionConfigs) {
+        const checkbox = document.getElementById(region.checkboxId);
+        if (checkbox && checkbox.checked) {
+            // Fetch confidence intervals for the region if showInterval is enabled
+            if (showInterval) {
+                await addCI({
+                    varpath: region.varpath,
+                    alias: region.alias,
+                    color: region.color,
+                    showInterval: showInterval,
+                    pastDataRatio: pastDataRatio,
+                    seriesData: seriesData,
+                    errorElementId: errorElementId
+                });
+            }
+        }
+    }
 
+    // Ensure no leftover CI data remains in seriesData
+    const filteredSeriesData = seriesData.filter(series => {
+        // Remove past CI series when `showInterval` is false
+        if (!showInterval && series.name.includes(i18next.t('prev-forecast-interval-label'))) {
+            return false;
+        }
+        return true;
+    });
+
+    // Add a “Now” line annotation
+    const now = new Date();
+    annotations.push({
+        x: now.getTime(),
+        borderColor: '#FF0000',
+        label: {
+            text: i18next.t('now-label'),
+            style: { color: '#FFF', background: '#FF0000' }
+        }
+    });
+
+    // --- NEW: Calculate min/max from your data so y-axis fits only to displayed values ---
+    let minVal = Number.POSITIVE_INFINITY;
+    let maxVal = Number.NEGATIVE_INFINITY;
+
+    filteredSeriesData.forEach(series => {
+        (series.data || []).forEach(point => {
+            // point could be [x, y] array or an object { x, y }
+            let yValue;
+            if (Array.isArray(point) && point.length > 1) {
+                yValue = point[1];
+            } else if (point && typeof point === 'object' && 'y' in point) {
+                yValue = point.y;
+            }
+
+            if (typeof yValue === 'number') {
+                if (yValue < minVal) minVal = yValue;
+                if (yValue > maxVal) maxVal = yValue;
+            }
+        });
+    });
+
+    // If we have no valid data, default to [0,1] or any range you prefer
+    if (!isFinite(minVal) || !isFinite(maxVal)) {
+        minVal = 0;
+        maxVal = 1;
+    }
+
+    // Optional: Add some padding so data doesn’t sit exactly on the chart edge
+    const padding = (maxVal - minVal) * 0.05;
+    minVal -= padding;
+    maxVal += padding;
+
+    // Update the chart with filtered data, annotations, and dynamic y-axis
+    chartInstance.updateOptions({
+        series: filteredSeriesData,
+        annotations: {
+            xaxis: annotations,
+            yaxis: [],
+            points: [],
+            texts: [
+                {
+                    x: '3%',
+                    y: '6%',
+                    text: yAxisLabel,
+                    borderColor: 'transparent',
+                    style: {
+                        fontSize: '15px',
+                        color: isDarkMode ? '#e0e0e0' : '#000',
+                        fontWeight: 'bold',
+                    },
+                },
+            ],
+        },
+        stroke: {
+            width: 1, // Set line width
+            dashArray: Array(regionConfigs.length).fill([3, 0, 3]).flat(), // Dynamically set dashArray
+        },
+
+        tooltip: {
+            shared: true, // Ensure the tooltip is shared across all series
+            intersect: false, // Trigger tooltip for all points at the X-coordinate
+            theme: isDarkMode ? 'dark' : 'light',
+            format: 'dd MMM HH:mm', // e.g., "05 Feb 14:00"
+        },
+        xaxis: {
+            labels: { style: { colors: isDarkMode ? '#e0e0e0' : '#000' } },
+            title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } },
+        },
+        yaxis: {
+            labels: {
+                style: {
+                    colors: isDarkMode ? '#e0e0e0' : '#000',
+                    fontSize: '14px',
+                },
+                formatter: function (value) {
+                    return Math.round(value);
+                },
+            },
+            // Set the y-axis to our computed min and max
+            min: minVal,
+            max: maxVal,
+            tickAmount: 5,
+            forceNiceScale: true,
+        },
+        chart: {
+            zoom: {
+                enabled: true,
+                type: 'xy',
+            },
+        },
+        legend: {
+            show: true,
+            position: 'top', // Position of the legend
+            horizontalAlign: 'center', // Align legend in the center
+            offsetY: 20, // Adjust vertical position (positive values move it lower)
+            formatter: function (seriesName, opts) {
+                // Limit to 3 items
+                const index = opts.seriesIndex;
+                if (index < 3) {
+                    return seriesName; // Show the series name for the first 3 items
+                }
+                return ''; // Hide the legend item for the rest
+            },
+        },
+    });
 }
 
 // 5) Setup for the first chart */
@@ -581,7 +610,7 @@ function getBaseChartOptions() {
   return {
       chart: {
           type: 'line',
-          height: 350,
+          height: 270,
 
           toolbar: { show: true }
       },
@@ -641,6 +670,13 @@ function getBaseChartOptions() {
                   return value !== null ? value.toFixed(2) : 'N/A'; // Customize formatting
               }
           }
+      },
+      grid: {
+          show: true,
+          borderColor: isDarkMode ? '#555' : '#E0E0E0', // Darker grid lines in dark mode
+          strokeDashArray: 3, // Dashed lines for a thin appearance
+          xaxis: { lines: { show: false } }, // Enable vertical grid lines
+          yaxis: { lines: { show: true } } // Enable horizontal grid lines
       },
       legend: {
           labels: {
@@ -1092,7 +1128,7 @@ const forecastChartDataFR = [
         title: "Load Forecast",
         dataKey: "load-forecast",
         descriptionFile: "load_notes",
-        buttons: ["50hz", "tenn", "tran", "ampr"],
+        buttons: [],
 
         // Chart-specific metadata (dynamically generated from id)
         get descriptionToggleId()    { return `description${this.id}-toggle-checkbox`; },
@@ -1160,10 +1196,6 @@ const forecastChartDataFR = [
         }
     },
 ];
-
-// The rest of your code (generateForecastSection, etc.) remains unchanged
-// -----------------------------------------------------
-// The snippet below remains the same in your file:
 
 function generateForecastSection({ id, title, dataKey, descriptionFile, buttons = [] }) {
     // ...
@@ -1239,12 +1271,12 @@ const allForecastSectionsFR = forecastChartDataFR
 document.getElementById("individual-forecasts").innerHTML = `
   <!-- Germany (DE) -->
   <details class="country-section" open>
-    <summary>DE</summary>
+    <summary>Germany (Generation & Load)</summary>
     ${allForecastSectionsDE}
   </details>
   <!-- Frace (FR) -->
   <details class="country-section" open>
-    <summary>FR</summary>
+    <summary>France (Generation & Load)</summary>
     ${allForecastSectionsFR}
   </details>
 `;
@@ -1746,118 +1778,20 @@ forecastChartDataFR.forEach(cfg => setupChartEvents(cfg));
 
 /// ================================= “Energy Mix” chart definitions & HTML ================================== */
 
-
-var stackedChartState = {};
-
-// 2) “Energy Mix” chart definitions & HTML */
-const energyMixData = [
-  {
-    id: 100,
-    title: "Energy Mix",
-    dataKey: "energy_mix",
-    descriptionFile: "energy_mix", // JSON/MD file name for your notes
-    buttons: ["50hz", "tenn", "tran", "ampr"] // TSO area checkboxes to show
-  },
-];
-
-// make sure that buttons 'undo' previous button
-function toggleExclusiveSelection(checkbox) {
-  // Get all checkboxes with name "tso-area" in the same section
-  const checkboxes = checkbox.closest('.control-area').querySelectorAll('input[name="tso-area"]');
-  checkboxes.forEach(cb => {
-    if (cb !== checkbox) {
-      cb.checked = false;
-    }
-  });
-}
-
-// This function builds the <details> ... block for each item in energyMixData:
-function generateEnergyMixSection({ id, title, dataKey, descriptionFile, buttons = [] }) {
-  const tsoButtonsHtml = buttons.map(btnKey => {
-    const btn = TSO_BUTTONS[btnKey];  // Ensure TSO_BUTTONS is globally defined
-    return `
-      <input
-        type="checkbox"
-        name="tso-area"
-        id="${btnKey}-checkbox-${id}"
-        onchange="toggleExclusiveSelection(this); updateStackedChart${id}()" />
-      <label for="${btnKey}-checkbox-${id}" class="btn-purple">${btn.label}</label>
-    `;
-  }).join("");
-
-  // Mandatory buttons that are always shown:
-  const mandatoryButtons = `
-    <!-- 'Total' button with exclusive selection -->
-    <input type="checkbox" name="tso-area" id="total-checkbox-${id}" checked
-      onchange="toggleExclusiveSelection(this); updateStackedChart${id}()" />
-    <label for="total-checkbox-${id}" class="btn-purple">Total</label>
-
-    <!-- 'Details' -->
-    <input type="checkbox" id="description${id}-toggle-checkbox" class="description-toggle-checkbox" />
-    <label for="description${id}-toggle-checkbox" class="description-button">Details</label>
-
-    <!-- 'RESET' button -->
-    <label for="reloadStackedChart${id}" class="btn-purple">RESET</label>
-    <input type="checkbox" id="reloadStackedChart${id}" style="display: none;" onchange="renderOrReloadChart${id}()" />
-  `;
-
-  return `
-    <details class="energy-mix" open>
-      <summary class="energy-mix-summary" data-i18n="${dataKey}">
-        ${title}
-      </summary>
-      <div class="chart-stack-container">
-        <div class="lineChart2-container" id="lineChart2${id}-totalLine"></div>
-        <div class="lineChart-container" id="lineChart${id}-totalLine"></div>
-        <div class="stackedChart-container" id="stackedChart${id}"></div>
-      </div>
-      <div id="error-message${id}" class="error-message"></div>
-      <div class="control-area">
-        <div class="controls">
-          <div class="slider-container">
-            <label for="past-data-slider-${id}" data-i18n="historic-data">Historic Data:</label>
-            <input
-              type="range"
-              id="past-data-slider-${id}"
-              min="1"
-              max="100"
-              step="1"
-              value="20"
-              onchange="updateStackedChart${id}()"
-            />
-          </div>
-          <div class="controls-buttons">
-            ${tsoButtonsHtml}
-            ${mandatoryButtons}
-          </div>
-        </div>
-      </div>
-      <div id="stackedChart${id}-description-container" class="dropdown-content">
-        <!-- content loaded asynchronously, e.g. via fetch for descriptionFile -->
-      </div>
-    </details>
-  `;
-}
-// Insert all figures into #energy-mix
-document.getElementById("energy-mix").innerHTML =
-  energyMixData.map(generateEnergyMixSection).join("");
-
-// 3) Define the chart config for the chart ID=100 */
-
-// Define fixed color mapping to ensure all contributions are visible
-const energyMixColorMapping = {
-   'wind_onshore': '#00008B',  // Dark Blue TODO make a bit lighter (natural blue)
-   'wind_offshore': '#ADD8E6', // Light Blue
-   'solar': '#FFD700',         // Gold
-   'gas': '#D3D3D3',           // Light Gray (make slightly darker -- normal gray)
-   'hard_coal': '#000000',     // Black
-   'lignite': '#8B4513',       // Darker Brown
-   'renewables': '#008000',    // Green
-   'biomass': '#90EE90',       // Light Green
-   'oil': '#A9A9A9',           // Dark Gray
-   'waste': '#D2B48C',         // Light Brown (Tan)
-   'other_fossil': '#A52A2A',  // Brown
-   'coal_derived_gas':'#6B4423'// brown-gray
+const nameMapping = {
+    'wind_onshore': 'Wind Onshore',
+    'wind_offshore': 'Wind Offshore',
+    'solar': 'Solar',
+    'gas': 'Fossil Gas',
+    'hard_coal': 'Hard Coal',
+    'lignite': 'Lignite',
+    'renewables': 'Renewables',
+    'biomass': 'Biomass',
+    'oil': 'Oil',
+    'waste': 'Waste',
+    'other_fossil': 'Other Fossil Fuels',
+    'coal_derived_gas':"Coal-derived Gas",
+    'nuclear':"Nuclear"
 };
 
 const stackedChartSegmentOrder = new Map([
@@ -1872,101 +1806,32 @@ const stackedChartSegmentOrder = new Map([
     ['coal_derived_gas', 8],
     ['gas', 9],
     ['oil', 10],
-    ['other_fossil', 11]
+    ['other_fossil', 11],
+    ['nuclear', 12],
 ]);
 
-
-const nameMapping = {
-    'wind_onshore': 'Wind Onshore',
-    'wind_offshore': 'Wind Offshore',
-    'solar': 'Solar',
-    'gas': 'Fossil Gas',
-    'hard_coal': 'Hard Coal',
-    'lignite': 'Lignite',
-    'renewables': 'Renewables',
-    'biomass': 'Biomass',
-    'oil': 'Oil',
-    'waste': 'Waste',
-    'other_fossil': 'Other Fossil Fuels',
-    'coal_derived_gas':"Coal-derived Gas"
+// Define fixed color mapping to ensure all contributions are visible
+const energyMixColorMapping = {
+    'wind_onshore': '#00008B',  // Dark Blue TODO make a bit lighter (natural blue)
+    'wind_offshore': '#ADD8E6', // Light Blue
+    'solar': '#FFD700',         // Gold
+    'gas': '#D3D3D3',           // Light Gray (make slightly darker -- normal gray)
+    'hard_coal': '#000000',     // Black
+    'lignite': '#8B4513',       // Darker Brown
+    'renewables': '#008000',    // Green
+    'biomass': '#90EE90',       // Light Green
+    'oil': '#A9A9A9',           // Dark Gray
+    'waste': '#D2B48C',         // Light Brown (Tan)
+    'other_fossil': '#A52A2A',  // Brown
+    'coal_derived_gas':'#6B4423',// brown-gray
+    'nuclear': '#FF0000',        // red
 };
 
+var stackedChartState = {};
 
-function getStackedChart100Config() {
-  return {
-    stackedChartInstance: stackedChartState["stackedChartInstance100"],
-    yAxisLabel: 'Power (MW)',
-    chartId: 100,
-    regionConfigs: [
-      {
-        checkboxId: 'ampr-checkbox-100',
-          varpath : './data/DE/forecasts/energy_mix_ampr',
-          genvarpath : './data/DE/forecasts/generation_ampr',
-          loadvarpath: './data/DE/forecasts/load_ampr',
-          carbonvarpath: './data/DE/forecasts/carbon_intensity_ampr',
-        alias: 'Amprion',
-        color: tsoColorMap['Amprion']  // Make sure tsoColorMap is defined globally
-      },
-      {
-        checkboxId: 'tran-checkbox-100',
-          varpath : './data/DE/forecasts/energy_mix_tran',
-          genvarpath : './data/DE/forecasts/generation_tran',
-          loadvarpath: './data/DE/forecasts/load_tran',
-          carbonvarpath: './data/DE/forecasts/carbon_intensity_tran',
-        alias: 'TransnetBW',
-        color: tsoColorMap['TransnetBW']
-      },
-      {
-        checkboxId: '50hz-checkbox-100',
-          varpath : './data/DE/forecasts/energy_mix_50hz',
-          genvarpath : './data/DE/forecasts/generation_50hz',
-          loadvarpath: './data/DE/forecasts/load_50hz',
-          carbonvarpath: './data/DE/forecasts/carbon_intensity_50hz',
-        alias: '50Hertz',
-        color: tsoColorMap['50Hertz']
-      },
-      {
-        checkboxId: 'tenn-checkbox-100',
-          varpath : './data/DE/forecasts/energy_mix_tenn',
-          genvarpath : './data/DE/forecasts/generation_ampr',
-          loadvarpath: './data/DE/forecasts/load_tenn',
-          carbonvarpath: './data/DE/forecasts/carbon_intensity_tenn',
-        alias: 'TenneT',
-        color: tsoColorMap['TenneT']
-      },
-      {
-        checkboxId: 'total-checkbox-100',
-          varpath : './data/DE/forecasts/energy_mix',
-          genvarpath : './data/DE/forecasts/generation',
-          loadvarpath: './data/DE/forecasts/load',
-          carbonvarpath: './data/DE/forecasts/carbon_intensity',
-        alias: 'Total',
-        color: tsoColorMap['Total']
-      }
-    ],
 
-    pastDataSliderId: 'past-data-slider-100',
-    showIntervalId: 'showci_checkbox-100',
-    errorElementId: 'error-message100',
-    isDarkMode      : isDarkMode // or define it yourself
-  };
-}
+//---------------- ================== ---------------------\\
 
-const StackedChartConfigs = [
-  {
-    stackedChartNum: 100,
-    descriptionToggleId: 'description100-toggle-checkbox',
-    descriptionContainerId: 'stackedChart100-description-container',
-    descLoadedKey: 'stackedChart100DescLoaded',
-    createdKey: 'stackedChart100Created',
-    instanceKey: 'stackedChartInstance100',
-    detailsSelector: 'details.energy-mix:nth-of-type(1)',
-    filePrefix: 'data/DE/forecasts/energy_mix_notes',
-    getConfigFunction: getStackedChart100Config
-  }
-];
-
-// 6) Fetch & merge data from the three JSON files */
 async function fetchForecastData(varpath, fileName) {
     /**
      * Fetches forecast data from a specified file and processes it into a structured time-series format.
@@ -2083,406 +1948,420 @@ async function processStackedChartData(config) {
     return { finalSeries: Object.values(finalSeries), forecastStartTime }; // Return structured time-series data and forecast reference point
 }
 
-// 7) Plot the data */
-
 function getBaseLineChartOptions() {
-  return {
-    chart: {
-      type: 'line',
-      height: 200,   // you can choose a smaller height since it's “on top”
-      toolbar: { show: false }, // Hides toolbar controls
-      zoom: { enabled: false } // Disables zooming feature
-    },
-    dataLabels: { enabled: false },
-    stroke: {
-      curve: 'smooth',
-      width: 2
-    },
-    xaxis: {
-      type: 'datetime',
-      labels: {
-        show: false,
-        style: { colors: isDarkMode ? '#e0e0e0' : '#000' }
-      }, // Hides x-axis labels
-      title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } }
-    },
-    yaxis: {
-      min: 0,
-      title: {
-        text: 'Power (MW)',
-        style: { color: isDarkMode ? '#e0e0e0' : '#000' },
-        fontSize: '16px'
-      },
-      labels: {
-        style: { colors: isDarkMode ? '#e0e0e0' : '#000' },
-        formatter: val => val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(0),
-        fontSize: '16px'
-      }
-    },
-    tooltip: {
-      theme: isDarkMode ? 'dark' : 'light',
-      x: { format: 'dd MMM HH:mm' }
-    },
-    grid: {
-      show: true,
-      borderColor: isDarkMode ? '#444' : '#E0E0E0', // Adjust grid color based on mode
-      strokeDashArray: 3, // Dashed lines for a thin appearance
-      xaxis: {
-        lines: { show: true } // Enable vertical grid lines
-      },
-      yaxis: {
-        lines: { show: true } // Enable horizontal grid lines
-      }
-    },
-    legend: {
-      labels: {
+    return {
+        chart: {
+            type: 'line',
+            height: 170,   // you can choose a smaller height since it's “on top”
+            toolbar: { show: false }, // Hides toolbar controls
+            zoom: { enabled: false } // Disables zooming feature
+        },
+        dataLabels: { enabled: false },
+        stroke: {
+            curve: 'smooth',
+            width: 2
+        },
+        xaxis: {
+            type: 'datetime',
+            labels: {
+                show: false,
+                style: { colors: isDarkMode ? '#e0e0e0' : '#000' }
+            }, // Hides x-axis labels
+            title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } }
+        },
+        yaxis: {
+            min: 0,
+            title: {
+                text: 'Power (MW)',
+                style: { color: isDarkMode ? '#e0e0e0' : '#000' },
+                fontSize: '16px'
+            },
+            labels: {
+                style: { colors: isDarkMode ? '#e0e0e0' : '#000' },
+                formatter: val => val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(0),
+                fontSize: '16px'
+            }
+        },
+        tooltip: {
+            shared: true, // Ensure the tooltip is shared across all series
+            intersect: false, // Trigger tooltip for all points at the X-coordinate
+            theme: isDarkMode ? 'dark' : 'light',
+            x: { format: 'dd MMM HH:mm' }
+        },
+        grid: {
+            show: true,
+            borderColor: isDarkMode ? '#444' : '#E0E0E0', // Adjust grid color based on mode
+            strokeDashArray: 3, // Dashed lines for a thin appearance
+            xaxis: {
+                lines: { show: true } // Enable vertical grid lines
+            },
+            yaxis: {
+                lines: { show: true } // Enable horizontal grid lines
+            }
+        },
+        legend: {
+            labels: {
 //        colors: isDarkMode ? '#e0e0e0' : '#000',
-        useSeriesColors: false
-      }
-    },
-    // We will manually set the series with update
-    series: []
-  };
+                useSeriesColors: false
+            }
+        },
+        // We will manually set the series with update
+        series: []
+    };
 }
 
 async function createTotalLineChart(selector, baseOptions) {
-  const chart = new ApexCharts(document.querySelector(selector), baseOptions);
-  await chart.render();
-  return chart;
+    const chart = new ApexCharts(document.querySelector(selector), baseOptions);
+    await chart.render();
+    return chart;
 }
 async function createTotalLineChart2(selector, baseOptions) {
-  const chart = new ApexCharts(document.querySelector(selector), baseOptions);
-  await chart.render();
-  return chart;
+    const chart = new ApexCharts(document.querySelector(selector), baseOptions);
+    await chart.render();
+    return chart;
 }
 
 async function updateTotalLineChart(
     config, generationActualSeries, generationSeries, loadActualSeries, loadSeries, forecastStartTime
 ) {
-  const lineChart = stackedChartState[`lineChartInstance${config.chartId}`];
-  if (!lineChart) return;
+    const lineChart = stackedChartState[`lineChartInstance${config.chartId}`];
+    if (!lineChart) return;
 
-  const isDarkMode = config.isDarkMode;
+    const isDarkMode = config.isDarkMode;
 
-  // Convert actual and fitted series to timestamp format
-  const formattedLoadActualSeries = loadActualSeries.map(series => ({
-    ...series,
-    name: i18next.t('load-mw'),
-    color: '#FF0000',
-    data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
-  }));
+    // Convert actual and fitted series to timestamp format
+    const formattedLoadActualSeries = loadActualSeries.map(series => ({
+        ...series,
+        name: i18next.t('load-mw'),
+        color: '#FF0000',
+        data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
+    }));
 
-  const formattedLoadSeries = loadSeries.map(series => ({
-    ...series,
-    name: i18next.t('load-mw'),
-    color: '#FF0000',
-    data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
-  }));
+    const formattedLoadSeries = loadSeries.map(series => ({
+        ...series,
+        name: i18next.t('load-mw'),
+        color: '#FF0000',
+        data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
+    }));
 
-  const formattedGenerationActualSeries = generationActualSeries.map(series => ({
-    ...series,
-    name: i18next.t('generation-mw'),//'Generation',
-    color: '#00CC00',
-    data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
-  }));
+    const formattedGenerationActualSeries = generationActualSeries.map(series => ({
+        ...series,
+        name: i18next.t('generation-mw'),//'Generation',
+        color: '#00CC00',
+        data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
+    }));
 
-  const formattedGenerationSeries = generationSeries.map(series => ({
-    ...series,
-    name: i18next.t('generation-mw'),
-    color: '#00CC00',
-    data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
-  }));
+    const formattedGenerationSeries = generationSeries.map(series => ({
+        ...series,
+        name: i18next.t('generation-mw'),
+        color: '#00CC00',
+        data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
+    }));
 
-  const finalSeries = [];
+    const finalSeries = [];
 
-  [...formattedGenerationActualSeries, ...formattedLoadActualSeries].forEach(series => {
-    finalSeries.push({
-      name: series.name + " (Actual)",
-      data: series.data,
-      color: series.color,
-      stroke: {
-        width: 2,
-        dashArray: 0 // Solid line
-      }
+    [...formattedGenerationActualSeries, ...formattedLoadActualSeries].forEach(series => {
+        finalSeries.push({
+            name: series.name + " (Actual)",
+            data: series.data,
+            color: series.color,
+            stroke: {
+                width: 2,
+                dashArray: 0 // Solid line
+            }
+        });
     });
-  });
 
-  [...formattedGenerationSeries, ...formattedLoadSeries].forEach(series => {
-    finalSeries.push({
-      name: series.name + " (Forecast)",
-      data: series.data,
-      color: series.color,
-      stroke: {
-        width: 2,
-        dashArray: [5, 3] // Dashed line
-      }
+    [...formattedGenerationSeries, ...formattedLoadSeries].forEach(series => {
+        finalSeries.push({
+            name: series.name + " (Forecast)",
+            data: series.data,
+            color: series.color,
+            stroke: {
+                width: 2,
+                dashArray: [5, 3] // Dashed line
+            }
+        });
     });
-  });
 
-  // Find the minimum value from all data points
-  const allYValues = finalSeries.flatMap(series => series.data.map(point => point[1]));
-  const minYValue = Math.min(...allYValues);
+    // Find the minimum value from all data points
+    const allYValues = finalSeries.flatMap(series => series.data.map(point => point[1]));
+    const minYValue = Math.min(...allYValues);
 
-  // Clear old data & update series
-  lineChart.updateSeries([]);
-  lineChart.updateSeries(finalSeries);
+    // Clear old data & update series
+    lineChart.updateSeries([]);
+    lineChart.updateSeries(finalSeries);
 
-  // Update chart options
+    // Update chart options
     lineChart.updateOptions({
-      theme: { mode: isDarkMode ? 'dark' : 'light' },
-      annotations: { xaxis: getForecastAnnotations(forecastStartTime, false, true) },
-      stroke: {
-        width: 2,
-        dashArray: finalSeries.map(series =>
-          series.name.includes("Forecast") ? [5, 3] : 0
-        )
-      },
-      xaxis: {
-        type: 'datetime',
-        labels: {
-          style: {
-            colors: isDarkMode ? '#e0e0e0' : '#000',
-            fontSize: '12px'  // Correctly set font size
-          },
-          formatter: function (val, timestamp) {
-            const currentLang = i18next.language;
-            const dateFormatter = new Intl.DateTimeFormat(currentLang, {
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-            });
-            return dateFormatter.format(new Date(timestamp));
-          }
-        }
-      },
-      yaxis: {
-        min: minYValue,
-        title: {
-          text: config.yAxisLabel,
-          style: { fontSize: '12px' } // Correct syntax for title font size
+        theme: { mode: isDarkMode ? 'dark' : 'light' },
+        annotations: { xaxis: getForecastAnnotations(forecastStartTime, false, true) },
+        stroke: {
+            width: 2,
+            dashArray: finalSeries.map(series =>
+                series.name.includes("Forecast") ? [5, 3] : 0
+            )
         },
-        labels: {
-          formatter: val => val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(1),
-          style: {  // Correct placement inside style
-            colors: isDarkMode ? '#e0e0e0' : '#000',
-            fontSize: '12px'
-          }
+        xaxis: {
+            type: 'datetime',
+            labels: {
+                style: {
+                    colors: isDarkMode ? '#e0e0e0' : '#000',
+                    fontSize: '12px'  // Correctly set font size
+                },
+                formatter: function (val, timestamp) {
+                    const currentLang = i18next.language;
+                    const dateFormatter = new Intl.DateTimeFormat(currentLang, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                    });
+                    return dateFormatter.format(new Date(timestamp));
+                }
+            }
+        },
+        yaxis: {
+            min: minYValue,
+            title: {
+                text: config.yAxisLabel,
+                style: { fontSize: '12px' } // Correct syntax for title font size
+            },
+            labels: {
+                formatter: val => val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(1),
+                style: {  // Correct placement inside style
+                    colors: isDarkMode ? '#e0e0e0' : '#000',
+                    fontSize: '12px'
+                }
+            }
+        },
+        tooltip: {
+            shared: true, // Ensure the tooltip is shared across all series
+            intersect: false, // Trigger tooltip for all points at the X-coordinate
+            theme: isDarkMode ? 'dark' : 'light',
+            x: { format: 'dd MMM HH:mm' }
+        },
+        legend: {
+            position: 'top',
+            horizontalAlign: 'center',
+            floating: true,
+            markers: { width: 10, height: 10 },
+            itemMargin: { horizontal: 10, vertical: 5 },
+            formatter: function(seriesName, opts) {
+                const seriesIndex = opts.seriesIndex;
+                return seriesIndex < 2 ? seriesName : null;
+            }
         }
-      },
-      legend: {
-        position: 'top',
-        horizontalAlign: 'center',
-        floating: true,
-        markers: { width: 10, height: 10 },
-        itemMargin: { horizontal: 10, vertical: 5 },
-        formatter: function(seriesName, opts) {
-          const seriesIndex = opts.seriesIndex;
-          return seriesIndex < 2 ? seriesName : null;
-        }
-      }
     });
 }
 
 async function updateTotalLineChart2(
     config, loadActualSeries, loadFittedSeries, forecastStartTime
 ) {
-  const lineChart2 = stackedChartState[`lineChart2Instance${config.chartId}`];
-  if (!lineChart2) return;
+    const lineChart2 = stackedChartState[`lineChart2Instance${config.chartId}`];
+    if (!lineChart2) return;
 
-  const isDarkMode = config.isDarkMode;
+    const isDarkMode = config.isDarkMode;
 
-  // Convert each data point x into a timestamp for both actual and fitted series
-  const formattedLoadActualSeries = loadActualSeries.map(series => ({
-    ...series,
-    data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
-  }));
+    // Convert each data point x into a timestamp for both actual and fitted series
+    const formattedLoadActualSeries = loadActualSeries.map(series => ({
+        ...series,
+        data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
+    }));
 
-  const formattedLoadFittedSeries = loadFittedSeries.map(series => ({
-    ...series,
-    data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
-  }));
+    const formattedLoadFittedSeries = loadFittedSeries.map(series => ({
+        ...series,
+        data: series.data.map(({ x, y }) => [new Date(x).getTime(), y])
+    }));
 
-  // Calculate the minimum y value dynamically
-  const allYValues = [
-    ...formattedLoadActualSeries.flatMap(series => series.data.map(point => point[1])),
-    ...formattedLoadFittedSeries.flatMap(series => series.data.map(point => point[1]))
-  ];
-  const minYValue = Math.min(...allYValues);
+    // Calculate the minimum y value dynamically
+    const allYValues = [
+        ...formattedLoadActualSeries.flatMap(series => series.data.map(point => point[1])),
+        ...formattedLoadFittedSeries.flatMap(series => series.data.map(point => point[1]))
+    ];
+    const minYValue = Math.min(...allYValues);
 
-  // Ensure same color for both actual and fitted series
-  const color = isDarkMode ? '#999999' : '#000000';
+    // Ensure same color for both actual and fitted series
+    const color = isDarkMode ? '#999999' : '#000000';
 
-  const finalSeries = [
-    {
-      name: 'Carbon Intensity (Actual)',
-      data: formattedLoadActualSeries.flatMap(series => series.data),
-      color: color,
-      stroke: {
-        width: 2,
-        dashArray: 0 // Solid line
-      }
-    },
-    {
-      name: 'Carbon Intensity (Forecast)',
-      data: formattedLoadFittedSeries.flatMap(series => series.data),
-      color: color,
-      stroke: {
-        width: 2,
-        dashArray: [5, 3] // Dashed line
-      }
-    }
-  ];
+    const finalSeries = [
+        {
+            name: 'Carbon Intensity (Actual)',
+            data: formattedLoadActualSeries.flatMap(series => series.data),
+            color: color,
+            stroke: {
+                width: 2,
+                dashArray: 0 // Solid line
+            }
+        },
+        {
+            name: 'Carbon Intensity (Forecast)',
+            data: formattedLoadFittedSeries.flatMap(series => series.data),
+            color: color,
+            stroke: {
+                width: 2,
+                dashArray: [5, 3] // Dashed line
+            }
+        }
+    ];
 
-  // Clear and set new data
-  lineChart2.updateSeries([]);
-  lineChart2.updateSeries(finalSeries);
+    // Clear and set new data
+    lineChart2.updateSeries([]);
+    lineChart2.updateSeries(finalSeries);
 
 
     // Update chart options
     lineChart2.updateOptions({
-      theme: { mode: isDarkMode ? 'dark' : 'light' },
-      annotations: { xaxis: getForecastAnnotations(forecastStartTime, false, false) },
-      stroke: {
-        width: 2,
-        dashArray: finalSeries.map(series =>
-          series.name.includes("Forecast") ? [5, 3] : 0
-        )
-      },
-      xaxis: {
-        type: 'datetime',
-        labels: {
-          style: {
-            colors: isDarkMode ? '#e0e0e0' : '#000',
-            fontSize: '12px'  // Ensure font size is applied
-          },
-          formatter: function (val, timestamp) {
-            const currentLang = i18next.language;
-            const dateFormatter = new Intl.DateTimeFormat(currentLang, {
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-            });
-            return dateFormatter.format(new Date(timestamp));
-          }
-        }
-      },
-      yaxis: {
-        min: minYValue,  // Dynamically set based on data
-        title: {
-          text: 'Carbon Intensity (gCO₂/kWh)',
-          style: { fontSize: '12px' } // Corrected font size application
+
+        theme: { mode: isDarkMode ? 'dark' : 'light' },
+        annotations: { xaxis: getForecastAnnotations(forecastStartTime, false, false) },
+        stroke: {
+            width: 2,
+            dashArray: finalSeries.map(series =>
+                series.name.includes("Forecast") ? [5, 3] : 0
+            )
         },
-        labels: {
-          formatter: val => val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(1),
-          style: {  // Properly applying font size
-            colors: isDarkMode ? '#e0e0e0' : '#000',
-            fontSize: '12px'
-          }
+        xaxis: {
+            type: 'datetime',
+            labels: {
+                style: {
+                    colors: isDarkMode ? '#e0e0e0' : '#000',
+                    fontSize: '12px'  // Ensure font size is applied
+                },
+                formatter: function (val, timestamp) {
+                    const currentLang = i18next.language;
+                    const dateFormatter = new Intl.DateTimeFormat(currentLang, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                    });
+                    return dateFormatter.format(new Date(timestamp));
+                }
+            }
+        },
+        yaxis: {
+            min: minYValue,  // Dynamically set based on data
+            title: {
+                text: 'Carbon Intensity (gCO₂/kWh)',
+                style: { fontSize: '11px' } // Corrected font size application
+            },
+            labels: {
+                formatter: val => val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(1),
+                style: {  // Properly applying font size
+                    colors: isDarkMode ? '#e0e0e0' : '#000',
+                    fontSize: '12px'
+                }
+            }
+        },
+        tooltip: {
+            shared: true, // Ensure the tooltip is shared across all series
+            intersect: false, // Trigger tooltip for all points at the X-coordinate
+            theme: isDarkMode ? 'dark' : 'light',
+            x: { format: 'dd MMM HH:mm' }
+        },
+        legend: {
+            show: false,
+            position: 'top',
+            horizontalAlign: 'center',
+            floating: true,
+            markers: { width: 10, height: 10 },
+            itemMargin: { horizontal: 10, vertical: 5 },
+            formatter: function(seriesName, opts) {
+                if (seriesName.includes("Forecast")) {
+                    return seriesName.replace(" (Forecast)", ""); // Clean legend display
+                }
+                return seriesName;
+            }
         }
-      },
-      legend: {
-        show: false,
-        position: 'top',
-        horizontalAlign: 'center',
-        floating: true,
-        markers: { width: 10, height: 10 },
-        itemMargin: { horizontal: 10, vertical: 5 },
-        formatter: function(seriesName, opts) {
-          if (seriesName.includes("Forecast")) {
-            return seriesName.replace(" (Forecast)", ""); // Clean legend display
-          }
-          return seriesName;
-        }
-      }
+
     });
 
 }
 
-
 async function createStackedChart(selector, baseOptions) {
-  const chart = new ApexCharts(document.querySelector(selector), baseOptions);
-  await chart.render();
-  return chart;
+    const chart = new ApexCharts(document.querySelector(selector), baseOptions);
+    await chart.render();
+    return chart;
 }
 
 function getBaseStackedChartOptions() {
-  return {
-    chart: {
-      type: 'area',
-      height: 350,
-      stacked: true,
-      toolbar: { show: false }, // Hides toolbar controls
-      zoom: { enabled: false } // Disables zooming feature
-    },
-    plotOptions: {
-      area: {
-        stacking: 'normal' // Ensures areas are stacked on top of each other
-      }
-    },
-    dataLabels: { enabled: false },
-    stroke: {
-      curve: 'smooth',
-      width: 2 // Slightly reduced width for better visibility
-    },
-    fill: {
-      type: 'solid' // Ensures solid stacking without transparency overlap
-    },
-    legend: {
-      position: 'bottom',
-      horizontalAlign: 'center',
-      labels: {
-//        colors: isDarkMode ? '#e0e0e0' : '#000',
-        useSeriesColors: false
-      }
-    },
-    xaxis: {
-      type: 'datetime',
-      labels: {
-        style: { colors: isDarkMode ? '#e0e0e0' : '#000' },
-        formatter: function (val, timestamp) {
-          const currentLang = i18next.language;
-          const dateFormatter = new Intl.DateTimeFormat(currentLang, {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-          });
-          return dateFormatter.format(new Date(timestamp));
-        }
-      },
-      title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } }
-    },
-    yaxis: {
-      min: 0,
-      title: {
-        text: 'Power Output (MW)',
-        style: {
-          color: isDarkMode ? '#e0e0e0' : '#000',
-          fontSize: '14px'
-        }
-      },
-      labels: {
-        style: {
-          colors: isDarkMode ? '#e0e0e0' : '#000',
-          fontSize: '14px'
+    return {
+        chart: {
+            type: 'area',
+            height: 350,
+            stacked: true,
+            toolbar: { show: false }, // Hides toolbar controls
+            zoom: { enabled: false } // Disables zooming feature
         },
-        formatter: val => val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val.toFixed(0)
-      }
-    },
-    tooltip: {
-      theme: isDarkMode ? 'dark' : 'light',
-      x: { format: 'dd MMM HH:mm' }
-    },
-    grid: {
-      show: true,
-      borderColor: isDarkMode ? '#555' : '#E0E0E0', // Darker grid lines in dark mode
-      strokeDashArray: 3, // Dashed lines for a thin appearance
-      xaxis: { lines: { show: true } }, // Enable vertical grid lines
-      yaxis: { lines: { show: true } } // Enable horizontal grid lines
-    },
-    series: []
-  };
+        plotOptions: {
+            area: {
+                stacking: 'normal' // Ensures areas are stacked on top of each other
+            }
+        },
+        dataLabels: { enabled: false },
+        stroke: {
+            curve: 'smooth',
+            width: 2 // Slightly reduced width for better visibility
+        },
+        fill: {
+            type: 'solid' // Ensures solid stacking without transparency overlap
+        },
+        legend: {
+            position: 'bottom',
+            horizontalAlign: 'center',
+            labels: {
+//        colors: isDarkMode ? '#e0e0e0' : '#000',
+                useSeriesColors: false
+            }
+        },
+        xaxis: {
+            type: 'datetime',
+            labels: {
+                style: { colors: isDarkMode ? '#e0e0e0' : '#000' },
+                formatter: function (val, timestamp) {
+                    const currentLang = i18next.language;
+                    const dateFormatter = new Intl.DateTimeFormat(currentLang, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                    });
+                    return dateFormatter.format(new Date(timestamp));
+                }
+            },
+            title: { style: { color: isDarkMode ? '#e0e0e0' : '#000' } }
+        },
+        yaxis: {
+            min: 0,
+            title: {
+                text: 'Power Output (MW)',
+                style: {
+                    color: isDarkMode ? '#e0e0e0' : '#000',
+                    fontSize: '14px'
+                }
+            },
+            labels: {
+                style: {
+                    colors: isDarkMode ? '#e0e0e0' : '#000',
+                    fontSize: '14px'
+                },
+                formatter: val => val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val.toFixed(0)
+            }
+        },
+        tooltip: {
+            shared: true, // Ensure the tooltip is shared across all series
+            intersect: false, // Trigger tooltip for all points at the X-coordinate
+            theme: isDarkMode ? 'dark' : 'light',
+            x: { format: 'dd MMM HH:mm' }
+        },
+        grid: {
+            show: true,
+            borderColor: isDarkMode ? '#555' : '#E0E0E0', // Darker grid lines in dark mode
+            strokeDashArray: 3, // Dashed lines for a thin appearance
+            xaxis: { lines: { show: true } }, // Enable vertical grid lines
+            yaxis: { lines: { show: true } } // Enable horizontal grid lines
+        },
+        series: []
+    };
 }
-
 
 function updateStackedChart(config, finalSeries, forecastStartTime) {
     /**
@@ -2497,7 +2376,7 @@ function updateStackedChart(config, finalSeries, forecastStartTime) {
 
     //
     finalSeries.sort((a, b) => (stackedChartSegmentOrder.get(a.name.split(": ")[1]) || 99) -
-                                (stackedChartSegmentOrder.get(b.name.split(": ")[1]) || 99));
+        (stackedChartSegmentOrder.get(b.name.split(": ")[1]) || 99));
 
 
     // Update chart settings including axis labels, colors, and themes
@@ -2536,6 +2415,12 @@ function updateStackedChart(config, finalSeries, forecastStartTime) {
                 }
             }
         },
+        tooltip: {
+            shared: true, // Ensure the tooltip is shared across all series
+            intersect: false, // Trigger tooltip for all points at the X-coordinate
+            theme: isDarkMode ? 'dark' : 'light',
+            x: { format: 'dd MMM HH:mm' }
+        },
         stroke: { curve: 'smooth', width: 2 },
         fill: { type: 'solid' },
         annotations: { xaxis: getForecastAnnotations(forecastStartTime, true, false) }
@@ -2546,7 +2431,6 @@ function updateStackedChart(config, finalSeries, forecastStartTime) {
     stackedChart.updateSeries([]);
     stackedChart.updateSeries(finalSeries);
 }
-
 
 function getForecastAnnotations(forecastStartTime, withText, withNow) {
     /**
@@ -2617,306 +2501,470 @@ function getForecastAnnotations(forecastStartTime, withText, withNow) {
 }
 
 
+// ------------------- =================== ------------------- \\
 
-// --- Refactored setupStackedChartEvents and helper functions --- */
+const chartConfigs = [
+    /// ---------- GERMANY
+    {
+        id: 100,
+        title: "Energy Mix",
+        dataKey: "energy_mix_germany",
+        descriptionFile: "energy_mix", // JSON/MD file name for your notes
+        buttons: ["50hz", "tenn", "tran", "ampr"], // TSO area checkboxes to show
 
-/**
- * Sets up the click event listener for the description toggle.
- * When clicked, it toggles the description container’s visibility and lazy-loads its content.
- */
-function setupDescriptionToggleEvent({
-    descriptionToggleId, descriptionContainerId, descLoadedKey, filePrefix }) {
-  const toggleElement = document.getElementById(descriptionToggleId);
-  if (!toggleElement) return;
+        get descriptionToggleId()       { return `description${this.id}-toggle-checkbox`; },
+        get descriptionContainerId()    { return `stackedChart${this.id}-description-container`; },
+        get descLoadedKey()             { return `stackedChart${this.id}DescLoaded`; },
+        get createdKey()                { return `stackedChart${this.id}Created`; },
+        get instanceKey()               { return `stackedChartInstance${this.id}`; },
+        detailsSelector       : 'details.energy-mix:nth-of-type(1)',
+        filePrefix            : 'data/DE/forecasts/energy_mix_notes',
+        getConfigFunction: function(id) {
+            return {
+                stackedChartInstance : stackedChartState[`stackedChartInstance${id}`],
+                yAxisLabel           : 'Power (MW)',
+                chartId              : id,
+                regionConfigs        : [
+                    {
+                        checkboxId   : `ampr-checkbox-${id}`,
+                        varpath      : './data/DE/forecasts/energy_mix_ampr',
+                        genvarpath   : './data/DE/forecasts/generation_ampr',
+                        loadvarpath  : './data/DE/forecasts/load_ampr',
+                        carbonvarpath: './data/DE/forecasts/carbon_intensity_ampr',
+                        alias        : 'Amprion',
+                        color        : tsoColorMap['Amprion'] // Make sure tsoColorMap is defined globally
+                    },
+                    {
+                        checkboxId   : `tran-checkbox-${id}`,
+                        varpath      : './data/DE/forecasts/energy_mix_tran',
+                        genvarpath   : './data/DE/forecasts/generation_tran',
+                        loadvarpath  : './data/DE/forecasts/load_tran',
+                        carbonvarpath: './data/DE/forecasts/carbon_intensity_tran',
+                        alias        : 'TransnetBW',
+                        color        : tsoColorMap['TransnetBW']
+                    },
+                    {
+                        checkboxId   : `50hz-checkbox-${id}`,
+                        varpath      : './data/DE/forecasts/energy_mix_50hz',
+                        genvarpath   : './data/DE/forecasts/generation_50hz',
+                        loadvarpath  : './data/DE/forecasts/load_50hz',
+                        carbonvarpath: './data/DE/forecasts/carbon_intensity_50hz',
+                        alias        : '50Hertz',
+                        color        : tsoColorMap['50Hertz']
+                    },
+                    {
+                        checkboxId   : `tenn-checkbox-${id}`,
+                        varpath      : './data/DE/forecasts/energy_mix_tenn',
+                        genvarpath   : './data/DE/forecasts/generation_ampr',
+                        loadvarpath  : './data/DE/forecasts/load_tenn',
+                        carbonvarpath: './data/DE/forecasts/carbon_intensity_tenn',
+                        alias        : 'TenneT',
+                        color        : tsoColorMap['TenneT']
+                    },
+                    {
+                        checkboxId   : `total-checkbox-${id}`,
+                        varpath      : './data/DE/forecasts/energy_mix',
+                        genvarpath   : './data/DE/forecasts/generation',
+                        loadvarpath  : './data/DE/forecasts/load',
+                        carbonvarpath: './data/DE/forecasts/carbon_intensity',
+                        alias        : 'Total',
+                        color        : tsoColorMap['Total']
+                    }
+                ],
+                pastDataSliderId: `past-data-slider-${id}`,
+                showIntervalId  : `showci_checkbox-${id}`,
+                errorElementId  : `error-message${id}`,
+                isDarkMode      : isDarkMode // or define it yourself
+            };
+        },
+    },
+    /// --------- FRANCE
+    {
+        id: 101,
+        title: "Energy Mix",
+        dataKey: "energy_mix_france",
+        descriptionFile: "energy_mix_france", // JSON/MD file name for your notes
+        buttons: [], // TSO area checkboxes to show
 
-  toggleElement.addEventListener('click', async function() {
-    const content = document.getElementById(descriptionContainerId);
-    const isVisible = (content.style.display === 'block');
-    content.style.display = isVisible ? 'none' : 'block';
+        get descriptionToggleId()       { return `description${this.id}-toggle-checkbox`; },
+        get descriptionContainerId()    { return `stackedChart${this.id}-description-container`; },
+        get descLoadedKey()             { return `stackedChart${this.id}DescLoaded`; },
+        get createdKey()                { return `stackedChart${this.id}Created`; },
+        get instanceKey()               { return `stackedChartInstance${this.id}`; },
+        detailsSelector       : 'details.energy-mix:nth-of-type(1)',
+        filePrefix            : 'data/FR/forecasts/energy_mix_notes',
+        getConfigFunction: function(id) {
+            return {
+                stackedChartInstance : stackedChartState[`stackedChartInstance${id}`],
+                yAxisLabel           : 'Power (MW)',
+                chartId              : id,
+                regionConfigs        : [
+                    {
+                        checkboxId   : `total-checkbox-${id}`,
+                        varpath      : './data/FR/forecasts/energy_mix',
+                        genvarpath   : './data/FR/forecasts/generation',
+                        loadvarpath  : './data/FR/forecasts/load',
+                        carbonvarpath: './data/FR/forecasts/carbon_intensity',
+                        alias        : 'Total',
+                        color        : tsoColorMap['Total']
+                    }
+                ],
+                pastDataSliderId: `past-data-slider-${id}`,
+                showIntervalId  : `showci_checkbox-${id}`,
+                errorElementId  : `error-message${id}`,
+                isDarkMode      : isDarkMode // or define it yourself
+            };
+        },
+    },
+];
 
-    // Lazy-load the markdown content if not loaded yet
-    if (!isVisible && !stackedChartState[descLoadedKey]) {
-      stackedChartState[descLoadedKey] = true;
-      const language = 'en'; // TODO Adjust if localization is used
-      const fileName = `${filePrefix}_${language}.md`;
-      await loadMarkdown(`${fileName}`, descriptionContainerId);
-    }
-  });
+// HTML GENERATION (replaces old `energyMixData` usage)
+function generateEnergyMixSection(config) {
+    const { id, title, dataKey, descriptionFile, buttons = [] } = config;
+    const tsoButtonsHtml = buttons.map(btnKey => {
+        const btn = TSO_BUTTONS[btnKey];  // Ensure TSO_BUTTONS is globally defined
+        return `
+      <input
+        type="checkbox"
+        name="tso-area"
+        id="${btnKey}-checkbox-${id}"
+        onchange="toggleExclusiveSelection(this); updateStackedChart${id}()" />
+      <label for="${btnKey}-checkbox-${id}" class="btn-purple">${btn.label}</label>
+    `;
+    }).join("");
+
+    // Mandatory buttons that are always shown:
+    const mandatoryButtons = `
+    <!-- 'Total' button with exclusive selection -->
+    <input type="checkbox" name="tso-area" id="total-checkbox-${id}" checked
+      onchange="toggleExclusiveSelection(this); updateStackedChart${id}()" />
+    <label for="total-checkbox-${id}" class="btn-purple">Total</label>
+
+    <!-- 'Details' -->
+    <input type="checkbox" id="description${id}-toggle-checkbox" class="description-toggle-checkbox" />
+    <label for="description${id}-toggle-checkbox" class="description-button">Details</label>
+
+    <!-- 'RESET' button -->
+    <label for="reloadStackedChart${id}" class="btn-purple">RESET</label>
+    <input type="checkbox" id="reloadStackedChart${id}" style="display: none;" onchange="renderOrReloadChart${id}()" />
+  `;
+
+    return `
+    <details class="energy-mix" open>
+      <summary class="energy-mix-summary" data-i18n="${dataKey}">
+        ${title}
+      </summary>
+      <div class="chart-stack-container">
+        <div class="lineChart2-container" id="lineChart2${id}-totalLine"></div>
+        <div class="lineChart-container" id="lineChart${id}-totalLine"></div>
+        <div class="stackedChart-container" id="stackedChart${id}"></div>
+      </div>
+      <div id="error-message${id}" class="error-message"></div>
+      <div class="control-area">
+        <div class="controls">
+          <div class="slider-container">
+            <label for="past-data-slider-${id}" data-i18n="historic-data">Historic Data:</label>
+            <input
+              type="range"
+              id="past-data-slider-${id}"
+              min="1"
+              max="100"
+              step="1"
+              value="20"
+              onchange="updateStackedChart${id}()"
+            />
+          </div>
+          <div class="controls-buttons">
+            ${tsoButtonsHtml}
+            ${mandatoryButtons}
+          </div>
+        </div>
+      </div>
+      <div id="stackedChart${id}-description-container" class="dropdown-content">
+        <!-- content loaded asynchronously, e.g. via fetch for descriptionFile -->
+      </div>
+    </details>
+  `;
 }
 
-/**
- * Sets up the 'toggle' event listener for the <details> element.
- * When expanded for the first time, it initializes i18n and creates the charts.
- */
-function setupDetailsToggleEvent({ detailsSelector, stackedChartNum, createdKey, instanceKey }) {
-  const detailsElement = document.querySelector(detailsSelector);
-  if (!detailsElement) return;
+// Insert all figures into #energy-mix
+document.getElementById("energy-mix").innerHTML =
+    chartConfigs.map(generateEnergyMixSection).join("");
 
-  detailsElement.addEventListener('toggle', async function(e) {
-    if (e.target.open && !stackedChartState[createdKey]) {
-      await initializeI18n();
-      stackedChartState[createdKey] = true;
 
-      // Create the charts
-      stackedChartState[instanceKey] = await createStackedChart(
-        `#stackedChart${stackedChartNum}`,
-        getBaseStackedChartOptions()
-      );
-      stackedChartState[`lineChartInstance${stackedChartNum}`] = await createTotalLineChart(
-        `#lineChart${stackedChartNum}-totalLine`,
-        getBaseLineChartOptions()
-      );
-      stackedChartState[`lineChart2Instance${stackedChartNum}`] = await createTotalLineChart2(
-        `#lineChart2${stackedChartNum}-totalLine`,
-        getBaseLineChartOptions()
-      );
-      // First update of the charts
-      window[`updateStackedChart${stackedChartNum}`]();
-    }
-  });
-}
-
-/**
- * Defines the global reset (reload) function for the charts.
- * When called (e.g. via the RESET button), it destroys and recreates the charts.
- */
-function defineResetChartFunction({ stackedChartNum, createdKey, instanceKey }) {
-  window[`renderOrReloadChart${stackedChartNum}`] = async function() {
-    if (stackedChartState[instanceKey]) {
-      stackedChartState[instanceKey].destroy();
-      stackedChartState[createdKey] = false;
-    }
-    if (stackedChartState[`lineChartInstance${stackedChartNum}`]) {
-      stackedChartState[`lineChartInstance${stackedChartNum}`].destroy();
-    }
-    if (stackedChartState[`lineChart2Instance${stackedChartNum}`]) {
-      stackedChartState[`lineChart2Instance${stackedChartNum}`].destroy();
-    }
-
-    await initializeI18n();
-    stackedChartState[createdKey] = true;
-
-    stackedChartState[instanceKey] = await createStackedChart(
-      `#stackedChart${stackedChartNum}`,
-      getBaseStackedChartOptions()
-    );
-    stackedChartState[`lineChartInstance${stackedChartNum}`] = await createTotalLineChart(
-      `#lineChart${stackedChartNum}-totalLine`,
-      getBaseLineChartOptions()
-    );
-    stackedChartState[`lineChart2Instance${stackedChartNum}`] = await createTotalLineChart2(
-      `#lineChart2${stackedChartNum}-totalLine`,
-      getBaseLineChartOptions()
-    );
-
-    window[`updateStackedChart${stackedChartNum}`]();
-  };
-}
-
-/**
- * Defines the global update function for both the stacked area chart and the total line chart.
- * This function is called after initialization and whenever a control is changed.
- */
-function defineUpdateChartFunction({ stackedChartNum, getConfigFunction }) {
-  window[`updateStackedChart${stackedChartNum}`] = async function() {
-    const config = getConfigFunction(); // Call getConfigFunction once per update
-    const { finalSeries, forecastStartTime } = await processStackedChartData(config);
-
-    let forecastStartTime_ = null; // Initialize should be the same for all files
-
-    // --- total generation data
-    let combinedGenerationActualSeries = [];
-    let combinedGenerationFittedSeries = [];
-
-    for (const regionCfg of config.regionConfigs) {
-      const checkBox = document.getElementById(regionCfg.checkboxId);
-      if (!checkBox || !checkBox.checked) continue;
-
-      const series = await getCombinedLoadSeries(
-        regionCfg.genvarpath,
-        'forecast_prev_actual.json',
-        'forecast_prev_fitted.json',
-        'forecast_curr_fitted.json',
-        config
-      );
-      if (series) {
-        combinedGenerationActualSeries.push(series.actualSeries); // Store actual separately
-        combinedGenerationFittedSeries.push(series.fittedSeries); // Store fitted separately
-        // Extract forecastStartTime from the last actual data point (if available)
-        if (!forecastStartTime_){
-            forecastStartTime_ = series.actualSeries.forecastStartTime;
+// make sure that buttons 'undo' previous button
+function toggleExclusiveSelection(checkbox) {
+    // Get all checkboxes with name "tso-area" in the same section
+    const checkboxes = checkbox.closest('.control-area').querySelectorAll('input[name="tso-area"]');
+    checkboxes.forEach(cb => {
+        if (cb !== checkbox) {
+            cb.checked = false;
         }
-      }
-    }
-    if (combinedGenerationActualSeries.length === 0){
-      const logDiv = document.getElementById(config.errorElementId);
-      logDiv.innerHTML += `<p>${'Actual Generation data is not found'}</p>`;
-    }
-    if (combinedGenerationFittedSeries.length === 0){
-      const logDiv = document.getElementById(config.errorElementId);
-      logDiv.innerHTML += `<p>${'Actual Generation data is not found'}</p>`;
-    }
-
-    // --- total load data
-    let combinedLoadActualSeries = [];
-    let combinedLoadFittedSeries = [];
-
-    for (const regionCfg of config.regionConfigs) {
-      const checkBox = document.getElementById(regionCfg.checkboxId);
-      if (!checkBox || !checkBox.checked) continue;
-
-      const series = await getCombinedLoadSeries(
-        regionCfg.loadvarpath,
-        'forecast_prev_actual.json',
-        'forecast_prev_fitted.json',
-        'forecast_curr_fitted.json',
-        config
-      );
-      if (series) {
-        combinedLoadActualSeries.push(series.actualSeries); // Store actual separately
-        combinedLoadFittedSeries.push(series.fittedSeries); // Store fitted separately
-      }
-    }
-
-//    if (!forecastStartTime_) {
-//        forecastStartTime_ = forecastStartTime;
-//    }
-
-//      const logDiv = document.getElementById(config.errorElementId);
-//      logDiv.innerHTML += `<p>${forecastStartTime_}</p>`;
-
-
-    // --- carbon intensity graph data
-    let combinedCarbonActualSeries = [];
-    let combinedCarbonFittedSeries = [];
-
-    for (const regionCfg of config.regionConfigs) {
-      const checkBox = document.getElementById(regionCfg.checkboxId);
-      if (!checkBox || !checkBox.checked) continue;
-
-      const series = await getCombinedLoadSeries(
-        regionCfg.carbonvarpath,
-        'forecast_prev_actual.json',
-        'forecast_prev_fitted.json',
-        'forecast_curr_fitted.json',
-        config
-      );
-      if (series) {
-        combinedCarbonActualSeries.push(series.actualSeries); // Store actual separately
-        combinedCarbonFittedSeries.push(series.fittedSeries); // Store fitted separately
-      }
-    }
-
-    updateStackedChart(config, finalSeries, forecastStartTime_); // energy mix
-    updateTotalLineChart(
-        config,
-        combinedGenerationActualSeries,
-        combinedGenerationFittedSeries,
-        combinedLoadActualSeries,
-        combinedLoadFittedSeries,
-        forecastStartTime_
-    ); // load & gen (only fitted)
-    updateTotalLineChart2(
-        config,
-        combinedCarbonActualSeries,
-        combinedCarbonFittedSeries,
-        forecastStartTime_
-    ); // carbon intensity (only fitted)
-  };
+    });
 }
 
+//  Sets up the 'toggle' event listener for the <details> element. When expanded for the first time, it initializes i18n and creates the charts.
+async function setupDetailsToggleEvent({ detailsSelector, id, createdKey, instanceKey }) {
+    const detailsElement = document.querySelector(detailsSelector);
+    if (!detailsElement) return;
+
+    detailsElement.addEventListener('toggle', async function(e) {
+        if (e.target.open && !stackedChartState[createdKey]) {
+            await initializeI18n();
+            stackedChartState[createdKey] = true;
+
+            // Create the charts
+            stackedChartState[instanceKey] = await createStackedChart(
+                `#stackedChart${id}`,
+                getBaseStackedChartOptions()
+            );
+            stackedChartState[`lineChartInstance${id}`] = await createTotalLineChart(
+                `#lineChart${id}-totalLine`,
+                getBaseLineChartOptions()
+            );
+            stackedChartState[`lineChart2Instance${id}`] = await createTotalLineChart2(
+                `#lineChart2${id}-totalLine`,
+                getBaseLineChartOptions()
+            );
+            // First update of the charts
+            window[`updateStackedChart${id}`]();
+        }
+    });
+}
+
+// Defines the global reset (reload) function for the charts. When called (e.g. via the RESET button), it destroys and recreates the charts.
+async function defineResetChartFunction({ id, createdKey, instanceKey }) {
+    window[`renderOrReloadChart${id}`] = async function() {
+        if (stackedChartState[instanceKey]) {
+            stackedChartState[instanceKey].destroy();
+            stackedChartState[createdKey] = false;
+        }
+        if (stackedChartState[`lineChartInstance${id}`]) {
+            stackedChartState[`lineChartInstance${id}`].destroy();
+        }
+        if (stackedChartState[`lineChart2Instance${id}`]) {
+            stackedChartState[`lineChart2Instance${id}`].destroy();
+        }
+
+        await initializeI18n();
+        stackedChartState[createdKey] = true;
+
+        stackedChartState[instanceKey] = await createStackedChart(
+            `#stackedChart${id}`,
+            getBaseStackedChartOptions()
+        );
+        stackedChartState[`lineChartInstance${id}`] = await createTotalLineChart(
+            `#lineChart${id}-totalLine`,
+            getBaseLineChartOptions()
+        );
+        stackedChartState[`lineChart2Instance${id}`] = await createTotalLineChart2(
+            `#lineChart2${id}-totalLine`,
+            getBaseLineChartOptions()
+        );
+
+        window[`updateStackedChart${id}`]();
+    };
+}
+
+// Defines the global update function for both the stacked area chart and the total line chart. This function is called after initialization and whenever a control is changed.
+async function defineUpdateChartFunction({ id, getConfigFunction }) {
+    window[`updateStackedChart${id}`] = async function() {
+        const config = getConfigFunction(id); // Call getConfigFunction once per update
+        const { finalSeries, forecastStartTime } = await processStackedChartData(config);
+
+        let forecastStartTime_ = null; // Initialize should be the same for all files
+
+        // --- total generation data
+        let combinedGenerationActualSeries = [];
+        let combinedGenerationFittedSeries = [];
+
+        for (const regionCfg of config.regionConfigs) {
+            const checkBox = document.getElementById(regionCfg.checkboxId);
+            if (!checkBox || !checkBox.checked) continue;
+
+            const series = await getCombinedLoadSeries(
+                regionCfg.genvarpath,
+                'forecast_prev_actual.json',
+                'forecast_prev_fitted.json',
+                'forecast_curr_fitted.json',
+                config
+            );
+            if (series) {
+                combinedGenerationActualSeries.push(series.actualSeries);
+                combinedGenerationFittedSeries.push(series.fittedSeries);
+                if (!forecastStartTime_){
+                    forecastStartTime_ = series.actualSeries.forecastStartTime;
+                }
+            }
+        }
+        if (combinedGenerationActualSeries.length === 0){
+            const logDiv = document.getElementById(config.errorElementId);
+            logDiv.innerHTML += `<p>${'Actual Generation data is not found'}</p>`;
+        }
+        if (combinedGenerationFittedSeries.length === 0){
+            const logDiv = document.getElementById(config.errorElementId);
+            logDiv.innerHTML += `<p>${'Actual Generation data is not found'}</p>`;
+        }
+
+        // --- total load data
+        let combinedLoadActualSeries = [];
+        let combinedLoadFittedSeries = [];
+
+        for (const regionCfg of config.regionConfigs) {
+            const checkBox = document.getElementById(regionCfg.checkboxId);
+            if (!checkBox || !checkBox.checked) continue;
+
+            const series = await getCombinedLoadSeries(
+                regionCfg.loadvarpath,
+                'forecast_prev_actual.json',
+                'forecast_prev_fitted.json',
+                'forecast_curr_fitted.json',
+                config
+            );
+            if (series) {
+                combinedLoadActualSeries.push(series.actualSeries);
+                combinedLoadFittedSeries.push(series.fittedSeries);
+            }
+        }
+
+        // --- carbon intensity graph data
+        let combinedCarbonActualSeries = [];
+        let combinedCarbonFittedSeries = [];
+
+        for (const regionCfg of config.regionConfigs) {
+            const checkBox = document.getElementById(regionCfg.checkboxId);
+            if (!checkBox || !checkBox.checked) continue;
+
+            const series = await getCombinedLoadSeries(
+                regionCfg.carbonvarpath,
+                'forecast_prev_actual.json',
+                'forecast_prev_fitted.json',
+                'forecast_curr_fitted.json',
+                config
+            );
+            if (series) {
+                combinedCarbonActualSeries.push(series.actualSeries);
+                combinedCarbonFittedSeries.push(series.fittedSeries);
+            }
+        }
+
+        updateStackedChart(config, finalSeries, forecastStartTime_);
+        updateTotalLineChart(
+            config,
+            combinedGenerationActualSeries,
+            combinedGenerationFittedSeries,
+            combinedLoadActualSeries,
+            combinedLoadFittedSeries,
+            forecastStartTime_
+        );
+        updateTotalLineChart2(
+            config,
+            combinedCarbonActualSeries,
+            combinedCarbonFittedSeries,
+            forecastStartTime_
+        );
+    };
+}
 
 async function getCombinedLoadSeries(
-        varpath, pastFileActual, pastForecastFile, currentForecastFile, config) {
-  // Fetch data
-  const prevActualData = await getCachedData(varpath, pastFileActual, config.errorElementId);
-  const prevFittedData = await getCachedData(varpath, pastForecastFile, config.errorElementId);
-  const currFittedData = await getCachedData(varpath, currentForecastFile, config.errorElementId);
-  let forecastStartTime = null; // Variable to store the forecast start time
+    varpath, pastFileActual, pastForecastFile, currentForecastFile, config
+) {
+    // Fetch data
+    const prevActualData  = await getCachedData(varpath, pastFileActual,   config.errorElementId);
+    const prevFittedData  = await getCachedData(varpath, pastForecastFile, config.errorElementId);
+    const currFittedData  = await getCachedData(varpath, currentForecastFile, config.errorElementId);
+    let forecastStartTime = null; // Variable to store the forecast start time
 
-  if (!prevFittedData && !currFittedData) return null;
+    if (!prevFittedData && !currFittedData) return null;
 
-  // Initialize arrays
-  const fittedData = [];
-  const actualData = [];
-  const pastDataRatio = document.getElementById(config.pastDataSliderId)?.value / 100 || 1;
+    // Initialize arrays
+    const fittedData = [];
+    const actualData = [];
+    const pastDataRatio = document.getElementById(config.pastDataSliderId)?.value / 100 || 1;
 
-  // Process fitted data
-  if (prevFittedData) {
-    fittedData.push(...prevFittedData.slice(-Math.floor(prevFittedData.length * pastDataRatio)));
-  }
-  if (currFittedData) {
-    fittedData.push(...currFittedData);
-  }
+    // Process fitted data
+    if (prevFittedData) {
+        fittedData.push(...prevFittedData.slice(-Math.floor(prevFittedData.length * pastDataRatio)));
+    }
+    if (currFittedData) {
+        fittedData.push(...currFittedData);
+    }
 
-  // Process actual data (only past actuals are available)
-  if (prevActualData) {
-    actualData.push(...prevActualData.slice(-Math.floor(prevActualData.length * pastDataRatio)));
-  }
+    // Process actual data (only past actuals are available)
+    if (prevActualData) {
+        actualData.push(...prevActualData.slice(-Math.floor(prevActualData.length * pastDataRatio)));
+    }
 
     // Determine forecast start time by checking the last timestamp in past actual data
     if (Array.isArray(prevActualData) && prevActualData.length > 0) {
-      const lastEntry = prevActualData[prevActualData.length - 1];
-
-      if (lastEntry?.x) {
-        forecastStartTime = new Date(lastEntry.x).getTime();
-      }
+        const lastEntry = prevActualData[prevActualData.length - 1];
+        if (lastEntry?.x) {
+            forecastStartTime = new Date(lastEntry.x).getTime();
+        }
     }
-
     if (!forecastStartTime) {
-      const logDiv = document.getElementById(config.errorElementId);
-      logDiv.innerHTML += `<p>Error: Unable to determine forecast start time</p>`;
-      forecastStartTime = Date.now(); // Set to current timestamp as fallback
+        const logDiv = document.getElementById(config.errorElementId);
+        logDiv.innerHTML += `<p>Error: Unable to determine forecast start time</p>`;
+        forecastStartTime = Date.now(); // fallback
     }
 
-//  if (!forecastStartTime){
-//      const logDiv = document.getElementById(config.errorElementId);
-//      logDiv.innerHTML += `<p>${"Errro"}</p>`;
-//      forecastStartTime = 1000;
-//  }
-
-//      const logDiv = document.getElementById(config.errorElementId);
-//      logDiv.innerHTML += `<p>${"Errro"}</p>`;
-//      forecastStartTime = 1000;
-
-  return {
-    fittedSeries: {
-      // name: `${var_label} - Fitted`,
-      data: fittedData,
-      color: '#008080',
-      forecastStartTime: forecastStartTime
-    },
-    actualSeries: {
-      // name: `${var_label} - Actual`,
-      data: actualData,
-      color: '#FF5733',
-      forecastStartTime:forecastStartTime
-    }
-  };
+    return {
+        fittedSeries: {
+            data: fittedData,
+            color: '#008080',
+            forecastStartTime: forecastStartTime
+        },
+        actualSeries: {
+            data: actualData,
+            color: '#FF5733',
+            forecastStartTime: forecastStartTime
+        }
+    };
 }
 
-// Main function that wires up all the event listeners and global functions for a given chart configuration.
+// Sets up the click event listener for the description toggle. When clicked, it toggles the description container’s visibility and lazy-loads its content.
+async function setupDescriptionToggleEvent({
+                                               descriptionToggleId, descriptionContainerId, descLoadedKey, filePrefix
+                                           }) {
+    const toggleElement = document.getElementById(descriptionToggleId);
+    if (!toggleElement) return;
 
+    toggleElement.addEventListener('click', async function() {
+        const content = document.getElementById(descriptionContainerId);
+        const isVisible = (content.style.display === 'block');
+        content.style.display = isVisible ? 'none' : 'block';
+
+        // Lazy-load the markdown content if not loaded yet
+        if (!isVisible && !stackedChartState[descLoadedKey]) {
+            stackedChartState[descLoadedKey] = true;
+            const language = 'en'; // or adapt for i18n
+            const fileName = `${filePrefix}_${language}.md`;
+            await loadMarkdown(fileName, descriptionContainerId);
+        }
+    });
+}
+
+// Main function that wires up all the event listeners and global function for a given chart configuration.
 function setupStackedChartEvents({
-  stackedChartNum,
-  descriptionToggleId,
-  descriptionContainerId,
-  descLoadedKey,
-  createdKey,
-  instanceKey,
-  detailsSelector,
-  filePrefix,
-  getConfigFunction
-}) {
-  setupDescriptionToggleEvent({ descriptionToggleId, descriptionContainerId, descLoadedKey, filePrefix });
-  defineUpdateChartFunction({ stackedChartNum, getConfigFunction });
-  defineResetChartFunction({ stackedChartNum, createdKey, instanceKey });
-  setupDetailsToggleEvent({ detailsSelector, stackedChartNum, createdKey, instanceKey });
+    id, descriptionToggleId, descriptionContainerId, descLoadedKey,
+    createdKey, instanceKey, detailsSelector, filePrefix, getConfigFunction}
+) {
+    setupDescriptionToggleEvent({
+        descriptionToggleId, descriptionContainerId, descLoadedKey, filePrefix
+    });
+    defineUpdateChartFunction({
+        id, getConfigFunction
+    });
+    defineResetChartFunction({
+        id, createdKey, instanceKey
+    });
+    setupDetailsToggleEvent({
+        detailsSelector, id, createdKey, instanceKey
+    });
 }
 
-// Wire-up all stacked chart events based on the StackedChartConfigs array
-StackedChartConfigs.forEach(cfg => setupStackedChartEvents(cfg));
-
+// Wire up all stacked chart events based on our new `chartConfigs` array
+chartConfigs.forEach(cfg => setupStackedChartEvents(cfg));
 
 
 // DARK MODE
@@ -2925,7 +2973,6 @@ function toggleDarkMode() {
     isDarkMode = !isDarkMode;
 
     // If charts exist, refresh them (loop over all instances)
-    // Example: any key named "chartInstanceX" in chartState
     for (let key of Object.keys(chartState)) {
         if (key.startsWith('chartInstance') && chartState[key]) {
             // Extract the chart number from the key, e.g. "chartInstance1" -> "1"
@@ -2935,5 +2982,6 @@ function toggleDarkMode() {
         }
     }
 
+    // Specifically update any stacked charts
     window["updateStackedChart100"]?.();
 }

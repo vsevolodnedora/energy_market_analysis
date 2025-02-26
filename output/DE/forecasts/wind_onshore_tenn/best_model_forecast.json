@@ -1,12 +1,7 @@
 {
     "wind_onshore_tenn": {
         "method": "trained",
-<<<<<<< HEAD:output/DE/forecasts/wind_onshore_tenn/best_model_forecast.json
-        "model_label": "LightGBM",
-        "avg_rmse": 981.9548481765528
-=======
-        "model_label": "ensemble[XGBoost](XGBoost,ElasticNet)",
-        "avg_rmse": 703.271781693997
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/wind_onshore_50hz/best_model.json
+        "model_label": "XGBoost",
+        "avg_rmse": 731.2339198646969
     }
 }

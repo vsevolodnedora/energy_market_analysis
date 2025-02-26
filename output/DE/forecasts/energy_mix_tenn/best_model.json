@@ -2,56 +2,31 @@
     "biomass_tenn": {
         "method": "trained",
         "model_label": "MultiTargetElasticNet",
-<<<<<<< HEAD:output/DE/forecasts/energy_mix_tenn/best_model.json
-        "avg_rmse": 56.85782369470153
-=======
-        "avg_rmse": 59.905754264488905
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_tenn/best_model_forecast.json
+        "avg_rmse": 60.49994676709582
     },
     "gas_tenn": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-<<<<<<< HEAD:output/DE/forecasts/energy_mix_tenn/best_model.json
-        "avg_rmse": 667.4512522699373
+        "avg_rmse": 640.3306420581215
     },
     "hard_coal_tenn": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-        "avg_rmse": 488.8082243473924
-=======
-        "avg_rmse": 570.379724160764
-    },
-    "hard_coal_tenn": {
-        "method": "trained",
-        "model_label": "MultiTargetCatBoost",
-        "avg_rmse": 370.2804776414713
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_tenn/best_model_forecast.json
+        "avg_rmse": 384.91069004094817
     },
     "oil_tenn": {
         "method": "trained",
         "model_label": "MultiTargetElasticNet",
-<<<<<<< HEAD:output/DE/forecasts/energy_mix_tenn/best_model.json
-        "avg_rmse": 13.025868547074024
-=======
-        "avg_rmse": 7.423162970278865
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_tenn/best_model_forecast.json
+        "avg_rmse": 5.601457891864494
     },
     "renewables_tenn": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-<<<<<<< HEAD:output/DE/forecasts/energy_mix_tenn/best_model.json
-        "avg_rmse": 252.627958414602
-=======
-        "avg_rmse": 234.72528042228754
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_tenn/best_model_forecast.json
+        "avg_rmse": 269.3985492690019
     },
     "waste_tenn": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-<<<<<<< HEAD:output/DE/forecasts/energy_mix_tenn/best_model.json
-        "avg_rmse": 67.87006283097138
-=======
-        "avg_rmse": 66.1437037019692
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_tenn/best_model_forecast.json
+        "avg_rmse": 76.37848433481757
     }
 }

@@ -2,76 +2,41 @@
     "biomass_50hz": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-<<<<<<< HEAD:output/DE/forecasts/energy_mix_50hz/best_model.json
-        "avg_rmse": 133.13624135894068
-=======
-        "avg_rmse": 117.70382896319728
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_50hz/best_model_forecast.json
+        "avg_rmse": 116.06021541135505
     },
     "gas_50hz": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-<<<<<<< HEAD:output/DE/forecasts/energy_mix_50hz/best_model.json
-        "avg_rmse": 399.2883188166773
+        "avg_rmse": 392.6347842300441
     },
     "hard_coal_50hz": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-        "avg_rmse": 262.9885681979323
-=======
-        "avg_rmse": 333.2819073878433
-    },
-    "hard_coal_50hz": {
-        "method": "trained",
-        "model_label": "MultiTargetCatBoost",
-        "avg_rmse": 232.76306307472817
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_50hz/best_model_forecast.json
+        "avg_rmse": 294.70156917148995
     },
     "lignite_50hz": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-<<<<<<< HEAD:output/DE/forecasts/energy_mix_50hz/best_model.json
-        "avg_rmse": 527.75295269961
+        "avg_rmse": 824.3034982526397
     },
     "oil_50hz": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-        "avg_rmse": 20.67397873771432
-=======
-        "avg_rmse": 566.5833201805633
-    },
-    "oil_50hz": {
-        "method": "trained",
-        "model_label": "MultiTargetCatBoost",
-        "avg_rmse": 16.585881378752998
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_50hz/best_model_forecast.json
+        "avg_rmse": 21.472167855109273
     },
     "other_fossil_50hz": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-<<<<<<< HEAD:output/DE/forecasts/energy_mix_50hz/best_model.json
-        "avg_rmse": 23.663203314616208
-=======
-        "avg_rmse": 21.92121706546996
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_50hz/best_model_forecast.json
+        "avg_rmse": 45.85251740370922
     },
     "renewables_50hz": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-<<<<<<< HEAD:output/DE/forecasts/energy_mix_50hz/best_model.json
-        "avg_rmse": 267.98486528222065
+        "avg_rmse": 292.39889554822975
     },
     "waste_50hz": {
         "method": "trained",
         "model_label": "MultiTargetElasticNet",
-        "avg_rmse": 63.35552113631192
-=======
-        "avg_rmse": 271.87102101758967
-    },
-    "waste_50hz": {
-        "method": "trained",
-        "model_label": "MultiTargetCatBoost",
-        "avg_rmse": 50.29154297958723
->>>>>>> 0dbeac7959b971fd2d02f21be0386f0ab9402c83:output/forecasts/energy_mix_50hz/best_model_forecast.json
+        "avg_rmse": 51.153652726318676
     }
 }
