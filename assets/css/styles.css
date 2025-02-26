@@ -161,7 +161,7 @@ body.dark-mode .header-updates {
 
 /* Right Section */
 .header-right {
-    display: right;
+    /*display: right;*/
     flex-direction: column; /* Stacks items vertically */
     align-items: flex-end; /* Aligns items to the right */
     gap: 0.35rem; /* Adds slightly more spacing between items */
@@ -440,7 +440,7 @@ body.dark-mode .toggle-button:hover {
     }
     #project-details h3 {
       color: #5e35b1;
-      margin-top: 40px;
+      margin-top: 20px;
       margin-bottom: 20px;
     }
     #project-details p {
