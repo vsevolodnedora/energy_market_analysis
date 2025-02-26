@@ -1,0 +1,111 @@
+{
+    "start_date": "2023-03-27T00:00:00+00:00",
+    "end_date": "2025-02-23T23:00:00+00:00",
+    "horizon": 168,
+    "features": [
+        "temperature_2m_agg",
+        "relative_humidity_2m_agg",
+        "surface_pressure_agg",
+        "precipitation_agg",
+        "cloud_cover_agg",
+        "direct_ratio_agg",
+        "diffuse_ratio_agg",
+        "dni_ratio_agg",
+        "global_tilted_ratio_agg",
+        "vapor_pressure_agg",
+        "shortwave_lag_1_agg",
+        "shortwave_lag_3_agg",
+        "solar_elevation_deg_sol_cestas",
+        "solar_azimuth_deg_sol_cestas",
+        "solar_elevation_deg_sol_athies",
+        "solar_azimuth_deg_sol_athies",
+        "solar_elevation_deg_sol_toul",
+        "solar_azimuth_deg_sol_toul",
+        "solar_elevation_deg_sol_gabardan",
+        "solar_azimuth_deg_sol_gabardan",
+        "hour",
+        "dayofweek",
+        "is_holiday",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos"
+    ],
+    "error_metrics": {
+        "2025-01-20T00:00:00+00:00": {
+            "solar_rte": {
+                "mse": 480600.33517196204,
+                "rmse": 693.2534422359272,
+                "mae": 391.4715105321993,
+                "mape": 6633719600241.949,
+                "smape": 252.36452159672376,
+                "bias": -99.85159861722903,
+                "variance": 470629.99342554575,
+                "std": 686.0247761018153,
+                "r2": 0.8716443642617878,
+                "prediction_interval_coverage": 0.9047619047619048,
+                "prediction_interval_width": 2569.120852903247
+            }
+        },
+        "2025-01-27T00:00:00+00:00": {
+            "solar_rte": {
+                "mse": 942584.0271654221,
+                "rmse": 970.8676671747917,
+                "mae": 520.8828678063585,
+                "mape": 5850468434722.603,
+                "smape": 256.04802092398006,
+                "bias": 9.843964653252572,
+                "variance": 942487.1235253277,
+                "std": 970.8177602028754,
+                "r2": 0.864661945179485,
+                "prediction_interval_coverage": 0.8273809523809523,
+                "prediction_interval_width": 2536.553606175905
+            }
+        },
+        "2025-02-03T00:00:00+00:00": {
+            "solar_rte": {
+                "mse": 1552547.1968162372,
+                "rmse": 1246.0125187237234,
+                "mae": 681.9553942779769,
+                "mape": 5193809320089.265,
+                "smape": 248.1761764281237,
+                "bias": -360.14635193247494,
+                "variance": 1422841.8020059671,
+                "std": 1192.8293264360861,
+                "r2": 0.855361648749313,
+                "prediction_interval_coverage": 0.8035714285714286,
+                "prediction_interval_width": 2537.935035516013
+            }
+        },
+        "2025-02-10T00:00:00+00:00": {
+            "solar_rte": {
+                "mse": 1605535.283267653,
+                "rmse": 1267.097187775134,
+                "mae": 685.6818215375699,
+                "mape": 4451067130652.679,
+                "smape": 243.15487661009763,
+                "bias": -290.4734891362439,
+                "variance": 1521160.435376669,
+                "std": 1233.3533294951083,
+                "r2": 0.8512744843871507,
+                "prediction_interval_coverage": 0.8214285714285714,
+                "prediction_interval_width": 2567.7093890235005
+            }
+        },
+        "2025-02-17T00:00:00+00:00": {
+            "solar_rte": {
+                "mse": 840164.0209036409,
+                "rmse": 916.6046153623932,
+                "mae": 556.8878773881916,
+                "mape": 4757860560839.9375,
+                "smape": 231.02052149561533,
+                "bias": 6.694181887172189,
+                "variance": 840119.2088325021,
+                "std": 916.5801704338263,
+                "r2": 0.9270138276837013,
+                "prediction_interval_coverage": 0.8035714285714286,
+                "prediction_interval_width": 2599.6730656250083
+            }
+        }
+    }
+}

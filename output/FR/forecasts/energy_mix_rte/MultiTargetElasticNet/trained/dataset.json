@@ -1,0 +1,29 @@
+{
+    "log_target": false,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "copy_input": true,
+    "locations": [
+        "Paris",
+        "Marseille",
+        "Lyon",
+        "Toulouse",
+        "Lille"
+    ],
+    "add_cyclical_time_features": true,
+    "feature_engineer": null,
+    "spatial_agg_method": "mean",
+    "targets": [
+        "biomass_rte",
+        "gas_rte",
+        "hard_coal_rte",
+        "oil_rte",
+        "renewables_rte",
+        "waste_rte"
+    ],
+    "label": "energy_mix_rte",
+    "verbose": true,
+    "l1_ratio": 0.6311504650519009,
+    "alpha": 0.012187569215936188
+}

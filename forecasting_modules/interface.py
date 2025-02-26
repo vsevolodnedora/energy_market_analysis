@@ -18,7 +18,7 @@ def main_forecasting_pipeline(c_dict:dict,task_list:list, outdir:str, database:s
 
     if not os.path.isdir(outdir):
         if verbose: logger.info("Creating output directory {}".format(outdir))
-        os.mkdir(outdir)
+        os.makedirs(outdir)
 
     if not freq in ['hourly', 'minutely_15']:
         raise ValueError(f"freq must be one of 'hourly', 'minutely_15' Given {freq}")

@@ -1,0 +1,19 @@
+{
+    "log_target": false,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "copy_input": true,
+    "locations": [
+        "Cestas Solar Park",
+        "Athies-Samoussy Solar Park",
+        "Toul-Rosi\u00e8res Solar Park",
+        "Gabardan Solar Park"
+    ],
+    "add_cyclical_time_features": true,
+    "feature_engineer": "WeatherSolarPowerFE",
+    "targets": [
+        "solar_rte"
+    ],
+    "label": "solar_rte"
+}

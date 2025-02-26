@@ -1,0 +1,7 @@
+{
+    "wind_onshore_rte": {
+        "method": "trained",
+        "model_label": "ElasticNet",
+        "avg_rmse": 1283.6626549574692
+    }
+}

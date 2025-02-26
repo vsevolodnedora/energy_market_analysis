@@ -1,0 +1,104 @@
+{
+    "start_date": "2023-03-27T00:00:00+00:00",
+    "end_date": "2025-02-23T23:00:00+00:00",
+    "horizon": 168,
+    "features": [
+        "temperature_2m_agg",
+        "relative_humidity_2m_agg",
+        "HDH_agg",
+        "CDH_agg",
+        "dew_point_temperature_agg",
+        "dew_point_spread_agg",
+        "humidex_agg",
+        "rain_indicator_agg",
+        "cloud_cover_fraction_agg",
+        "effective_solar_agg",
+        "wind_offshore_rte",
+        "wind_onshore_rte",
+        "solar_rte",
+        "hour",
+        "dayofweek",
+        "is_holiday",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos"
+    ],
+    "error_metrics": {
+        "2025-01-20T00:00:00+00:00": {
+            "load_rte": {
+                "mse": 1285196.083197995,
+                "rmse": 1133.6648901672818,
+                "mae": 876.494500058851,
+                "mape": 1.3617620740290655,
+                "smape": 2.725681330586466,
+                "bias": 20.830611159384414,
+                "variance": 1284762.1688367215,
+                "std": 1133.473497192026,
+                "r2": 0.978473138858635,
+                "prediction_interval_coverage": 0.9166666666666666,
+                "prediction_interval_width": 3973.797038293391
+            }
+        },
+        "2025-01-27T00:00:00+00:00": {
+            "load_rte": {
+                "mse": 1194158.2663964909,
+                "rmse": 1092.7754876444158,
+                "mae": 874.4810473807656,
+                "mape": 1.4178251954610734,
+                "smape": 2.849311639448432,
+                "bias": -244.17366803431864,
+                "variance": 1134537.4862351574,
+                "std": 1065.1466970493582,
+                "r2": 0.9520273543334574,
+                "prediction_interval_coverage": 0.9285714285714286,
+                "prediction_interval_width": 3973.797038293392
+            }
+        },
+        "2025-02-03T00:00:00+00:00": {
+            "load_rte": {
+                "mse": 2237852.1927772663,
+                "rmse": 1495.9452505948425,
+                "mae": 1238.1317760503048,
+                "mape": 1.8970034561858549,
+                "smape": 3.790178695544128,
+                "bias": 84.05250910576987,
+                "variance": 2230787.3684902904,
+                "std": 1493.5820595100527,
+                "r2": 0.9390402716101603,
+                "prediction_interval_coverage": 0.7976190476190477,
+                "prediction_interval_width": 3973.797038293391
+            }
+        },
+        "2025-02-10T00:00:00+00:00": {
+            "load_rte": {
+                "mse": 988735.0405866341,
+                "rmse": 994.351567900727,
+                "mae": 784.6407208255346,
+                "mape": 1.245564772597195,
+                "smape": 2.49140226034277,
+                "bias": -4.9346900001564356,
+                "variance": 988710.6894212363,
+                "std": 994.3393230790163,
+                "r2": 0.9615637034736708,
+                "prediction_interval_coverage": 0.9404761904761905,
+                "prediction_interval_width": 3973.797038293391
+            }
+        },
+        "2025-02-17T00:00:00+00:00": {
+            "load_rte": {
+                "mse": 4491020.82925195,
+                "rmse": 2119.2028759068703,
+                "mae": 1618.0928868150977,
+                "mape": 2.861587684994063,
+                "smape": 5.758947410230706,
+                "bias": 214.1803914986956,
+                "variance": 4445147.589149415,
+                "std": 2108.351865592984,
+                "r2": 0.9124743160892999,
+                "prediction_interval_coverage": 0.6785714285714286,
+                "prediction_interval_width": 3973.797038293392
+            }
+        }
+    }
+}

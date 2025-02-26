@@ -1,0 +1,39 @@
+{
+    "log_target": false,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "copy_input": true,
+    "locations": [
+        "Ensemble Eolien Catalan Wind Farm",
+        "Salles-Curan Wind Farm",
+        "Les Hauts Pays Wind Farm",
+        "Champagne Picardie Project Wind Farm",
+        "Mont Payard Wind Farm"
+    ],
+    "add_cyclical_time_features": true,
+    "feature_engineer": "WeatherWindPowerFE",
+    "targets": [
+        "wind_onshore_rte"
+    ],
+    "label": "wind_onshore_rte",
+    "verbose": true,
+    "compute_air_density": false,
+    "compute_wind_power_density": false,
+    "encode_wind_direction": true,
+    "compute_wind_shear": false,
+    "compute_wind_ramp": true,
+    "compute_air_density_moiust_air_correction": true,
+    "dew_point_temperature": false,
+    "vapor_pressure": false,
+    "gust_factor": true,
+    "turbulence_window": 2,
+    "lags_choice": "none",
+    "precip_lags_choice": "large",
+    "drop_raw_main_features": false,
+    "drop_raw_wind_features": true,
+    "spatial_agg_method": "idw",
+    "lags_target": null,
+    "l1_ratio": 0.5411969904795644,
+    "alpha": 0.7978672509653805
+}

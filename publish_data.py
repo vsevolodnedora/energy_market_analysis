@@ -116,726 +116,6 @@ def create_output_dirs(verbose:bool)->tuple[str,str,str]:
 
     return data_dir, data_dir_web, data_dir_api
 
-def publish_to_api(
-        run_label:str='wind_offshore',
-        target='wind_offshore',
-        avail_regions=('DE_50HZ', 'DE_TENNET'),
-        method_type='forecast',  # 'trained'
-        results_root_dir='forecasting_modules/output/',
-        output_dir='deploy/data/api/',
-        verbose: bool = True
-):
-    """
-    Load model forecasts (previous and current) and combine them into a single time-series file and
-    save as a JSON file that can be requested via an API.
-    Each forecast file initially has 4 columns:
-        [f"{target}_actual", f"{target}_fitted", f"{target}_lower", f"{target}_upper"]
-
-    For the API, we only provide the last three, renaming them for simplicity to:
-        ["forecast", "ci_lower", "ci_upper"]
-
-    Dataframes have index as pd.Timestamp in UTC, and the same format is provided in the JSON.
-
-    :param target: The forecasting target.
-    :param avail_regions: Available regions for forecasting.
-    :param method_type: Type of method used (e.g., 'forecast', 'trained').
-    :param results_root_dir: Directory containing forecast results.
-    :param output_dir: Directory to store API-ready JSON files.
-    :param verbose: Whether to print progress information.
-    :return: None
-    """
-
-    if target != run_label:
-        raise NotImplementedError(f"Target '{target}' for run_label '{run_label}' not implemented.")
-
-    if not os.path.isdir(output_dir):
-        if verbose: logger.info(f"Creating directory '{output_dir}'")
-        os.makedirs(output_dir)
-
-    df_results = pd.DataFrame()
-    for de_reg in de_regions:
-        if de_reg['name'] in avail_regions:
-            key = de_reg['TSO']
-            suffix = de_reg['suffix']
-            var = target + suffix
-
-            # Load the best model name
-            best_model = None
-            with open(f"{results_root_dir}{var}/best_model.txt") as f:
-                best_model = str(f.read())
-            if 'ensemble' in best_model:
-                best_model = convert_ensemble_string(best_model)
-
-            # Load past forecasts
-            df_res = pd.read_csv(
-                f"{results_root_dir}{var}/{best_model}/{method_type}/result.csv",
-                index_col=0, parse_dates=True)
-            df_res.columns = [col.replace(suffix, '') for col in df_res.columns]  # remove TSO suffix
-
-            # Load current forecast
-            df_forecast = pd.read_csv(
-                f"{results_root_dir}{var}/{best_model}/{method_type}/forecast.csv",
-                index_col=0, parse_dates=True)
-            df_forecast.columns = [col.replace(suffix, '') for col in df_forecast.columns]  # remove TSO suffix
-
-            # load timestamp when the model was last trained
-
-            with open(f"{results_root_dir}{var}/{best_model}/{'finetuning'}/datetime.json", "r") as file:
-                finetune_time = pd.to_datetime(json.load(file)['datetime'])
-
-            with open(f"{results_root_dir}{var}/{best_model}/{'trained'}/datetime.json", "r") as file:
-                train_time = pd.to_datetime(json.load(file)['datetime'])
-
-            with open(f"{results_root_dir}{var}/{best_model}/{'forecast'}/datetime.json", "r") as file:
-                forecast_time = pd.to_datetime(json.load(file)['datetime'])
-
-            # Combine past and current forecasts
-            df = pd.concat([df_res, df_forecast], axis=0)  # stack dataframes along index
-            df.sort_index(inplace=True)  # Ensure the index is sorted
-            df = df[~df.index.duplicated(keep='first')]
-            df.drop(columns=[f"{target}_actual"], inplace=True)  # Drop the actual data column
-            df.rename(columns={
-                f"{target}_fitted": "forecast",
-                f"{target}_lower": "ci_lower",
-                f"{target}_upper": "ci_upper"
-            }, inplace=True)
-
-            # Convert the index (timestamps) to ISO 8601 strings and reset the index
-            fname = f"{target.lower()}_{key.lower()}.json"
-
-            # generate metadata
-            metadata = {
-                "file": fname,
-                "data_keys":list(df.columns.tolist()),
-                "target_name": target,
-                "tso_region": de_reg['name'],
-                "model_label": best_model,
-                "finetune_datetime":finetune_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                "train_datetime": train_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                "forecast_datetime": forecast_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                "source": "https://vsevolodnedora.github.io/energy_market_analysis/",
-                "forecast_horizon_hours":len(df_forecast),
-                "units": "MW",
-                "notes": "None"
-            }
-
-            save_to_json(df, metadata, f"{output_dir}{fname}", verbose)
-
-            # Aggregate for total results
-            if df_results.empty:
-                df_results = df.copy()
-            else:
-                df_results += df.copy()
-
-    # Save total combined data
-    fname = f"{target.lower()}_total.json"
-    fpath_total_json = f"{output_dir}{fname}"
-
-    # generate metadata
-    metadata = {
-        "file": fname,
-        "data_keys":list(df_results.columns.tolist()),
-        "target_name": target,
-        "tso_region": 'DE',
-        "model_label": "N/A",
-        "finetune_datetime":finetune_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-        "train_datetime": train_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-        "forecast_datetime": forecast_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-        "source": "https://vsevolodnedora.github.io/energy_market_analysis/",
-        "forecast_horizon_hours":len(df_forecast),
-        "units": "MW",
-        "notes": "Aggregated over all regions."
-    }
-
-    save_to_json(df_results, metadata, fpath_total_json, verbose)
-
-def OLD_publish_generation(
-        run_label:str='wind_offshore',
-        target='wind_offshore',
-        avail_regions=('DE_50HZ', 'DE_TENNET'),
-        n_folds = 3,
-        metric = 'rmse',
-        method_type = 'trained', # 'trained'
-        results_root_dir = 'forecasting_modules/output/',
-        database_dir = 'database/',
-        output_dir = 'deploy/data/forecasts/',
-        verbose:bool = True,
-):
-
-    def retain_most_recent_entries(data:dict, N:int):
-        # Sort keys by timestamp (assuming keys are sortable timestamps)
-        sorted_keys = sorted(data.keys(), reverse=True)
-        # Select the most recent N keys
-        most_recent_keys = sorted_keys[:N]
-        # Create a new dictionary with only the most recent N entries
-        recent_entries = {key: data[key] for key in most_recent_keys}
-        return recent_entries
-
-    # Ensemble model will be abbreviated for simplicity
-
-
-    def compute_error_metrics_cutoffs(
-            df_, cutoffs:list, horizon:int, target:str, key_actual:str, key_fitted:str)->dict:
-        ''' compute errror metrics for batches separated by cutoffs'''
-        smard_metrics = {}
-        for i, cutoff in enumerate(cutoffs):
-            mask_ = (df_.index >= cutoff) & (df_.index < cutoff + pd.Timedelta(hours=horizon))
-            actual = df_[key_actual][mask_]
-            predicted = df_[key_fitted][mask_]
-            df = pd.DataFrame({
-                f'{target}_actual':actual.values,
-                f'{target}_fitted': predicted.values,
-                f'{target}_lower': np.zeros_like(actual.values),
-                f'{target}_upper': np.zeros_like(actual.values)
-            }, index=actual.index)
-            smard_metrics[cutoff] = compute_error_metrics([target], df)
-        return smard_metrics
-
-    table = [] # to be shown in 'description'
-
-    df_results = pd.DataFrame()
-
-    df_entsoe = pd.read_parquet(database_dir + 'entsoe/' + 'history_hourly.parquet')
-
-    # collect total values from all regions; compute error using average metric and ENTSO-E data
-    for de_reg in de_regions:
-        if de_reg['name'] in avail_regions:
-            key = de_reg['TSO']
-            suffix = de_reg['suffix']
-            var = target + suffix
-
-            # load sumamry metrics for different models and horizons for a given target varaible
-            df = pd.read_csv( f'{results_root_dir}{var}/summary_metrics.csv' )
-            best_models_train, best_models_forecast = analyze_model_performance(df, n_folds=n_folds, metric=metric)
-            best_models_train.to_json( outdir + "best_model.json", orient='index', indent=4)
-            best_models_forecast.to_json( outdir + "best_model_forecast.json", orient='index', indent=4)
-            best_model = best_models_train if method_type == 'trained' else best_models_forecast
-
-            res_models = res_models[res_models['method'] == method_type]
-            best_model:str = str(res_models['model_label'].values[0])
-            if best_model.__contains__('ensemble'):
-                best_model = convert_ensemble_string(best_model)
-
-            # load timestamp when the model was last trained
-            with open(f"{results_root_dir}{var}/{best_model}/{method_type}/datetime.json", "r") as file:
-                train_time = pd.to_datetime(json.load(file)['datetime'])
-
-            # load training properties (features etc.)
-            with open(f"{results_root_dir}{var}/{best_model}/{method_type}/metadata.json", "r") as file:
-                metadata:dict = json.load(file)
-
-            cutoffs = df[df['method'] == method_type]['horizon'].unique()
-            cutoffs = [pd.to_datetime(cutoff) for cutoff in cutoffs]
-            horizon = int(metadata['horizon'])
-            entsoe_metrics = compute_error_metrics_cutoffs(
-                df_=df_entsoe,  cutoffs=cutoffs, horizon=horizon, target=var,
-                key_actual=var, key_fitted=f"{target}_forecast{suffix}"
-            )
-            entsoe_metrics = {date:metric[var] for date, metric in entsoe_metrics.items()}
-
-            smard_metrics = retain_most_recent_entries(entsoe_metrics, n_folds)
-            ave_smard_metric = np.average([smard_metrics[time_s][metric] for time_s in smard_metrics.keys()])
-
-            table.append({
-                'TSO/Region':key,
-                'Train Date':train_time.strftime('%Y-%m-%d'),
-                'N Features':len(metadata['features']),
-                'Best Model':best_model,
-                'RMSE':float(res_models[f'avg_{metric}'].values[0]),
-                'TSO RMSE': float(ave_smard_metric),
-            })
-
-            # LOAD results file and compute total (for SMARD comparison)
-            df_res = pd.read_csv(
-                f"{results_root_dir}{var}/{best_model}/{method_type}/result.csv",
-                index_col=0, parse_dates=True)
-            df_res.columns = [ col.replace(suffix, '') for col in df_res.columns ]
-
-
-            if df_results.empty: df_results = df_res.copy()
-            else: df_results += df_res.copy()
-
-
-    # -------- FOR TOTAL COMPUTE ERROR OVER THE LAST N HORIZONS --------------- #
-
-
-    df = pd.read_csv( f'{results_root_dir}{var}/summary_metrics.csv' ) # get cutoffs (general for all models)
-    cutoffs = df[df['method'] == method_type]['horizon'].unique()
-    cutoffs = [pd.to_datetime(cutoff) for cutoff in cutoffs]
-    horizon = int(metadata['horizon'])
-
-    total_metrics = compute_error_metrics_cutoffs(
-        df_=df_results, cutoffs=cutoffs, horizon=horizon, target=target,
-        key_actual=f'{target}_actual', key_fitted=f'{target}_fitted'
-    )
-    total_metrics = {date:metric[target] for date, metric in total_metrics.items()}
-
-    total_metrics = retain_most_recent_entries(total_metrics, N=horizon)
-    ave_total_metric = np.average([total_metrics[time_s][metric] for time_s in total_metrics.keys()])
-
-    logger.info(f'For {target} average over {n_folds} total RMSE for {target} is {ave_total_metric}')
-
-
-    # ----------- COMPUTE SMARD ERROR OVER THE LAST N HORIZONS ------------------ #
-
-    df_smard = pd.read_parquet(database_dir + 'smard/' + 'history_hourly.parquet')
-
-    df_smard.rename(columns={
-        "total_grid_load_forecasted": "load_forecasted",
-        "total_grid_load": "load",
-    }, inplace=True)
-    smard_metrics = compute_error_metrics_cutoffs(
-        df_=df_smard,  cutoffs=cutoffs, horizon=horizon, target=target,
-        key_actual=target, key_fitted=f"{target}_forecasted"
-    )
-    smard_metrics = {date:metric[target] for date, metric in smard_metrics.items()}
-    smard_metrics = retain_most_recent_entries(smard_metrics, n_folds)
-    ave_smard_metric = np.average([smard_metrics[time_s][metric] for time_s in smard_metrics.keys()])
-
-    logger.info(f'For {target} Average over {n_folds} SMARD RMSE for {target} is {ave_smard_metric}')
-
-    table = pd.DataFrame(table)
-
-    # ----------- CONVERT FORECASTS CSV TO JSON FOR WEBPAGE ------------------ #
-
-    possible_types = ['forecast.csv', 'result.csv']
-
-    if not os.path.exists(output_dir):
-        if verbose: logger.info(f'Creating output directory {output_dir}')
-        os.makedirs(output_dir)
-
-    # Convert .csv past and current forecasts into json files for each TSO
-    for de_reg in de_regions:
-        if de_reg['name'] in avail_regions:
-            key = de_reg['TSO']
-            suffix = de_reg['suffix']
-            var = target + suffix
-
-            output_dir_ = output_dir + var + '/'
-
-            for ftype in possible_types:
-                model_label = str(table[table['TSO/Region']==key]['Best Model'].values[0])
-                df = pd.read_csv(
-                    f'{results_root_dir}/{var}/{model_label}/forecast/{ftype}',
-                    index_col=0,
-                    parse_dates=True
-                )[:pd.Timestamp(datetime.today(),tz='UTC') + timedelta(days=7)]
-
-                convert_csv_to_json(
-                    df = df,
-                    target=var,
-                    output_dir=output_dir_,
-                    prefix = 'forecast_curr' if ftype == 'forecast.csv' else 'forecast_prev',
-                    cols=[f"fitted", f"lower", f"upper"] if ftype == 'forecast.csv' else [f"actual", f"fitted", f"lower", f"upper"]#[f"actual", f"fitted", f"lower", f"upper"]
-                )
-
-    # Compute total from .csv past and current forecasts into json files for each TSO
-    output_dir_ = output_dir + target + '/'
-    for ftype in possible_types:
-        df = pd.DataFrame
-        for de_reg in de_regions:
-            if de_reg['name'] in avail_regions:
-                key = de_reg['TSO']
-                suffix = de_reg['suffix']
-                var = target + suffix
-
-                model_label = str(table[table['TSO/Region']==key]['Best Model'].values[0])
-                df1 = pd.read_csv(
-                    f'{results_root_dir}/{var}/{model_label}/forecast/{ftype}',
-                    index_col=0,
-                    parse_dates=True
-                )[:pd.Timestamp(datetime.today(),tz='UTC') + timedelta(days=7)]
-                df1.columns = [ col.replace(f'{suffix}', '') for col in df1.columns ]
-
-                if df.empty:df = df1.copy()
-                else: df = df + df1.copy()
-
-        convert_csv_to_json(
-            df = df,
-            target=target,
-            output_dir=output_dir_,
-            prefix = 'forecast_curr' if ftype == 'forecast.csv' else 'forecast_prev',
-            cols=[f"fitted", f"lower", f"upper"] if ftype == 'forecast.csv' else [f"actual", f"fitted", f"lower", f"upper"]#[f"actual", f"fitted", f"lower", f"upper"]
-        )
-
-    ''' ---------- PREPARE RESULTS FOR SERVING ------------- '''
-
-    # Rename values starting with 'meta_' to 'Ensemble'
-    table["Best Model"] = table["Best Model"].apply(lambda x: "Ensemble" if x.startswith("meta_") else x)
-    # Round floating point values to integers
-    table[r"RMSE"] = table[r"RMSE"].round().astype(int)
-    table[r"TSO RMSE"] = table[r"TSO RMSE"].round().astype(int)
-    # Save as markdown
-    summary_fpath = f'{output_dir}/{target}_notes_en.md'
-    table.to_markdown(summary_fpath, index=False)
-
-    # ------------- ENGLISH TEXT ---------------
-
-    intro_sentences = \
-        f"""
-Our __week-ahead__ forecast has average RMSE of __{ave_total_metric:.0f}__.  
-SMARD __day-ahead__ forecast has average accuracy of __{ave_smard_metric:.0f}__. 
-    """
-
-    # Reading the markdown content
-    with open(summary_fpath, "r") as file:
-        markdown_content = file.read()
-    # Prepending the sentences to the markdown content
-    updated_markdown_content = intro_sentences + "\n" + markdown_content
-    # Saving the updated markdown content
-    with open(summary_fpath, "w") as file:
-        file.write(updated_markdown_content)
-
-
-    # -------------- GERMAN TEXT -------------------
-
-    dictionary_en_de = {
-        "Best Model": "Bestes Modell",
-        "Average RMSE": "Durchschnittlicher RMSE",
-        "TSO/Region": "ÜNB/Region",
-        "Train Date": "Trainingsdatum",
-        "N Features": "Anzahl der Merkmale"
-    }
-    table.rename(columns = dictionary_en_de, inplace = True)
-
-    summary_fpath = f'{output_dir}/{target}_notes_de.md'
-    table.to_markdown(summary_fpath, index=False)
-
-    intro_sentences = f"""
-Unsere __Wochenprognose__ hat einen durchschnittlichen RMSE von __{ave_total_metric:.0f}__.  
-Die SMARD __Tagesprognose__ weist eine durchschnittliche Genauigkeit von __{ave_smard_metric:.0f}__ auf.
-    """
-
-    # Reading the markdown content
-    with open(summary_fpath, "r") as file:
-        markdown_content = file.read()
-    # Prepending the sentences to the markdown content
-    updated_markdown_content = intro_sentences + "\n" + markdown_content
-    # Saving the updated markdown content
-    with open(summary_fpath, "w") as file:
-        file.write(updated_markdown_content)
-
-
-def publish_generation(
-        run_label:str='wind_offshore',
-        target='wind_offshore',
-        avail_regions=('DE_50HZ', 'DE_TENNET'),
-        n_folds = 3,
-        metric = 'rmse',
-        method_type = 'trained', # 'trained'
-        results_root_dir = 'forecasting_modules/output/',
-        database_dir = 'database/',
-        output_dir = 'deploy/data/forecasts/',
-        verbose:bool = True,
-):
-
-    def retain_most_recent_entries(data:dict, N:int):
-        # Sort keys by timestamp (assuming keys are sortable timestamps)
-        sorted_keys = sorted(data.keys(), reverse=True)
-        # Select the most recent N keys
-        most_recent_keys = sorted_keys[:N]
-        # Create a new dictionary with only the most recent N entries
-        recent_entries = {key: data[key] for key in most_recent_keys}
-        return recent_entries
-
-    # Ensemble model will be abbreviated for simplicity
-
-    def get_actual_forecast_from_entsoe(df:pd.DataFrame, key_actual:str, key_fitted:str):
-        if key_actual == 'energy_mix':
-            actual = df[[key for key in entsoe_generation_type_mapping.keys() if key in df.columns]].sum(axis=1)
-            predicted = df["generation_f"]
-        else:
-            actual = df[key_actual]
-            predicted = df[key_fitted]
-        return actual, predicted
-
-
-    def compute_error_metrics_cutoffs(
-            df_, cutoffs:list, horizon:int, target:str, key_actual:str, key_fitted:str)->dict:
-        ''' compute errror metrics for batches separated by cutoffs'''
-        smard_metrics = {}
-        for i, cutoff in enumerate(cutoffs):
-            mask_ = (df_.index >= cutoff) & (df_.index < cutoff + pd.Timedelta(hours=horizon))
-            actual, predicted = get_actual_forecast_from_entsoe(df_, key_actual, key_fitted)
-            actual = actual[mask_]
-            predicted = predicted[mask_]
-            df = pd.DataFrame({
-                f'{target}_actual':actual.values,
-                f'{target}_fitted': predicted.values,
-                f'{target}_lower': np.zeros_like(actual.values),
-                f'{target}_upper': np.zeros_like(actual.values)
-            }, index=actual.index)
-            smard_metrics[cutoff] = compute_error_metrics([target], df)
-        return smard_metrics
-
-    table = [] # to be shown in 'description'
-
-    df_results = pd.DataFrame()
-
-    df_entsoe = pd.read_parquet(database_dir + 'entsoe/' + 'history_hourly.parquet')
-
-    # collect total values from all regions; compute error using average metric and ENTSO-E data
-    for de_reg in de_regions:
-        if de_reg['name'] in avail_regions:
-            key = de_reg['TSO']
-            suffix = de_reg['suffix']
-            var = target + suffix
-
-            # load sumamry metrics for different models and horizons for a given target varaible
-            df = pd.read_csv( f'{results_root_dir}{var}/summary_metrics.csv' )
-            best_models_train, best_models_forecast = analyze_model_performance(df, n_folds=n_folds, metric=metric)
-            best_model_dicts = best_models_train if method_type == 'trained' else best_models_forecast
-            best_model_dict = best_model_dicts[target]
-            best_model_label = best_model_dict['model_label']
-
-            # res_models = res_models[res_models['method'] == method_type]
-            # best_model:str = str(res_models['model_label'].values[0])
-            if best_model_label.__contains__('ensemble'):
-                best_model_label = convert_ensemble_string(best_model_label)
-
-            # load timestamp when the model was last trained
-            with open(f"{results_root_dir}{var}/{best_model_label}/{method_type}/datetime.json", "r") as file:
-                train_time = pd.to_datetime(json.load(file)['datetime'])
-
-            # load training properties (features etc.)
-            with open(f"{results_root_dir}{var}/{best_model_label}/{method_type}/metadata.json", "r") as file:
-                metadata:dict = json.load(file)
-
-            cutoffs = df[df['method'] == method_type]['horizon'].unique()
-            cutoffs = [pd.to_datetime(cutoff) for cutoff in cutoffs]
-            horizon = int(metadata['horizon'])
-
-            entsoe_metrics = compute_error_metrics_cutoffs(
-                df_=df_entsoe,  cutoffs=cutoffs, horizon=horizon, target=target + suffix,
-                key_actual=target + suffix, key_fitted=f"{target}_forecast{suffix}"
-            )
-            entsoe_metrics = {date:metric[var] for date, metric in entsoe_metrics.items()}
-
-            smard_metrics = retain_most_recent_entries(entsoe_metrics, n_folds)
-            ave_smard_metric = np.average([smard_metrics[time_s][metric] for time_s in smard_metrics.keys()])
-
-            table.append({
-                'TSO/Region':key,
-                'Train Date':train_time.strftime('%Y-%m-%d'),
-                'N Features':len(metadata['features']),
-                'Best Model':best_model_label,
-                'RMSE':float(best_model_dict[f'avg_{metric}'].values[0]),
-                'TSO RMSE': float(ave_smard_metric),
-            })
-
-            # LOAD results file and compute total (for SMARD comparison)
-            df_res = pd.read_csv(
-                f"{results_root_dir}{var}/{best_model_label}/{method_type}/result.csv",
-                index_col=0, parse_dates=True)
-            df_res.columns = [ col.replace(suffix, '') for col in df_res.columns ]
-
-
-            if df_results.empty: df_results = df_res.copy()
-            else: df_results += df_res.copy()
-
-
-    # -------- FOR TOTAL COMPUTE ERROR OVER THE LAST N HORIZONS --------------- #
-
-
-    df = pd.read_csv( f'{results_root_dir}{var}/summary_metrics.csv' ) # get cutoffs (general for all models)
-    cutoffs = df[df['method'] == method_type]['horizon'].unique()
-    cutoffs = [pd.to_datetime(cutoff) for cutoff in cutoffs]
-    horizon = int(metadata['horizon'])
-
-    total_metrics = compute_error_metrics_cutoffs(
-        df_=df_results, cutoffs=cutoffs, horizon=horizon, target=target,
-        key_actual=f'{target}_actual', key_fitted=f'{target}_fitted'
-    )
-    total_metrics = {date:metric[target] for date, metric in total_metrics.items()}
-
-    total_metrics = retain_most_recent_entries(total_metrics, N=horizon)
-    ave_total_metric = np.average([total_metrics[time_s][metric] for time_s in total_metrics.keys()])
-
-    logger.info(f'For {target} average over {n_folds} total RMSE for {target} is {ave_total_metric}')
-
-
-    # ----------- COMPUTE SMARD ERROR OVER THE LAST N HORIZONS ------------------ #
-
-    df_smard = pd.read_parquet(database_dir + 'smard/' + 'history_hourly.parquet')
-
-    df_smard.rename(columns={
-        "total_grid_load_forecasted": "load_forecasted",
-        "total_grid_load": "load",
-    }, inplace=True)
-    smard_metrics = compute_error_metrics_cutoffs(
-        df_=df_smard,  cutoffs=cutoffs, horizon=horizon, target=target,
-        key_actual=target, key_fitted=f"{target}_forecasted"
-    )
-    smard_metrics = {date:metric[target] for date, metric in smard_metrics.items()}
-    smard_metrics = retain_most_recent_entries(smard_metrics, n_folds)
-    ave_smard_metric = np.average([smard_metrics[time_s][metric] for time_s in smard_metrics.keys()])
-
-    logger.info(f'For {target} Average over {n_folds} SMARD RMSE for {target} is {ave_smard_metric}')
-
-    table = pd.DataFrame(table)
-
-    # ----------- CONVERT FORECASTS CSV TO JSON FOR WEBPAGE ------------------ #
-
-    possible_types = ['forecast.csv', 'result.csv']
-
-    if not os.path.exists(output_dir):
-        if verbose: logger.info(f'Creating output directory {output_dir}')
-        os.makedirs(output_dir)
-
-    # Convert .csv past and current forecasts into json files for each TSO
-    for de_reg in de_regions:
-        if de_reg['name'] in avail_regions:
-            key = de_reg['TSO']
-            suffix = de_reg['suffix']
-            var = target + suffix
-
-            output_dir_ = output_dir + var + '/'
-
-            for ftype in possible_types:
-                model_label = str(table[table['TSO/Region']==key]['Best Model'].values[0])
-                df = pd.read_csv(
-                    f'{results_root_dir}/{var}/{model_label}/forecast/{ftype}',
-                    index_col=0,
-                    parse_dates=True
-                )[:pd.Timestamp(datetime.today(),tz='UTC') + timedelta(days=7)]
-
-                convert_csv_to_json(
-                    df = df,
-                    target=var,
-                    output_dir=output_dir_,
-                    prefix = 'forecast_curr' if ftype == 'forecast.csv' else 'forecast_prev',
-                    cols=[f"fitted", f"lower", f"upper"] if ftype == 'forecast.csv' else [f"actual", f"fitted", f"lower", f"upper"]#[f"actual", f"fitted", f"lower", f"upper"]
-                )
-
-    # Compute total from .csv past and current forecasts into json files for each TSO
-    output_dir_ = output_dir + target + '/'
-    for ftype in possible_types:
-        df = pd.DataFrame
-        for de_reg in de_regions:
-            if de_reg['name'] in avail_regions:
-                key = de_reg['TSO']
-                suffix = de_reg['suffix']
-                var = target + suffix
-
-                model_label = str(table[table['TSO/Region']==key]['Best Model'].values[0])
-                df1 = pd.read_csv(
-                    f'{results_root_dir}/{var}/{model_label}/forecast/{ftype}',
-                    index_col=0,
-                    parse_dates=True
-                )[:pd.Timestamp(datetime.today(),tz='UTC') + timedelta(days=7)]
-                df1.columns = [ col.replace(f'{suffix}', '') for col in df1.columns ]
-
-                if df.empty:df = df1.copy()
-                else: df = df + df1.copy()
-
-        convert_csv_to_json(
-            df = df,
-            target=target,
-            output_dir=output_dir_,
-            prefix = 'forecast_curr' if ftype == 'forecast.csv' else 'forecast_prev',
-            cols=[f"fitted", f"lower", f"upper"] if ftype == 'forecast.csv' else [f"actual", f"fitted", f"lower", f"upper"]#[f"actual", f"fitted", f"lower", f"upper"]
-        )
-
-    ''' ---------- PREPARE RESULTS FOR SERVING ------------- '''
-
-    # Rename values starting with 'meta_' to 'Ensemble'
-    table["Best Model"] = table["Best Model"].apply(lambda x: "Ensemble" if x.startswith("meta_") else x)
-    # Round floating point values to integers
-    table[r"RMSE"] = table[r"RMSE"].round().astype(int)
-    table[r"TSO RMSE"] = table[r"TSO RMSE"].round().astype(int)
-    # Save as markdown
-    summary_fpath = f'{output_dir}/{target}_notes_en.md'
-    table.to_markdown(summary_fpath, index=False)
-
-    # ------------- ENGLISH TEXT ---------------
-
-    intro_sentences = \
-        f"""
-Our __week-ahead__ forecast has average RMSE of __{ave_total_metric:.0f}__.  
-SMARD __day-ahead__ forecast has average accuracy of __{ave_smard_metric:.0f}__. 
-    """
-
-    # Reading the markdown content
-    with open(summary_fpath, "r") as file:
-        markdown_content = file.read()
-    # Prepending the sentences to the markdown content
-    updated_markdown_content = intro_sentences + "\n" + markdown_content
-    # Saving the updated markdown content
-    with open(summary_fpath, "w") as file:
-        file.write(updated_markdown_content)
-
-
-    # -------------- GERMAN TEXT -------------------
-
-    dictionary_en_de = {
-        "Best Model": "Bestes Modell",
-        "Average RMSE": "Durchschnittlicher RMSE",
-        "TSO/Region": "ÜNB/Region",
-        "Train Date": "Trainingsdatum",
-        "N Features": "Anzahl der Merkmale"
-    }
-    table.rename(columns = dictionary_en_de, inplace = True)
-
-    summary_fpath = f'{output_dir}/{target}_notes_de.md'
-    table.to_markdown(summary_fpath, index=False)
-
-    intro_sentences = f"""
-Unsere __Wochenprognose__ hat einen durchschnittlichen RMSE von __{ave_total_metric:.0f}__.  
-Die SMARD __Tagesprognose__ weist eine durchschnittliche Genauigkeit von __{ave_smard_metric:.0f}__ auf.
-    """
-
-    # Reading the markdown content
-    with open(summary_fpath, "r") as file:
-        markdown_content = file.read()
-    # Prepending the sentences to the markdown content
-    updated_markdown_content = intro_sentences + "\n" + markdown_content
-    # Saving the updated markdown content
-    with open(summary_fpath, "w") as file:
-        file.write(updated_markdown_content)
-
-
-
-
-
-
-
-def publish_forecasts(db_path:str, target_settings:list[dict], verbose:bool):
-
-    data_dir, data_dir_web, data_dir_api = create_output_dirs(verbose)
-
-    for target_dict in target_settings:
-
-
-        # publish data to webpage
-        publish_generation(
-            run_label=target_dict['label'],
-            target=target_dict['target'],
-            avail_regions=target_dict['regions'],
-            n_folds = 3,
-            metric = 'rmse',
-            method_type = 'trained', # 'trained'
-            results_root_dir ='output/DE/forecasts/',
-            database_dir = db_path,
-            output_dir = data_dir_web
-        )
-
-    # for target_dict in target_settings:
-    #     # publish to API folder
-    #     publish_to_api(
-    #         run_label=target_dict['label'],
-    #         target=target_dict['target'],
-    #         avail_regions=target_dict['regions'],
-    #         method_type = 'forecast', # 'trained'
-    #         results_root_dir = './output/forecasts/',
-    #         output_dir = f'{data_dir_api}forecasts/'
-    #     )
-
-# def publish_generation_mix(verbose:bool):
-#     data_dir, data_dir_web, data_dir_api = create_output_dirs(verbose)
-
-
-
-
 def analyze_energy_forecast(df: pd.DataFrame) -> None:
     """
     Analyze a week's worth of forecasted energy generation and consumption data for Germany.
@@ -1051,8 +331,206 @@ TODO: add general analysis
 
     print(f"Daily carbon intensity file saved and updated at: {summary_fpath}")
 
+def compute_carbon_intensities(dfs: dict[str, pd.DataFrame], suffix: str) -> pd.DataFrame:
+    '''
+    Given a dictionary with hourly energy generation forecasts and grid load (in MW) for about 7 days,
+    returns a DataFrame with timeseries data for hourly carbon intensity and carbon cost.
+
+    Parameters:
+      dfs: dict[str, pd.DataFrame]
+          A dictionary whose keys are energy generation types (e.g., 'wind_onshore', 'solar', etc.)
+          and one key "load" for grid demand. Each generation DataFrame is assumed to have a column named
+          "{key}_fitted" containing the forecast in MW.
+      suffix: str
+          A string suffix to append to the output column names (useful to distinguish scenarios or versions).
+
+    Returns:
+      pd.DataFrame:
+          A DataFrame indexed by timestamp with columns:
+          - carbon_intensity_gCO2_per_kWh{suffix}: Overall carbon intensity (gCO₂/kWh)
+          - co2_cost_eur{suffix}: Carbon cost for the grid load (€/hour)
+          - co2_price_eur_per_ton{suffix}: The CO₂ price used (€/ton)
+    '''
+
+    # Updated Carbon Intensity Values (gCO₂/kWh) for German Energy Mix
+    carbon_intensity = {
+        'wind_onshore': 0,         # No direct emissions
+        'wind_offshore': 0,        # No direct emissions
+        'solar': 0,                # No direct emissions
+        'renewables': 0,           # Hydro and similar renewables assumed negligible emissions (~0 gCO₂/kWh)
+        'biomass': 50,             # Biomass varies (typically 20-100 gCO₂/kWh), assumed near carbon-neutral
+        'waste': 300,              # Waste-to-energy varies widely (~250-400 gCO₂/kWh), depending on composition
+        'lignite': 1_100,          # Brown coal (lignite) is highly carbon-intensive (~1,000-1,200 gCO₂/kWh)
+        'hard_coal': 850,          # Hard coal typically ranges from ~700-900 gCO₂/kWh
+        'coal_derived_gas': 450,   # Coal-derived gas assumed similar to natural gas (~400-500 gCO₂/kWh)
+        'gas': 400,                # Natural gas combustion ranges ~350-450 gCO₂/kWh, depending on efficiency
+        'oil': 900,                # Oil-fired power ranges ~850-950 gCO₂/kWh
+        'other_fossil': 700        # Other fossil fuels assumed similar to hard coal (~650-800 gCO₂/kWh)
+    }
 
 
+    # Fixed CO₂ price in Euros per ton
+    co2_price_per_ton = 80.0  # €/ton
+
+    # Identify keys for generation (exclude load)
+    energy_gen_types = [key for key in dfs.keys() if key != 'load']
+
+    # Build a single DataFrame for generation (in MW) with one column per energy type.
+    # We rename each column to the energy generation type for clarity.
+    df_generation_mw = pd.DataFrame()
+    for target_, df_ in dfs.items():
+        if target_ != 'load':
+            col_name = f'{target_}_fitted'
+            # Rename the series to match the energy type key
+            series_gen = df_[col_name].rename(target_)
+            if df_generation_mw.empty:
+                df_generation_mw = series_gen.to_frame()
+            else:
+                # Join on the index (timestamps)
+                df_generation_mw = df_generation_mw.join(series_gen, how='outer')
+
+    # Extract grid load. Try to use a fitted column if available.
+    df_load = dfs['load']
+    if f'load_fitted' in df_load.columns:
+        load_series = df_load[f'load_fitted']
+    else:
+        raise ValueError(f"Load column is not found")
+
+    # Convert generation from MW to kWh (1 MW = 1000 kWh over one hour)
+    df_generation_kWh = df_generation_mw * 1000
+
+    # Calculate carbon emissions (gCO2) for each generation type:
+    # Multiply energy (kWh) by its carbon intensity (gCO2/kWh)
+    df_emissions = pd.DataFrame(index=df_generation_kWh.index)
+    for gen_type in df_generation_kWh.columns:
+        # Only compute if a carbon factor exists, else assume 0
+        factor = carbon_intensity.get(gen_type, 0)
+        df_emissions[gen_type] = df_generation_kWh[gen_type] * factor  # gCO2 per hour
+
+    # Sum total emissions (gCO2) and total energy (kWh) per timestamp
+    total_emissions_g = df_emissions.sum(axis=1)
+    total_energy_kWh = df_generation_kWh.sum(axis=1)
+
+    # Compute overall carbon intensity (gCO2/kWh)
+    overall_carbon_intensity = total_emissions_g / total_energy_kWh
+
+    # Convert overall carbon intensity to tons CO2 per MWh for cost calculation:
+    # Explanation: 1 MWh = 1000 kWh, so total emissions per MWh = overall_intensity * 1000 (in gCO2).
+    # Then convert grams to tons: (overall_intensity*1000) / 1e6 = overall_intensity/1000 ton/MWh.
+    overall_intensity_ton_per_MWh = overall_carbon_intensity / 1000
+
+    # Calculate carbon cost (€/hour) based on grid load.
+    # For hourly data, a load in MW equals the energy consumption in MWh.
+    carbon_cost_eur = overall_intensity_ton_per_MWh * load_series * co2_price_per_ton
+
+    # Create output DataFrame with the computed timeseries
+    result_df = pd.DataFrame({
+        f'carbon_intensity_gCO2_per_kWh{suffix}': overall_carbon_intensity,
+        f'co2_cost_eur{suffix}': carbon_cost_eur,
+        f'co2_price_eur_per_ton{suffix}': co2_price_per_ton  # This is constant over time here.
+    }, index=df_generation_mw.index)
+
+    return result_df
+
+
+def compute_carbon_intensity_simple(dfs: dict[str, pd.DataFrame], type:str, suffix:str) -> pd.DataFrame:
+    """
+    Computes the energy mix carbon intensity (gCO₂/kWh) for each timestamp.
+
+    :param df: Pandas DataFrame with hourly generation data (MW) for each source.
+    :return: DataFrame with added column "carbon_intensity" (gCO₂/kWh).
+    """
+
+    # Updated Carbon Intensity Values (gCO₂/kWh) for German Energy Mix
+    carbon_intensity = {
+        'wind_onshore': 0,         # No direct emissions
+        'wind_offshore': 0,        # No direct emissions
+        'solar': 0,                # No direct emissions
+        'renewables': 0,           # Hydro and similar renewables assumed negligible emissions (~0 gCO₂/kWh)
+        'biomass': 50,             # Biomass varies (typically 20-100 gCO₂/kWh), assumed near carbon-neutral
+        'waste': 300,              # Waste-to-energy varies widely (~250-400 gCO₂/kWh), depending on composition
+        'lignite': 1_100,          # Brown coal (lignite) is highly carbon-intensive (~1,000-1,200 gCO₂/kWh)
+        'hard_coal': 850,          # Hard coal typically ranges from ~700-900 gCO₂/kWh
+        'coal_derived_gas': 450,   # Coal-derived gas assumed similar to natural gas (~400-500 gCO₂/kWh)
+        'gas': 400,                # Natural gas combustion ranges ~350-450 gCO₂/kWh, depending on efficiency
+        'oil': 900,                # Oil-fired power ranges ~850-950 gCO₂/kWh
+        'other_fossil': 700        # Other fossil fuels assumed similar to hard coal (~650-800 gCO₂/kWh)
+    }
+
+    df_generation_mw = pd.DataFrame()
+    for target_, df_ in dfs.items():
+        if target_ != 'load':
+            col_name = f'{target_}_{type}'
+            if not col_name in df_.columns:
+                raise KeyError(f"Column {col_name} not found")
+
+            # Rename the series to match the energy type key
+            series_gen = df_[col_name].rename(target_)
+            if df_generation_mw.empty:
+                df_generation_mw = series_gen.to_frame()
+            else:
+                # Join on the index (timestamps)
+                df_generation_mw = df_generation_mw.join(series_gen, how='outer')
+
+    # Convert MW to kWh (1 MW = 1000 kWh)
+    df_kWh = df_generation_mw * 1000
+
+    # Compute total electricity generation (kWh) per timestamp
+    total_generation = df_kWh.sum(axis=1)
+
+    # Compute weighted carbon emissions (gCO₂)
+    total_emissions = sum(df_kWh[col] * carbon_intensity[col] for col in df_generation_mw.columns)
+
+    # Compute carbon intensity (gCO₂/kWh)
+    df = pd.DataFrame(index=df_generation_mw.index)
+
+    target = "carbon_intensity"
+
+    for type_ in ["fitted", "actual", "lower", "upper"]:
+        if (type_ == type): df[f"{target}_{type_}"] = total_emissions / total_generation
+        else: df[f"{target}_{type_}"] = np.full_like(df.index, 0)
+
+    # Handle cases where total generation is zero (avoid NaN values)
+    df = df.fillna(0)
+
+    return df
+
+
+
+def compute_error_metrics_cutoffs(
+        df_, cutoffs:list, horizon:int, target:str, key_actual:str, key_fitted:str)->dict:
+    if not key_actual in df_.columns:
+        raise ValueError(f"key_actual {key_actual} not found in dataframe columns \n{df_.columns.tolist()}")
+    if not key_fitted in df_.columns:
+        raise ValueError(f"key_fitted {key_fitted} not found in dataframe columns \n{df_.columns.tolist()}")
+    ''' compute errror metrics for batches separated by cutoffs'''
+    metrics = {}
+    for i, cutoff in enumerate(cutoffs):
+        mask_ = (df_.index >= cutoff) & (df_.index < cutoff + pd.Timedelta(hours=horizon))
+        actual = df_[key_actual]
+        predicted = df_[key_fitted]
+
+        df = pd.DataFrame({
+            f'{target}_actual':actual[mask_].values,
+            f'{target}_fitted': predicted[mask_].values,
+            f'{target}_lower': np.zeros_like(actual[mask_].values),
+            f'{target}_upper': np.zeros_like(actual[mask_].values)
+        }, index=actual[mask_].index)
+
+        metrics[cutoff] = compute_error_metrics([target], df)
+
+    return metrics
+
+def retain_most_recent_entries(data:dict, N:int):
+    # Sort keys by timestamp (assuming keys are sortable timestamps)
+    sorted_keys = sorted(data.keys(), reverse=True)
+    # Select the most recent N keys
+    most_recent_keys = sorted_keys[:N]
+    # Create a new dictionary with only the most recent N entries
+    recent_entries = {key: data[key] for key in most_recent_keys}
+    return recent_entries
+
+# --- Class to hold data for a given target (train, forecast, dates, error metrics) ---
 class TargetData:
 
     def __init__(self, results_root_dir:str, verbose:bool, positive_floor:float or None):
@@ -1254,290 +732,8 @@ class TargetData:
             'TSO RMSE': float(tso_metric),
         }
 
-def OLD__compute_carbon_intensities(dfs: dict[str, pd.DataFrame], suffix: str) -> pd.DataFrame:
-    '''
-    Computes time series data for hourly carbon intensities and CO2 prices.
 
-    Parameters:
-        dfs (dict[str, pd.DataFrame]): Dictionary containing energy generation and load in MW
-                                       (hourly data for about 7 days).
-        suffix (str): Column suffix for forecasted values.
-
-    Returns:
-        pd.DataFrame: DataFrame with timeseries data for:
-                      - Hourly carbon intensity of the energy mix (gCO₂/kWh)
-                      - Total carbon emissions (tons CO₂)
-                      - Carbon cost (€)
-                      - EU ETS CO2 price (€/ton)
-    '''
-
-    # Define carbon intensity in gCO₂/kWh
-    carbon_intensity = {
-        'wind_onshore': 0,
-        'wind_offshore': 0,
-        'solar': 0,
-        'renewables': 0,  # Assuming hydro + other renewable sources
-        'biomass': 50,
-        'waste': 300,
-        'lignite': 820,
-        'hard_coal': 700,
-        'coal_derived_gas': 450,
-        'gas': 450,
-        'oil': 900,
-        'other_fossil': 700
-    }
-
-    # Placeholder for dynamically fetched CO₂ price (€/ton) - for now, using 80€/ton
-    co2_price_per_ton = 80.0
-
-    # Extract energy generation sources, excluding 'load'
-    energy_gen_types = [key for key in dfs.keys() if key != 'load']
-
-    # Construct DataFrame for energy generation in MW
-    df_generation_mw = pd.DataFrame()
-
-    for target_, df_ in dfs.items():
-        if target_ in energy_gen_types:
-            if df_generation_mw.empty:
-                df_generation_mw = pd.DataFrame(df_[f'{target_}{suffix}']).rename(columns={f'{target_}{suffix}': target_})
-            else:
-                df_generation_mw = df_generation_mw.join(df_[f'{target_}{suffix}'].rename(target_), how='left')
-
-    # Extract load data (grid demand in MW)
-    df_load_mw = dfs['load'][f'load{suffix}']
-
-    # Ensure all data is aligned by timestamp index
-    df_generation_mw = df_generation_mw.fillna(0)  # Fill missing generation values with 0
-    df_load_mw = df_load_mw.fillna(df_generation_mw.sum(axis=1))  # Fill missing load with total generation
-
-    # Convert MW to kWh (1 MW = 1000 kWh)
-    df_generation_kWh = df_generation_mw * 1000
-
-    # Compute total carbon emissions per source (gCO₂)
-    df_carbon_emissions = df_generation_kWh.mul(pd.Series(carbon_intensity), axis=1)
-
-    # Compute total carbon emissions per timestamp (tons CO₂)
-    df_total_carbon_tons = df_carbon_emissions.sum(axis=1) / 1e6  # Convert gCO₂ to tons CO₂
-
-    # Compute total energy produced (kWh)
-    df_total_energy_kWh = df_generation_kWh.sum(axis=1)
-
-    # Compute overall carbon intensity (gCO₂/kWh)
-    df_carbon_intensity = df_total_carbon_tons * 1e6 / df_total_energy_kWh
-    df_carbon_intensity.replace([np.inf, -np.inf], np.nan, inplace=True)  # Handle division by zero
-    df_carbon_intensity.fillna(0, inplace=True)  # Replace NaN with 0 for stability
-
-    # Compute carbon tax cost (€ per hour)
-    df_carbon_tax = df_total_carbon_tons * co2_price_per_ton
-
-    # Compile results into final DataFrame
-    df_results = pd.DataFrame({
-        'Total Carbon Emissions (tons CO₂)': df_total_carbon_tons,
-        'Overall Carbon Intensity (gCO₂/kWh)': df_carbon_intensity,
-        'Carbon Cost (€)': df_carbon_tax,
-        'EU ETS CO2 Price (€/ton)': co2_price_per_ton
-    })
-
-    return df_results
-
-
-
-
-
-
-    df_factors = pd.DataFrame(data)
-    df_factors.set_index('target', inplace=True)
-
-    dts = dts.copy()
-    df_ = pd.DataFrame()
-    for target_, dt in dts.items():
-        if df_.empty: df_ = pd.DataFrame(dt.df_forecast[f'{target_}_fitted'])
-        else: df_ = pd.merge(df_, dt.df_forecast[f'{target_}_fitted'], left_index=True, right_index=True, how='left')
-
-    df_
-
-    df_forecast_MWh = df_.apply(lambda x: x * 1.) # MW -> MWh
-    df_forecast_kWh = df_.apply(lambda x: x * 1. * 1000.) # MW -> MWh -> kWh
-
-    # Compute Carbon Emissions (tons CO₂ per hour)
-    df_carbon = df_forecast_kWh.mul(
-        df_factors["Carbon Intensity (gCO₂/kWh)"], axis=1) / 1e6  # Convert to tons (divide by 1e6)
-
-    # Compute Total Costs (€ per hour)
-    df_costs = df_forecast_MWh.mul(df_factors["SRMC (€/MWh)"], axis=1) # MWh
-
-    # Aggregate across all sources
-    df_["Total Carbon Emissions (tons CO₂)"] = df_carbon.sum(axis=1)
-    df_["Total Cost (€)"] = df_costs.sum(axis=1)
-
-    return df_['Total Carbon Emissions (tons CO₂)']
-
-import pandas as pd
-
-def compute_carbon_intensities(dfs: dict[str, pd.DataFrame], suffix: str) -> pd.DataFrame:
-    '''
-    Given a dictionary with hourly energy generation forecasts and grid load (in MW) for about 7 days,
-    returns a DataFrame with timeseries data for hourly carbon intensity and carbon cost.
-
-    Parameters:
-      dfs: dict[str, pd.DataFrame]
-          A dictionary whose keys are energy generation types (e.g., 'wind_onshore', 'solar', etc.)
-          and one key "load" for grid demand. Each generation DataFrame is assumed to have a column named
-          "{key}_fitted" containing the forecast in MW.
-      suffix: str
-          A string suffix to append to the output column names (useful to distinguish scenarios or versions).
-
-    Returns:
-      pd.DataFrame:
-          A DataFrame indexed by timestamp with columns:
-          - carbon_intensity_gCO2_per_kWh{suffix}: Overall carbon intensity (gCO₂/kWh)
-          - co2_cost_eur{suffix}: Carbon cost for the grid load (€/hour)
-          - co2_price_eur_per_ton{suffix}: The CO₂ price used (€/ton)
-    '''
-
-    # Updated Carbon Intensity Values (gCO₂/kWh) for German Energy Mix
-    carbon_intensity = {
-        'wind_onshore': 0,         # No direct emissions
-        'wind_offshore': 0,        # No direct emissions
-        'solar': 0,                # No direct emissions
-        'renewables': 0,           # Hydro and similar renewables assumed negligible emissions (~0 gCO₂/kWh)
-        'biomass': 50,             # Biomass varies (typically 20-100 gCO₂/kWh), assumed near carbon-neutral
-        'waste': 300,              # Waste-to-energy varies widely (~250-400 gCO₂/kWh), depending on composition
-        'lignite': 1_100,          # Brown coal (lignite) is highly carbon-intensive (~1,000-1,200 gCO₂/kWh)
-        'hard_coal': 850,          # Hard coal typically ranges from ~700-900 gCO₂/kWh
-        'coal_derived_gas': 450,   # Coal-derived gas assumed similar to natural gas (~400-500 gCO₂/kWh)
-        'gas': 400,                # Natural gas combustion ranges ~350-450 gCO₂/kWh, depending on efficiency
-        'oil': 900,                # Oil-fired power ranges ~850-950 gCO₂/kWh
-        'other_fossil': 700        # Other fossil fuels assumed similar to hard coal (~650-800 gCO₂/kWh)
-    }
-
-
-    # Fixed CO₂ price in Euros per ton
-    co2_price_per_ton = 80.0  # €/ton
-
-    # Identify keys for generation (exclude load)
-    energy_gen_types = [key for key in dfs.keys() if key != 'load']
-
-    # Build a single DataFrame for generation (in MW) with one column per energy type.
-    # We rename each column to the energy generation type for clarity.
-    df_generation_mw = pd.DataFrame()
-    for target_, df_ in dfs.items():
-        if target_ != 'load':
-            col_name = f'{target_}_fitted'
-            # Rename the series to match the energy type key
-            series_gen = df_[col_name].rename(target_)
-            if df_generation_mw.empty:
-                df_generation_mw = series_gen.to_frame()
-            else:
-                # Join on the index (timestamps)
-                df_generation_mw = df_generation_mw.join(series_gen, how='outer')
-
-    # Extract grid load. Try to use a fitted column if available.
-    df_load = dfs['load']
-    if f'load_fitted' in df_load.columns:
-        load_series = df_load[f'load_fitted']
-    else:
-        raise ValueError(f"Load column is not found")
-
-    # Convert generation from MW to kWh (1 MW = 1000 kWh over one hour)
-    df_generation_kWh = df_generation_mw * 1000
-
-    # Calculate carbon emissions (gCO2) for each generation type:
-    # Multiply energy (kWh) by its carbon intensity (gCO2/kWh)
-    df_emissions = pd.DataFrame(index=df_generation_kWh.index)
-    for gen_type in df_generation_kWh.columns:
-        # Only compute if a carbon factor exists, else assume 0
-        factor = carbon_intensity.get(gen_type, 0)
-        df_emissions[gen_type] = df_generation_kWh[gen_type] * factor  # gCO2 per hour
-
-    # Sum total emissions (gCO2) and total energy (kWh) per timestamp
-    total_emissions_g = df_emissions.sum(axis=1)
-    total_energy_kWh = df_generation_kWh.sum(axis=1)
-
-    # Compute overall carbon intensity (gCO2/kWh)
-    overall_carbon_intensity = total_emissions_g / total_energy_kWh
-
-    # Convert overall carbon intensity to tons CO2 per MWh for cost calculation:
-    # Explanation: 1 MWh = 1000 kWh, so total emissions per MWh = overall_intensity * 1000 (in gCO2).
-    # Then convert grams to tons: (overall_intensity*1000) / 1e6 = overall_intensity/1000 ton/MWh.
-    overall_intensity_ton_per_MWh = overall_carbon_intensity / 1000
-
-    # Calculate carbon cost (€/hour) based on grid load.
-    # For hourly data, a load in MW equals the energy consumption in MWh.
-    carbon_cost_eur = overall_intensity_ton_per_MWh * load_series * co2_price_per_ton
-
-    # Create output DataFrame with the computed timeseries
-    result_df = pd.DataFrame({
-        f'carbon_intensity_gCO2_per_kWh{suffix}': overall_carbon_intensity,
-        f'co2_cost_eur{suffix}': carbon_cost_eur,
-        f'co2_price_eur_per_ton{suffix}': co2_price_per_ton  # This is constant over time here.
-    }, index=df_generation_mw.index)
-
-    return result_df
-
-
-def compute_carbon_intensity_simple(dfs: dict[str, pd.DataFrame], type:str, suffix:str) -> pd.DataFrame:
-    """
-    Computes the energy mix carbon intensity (gCO₂/kWh) for each timestamp.
-
-    :param df: Pandas DataFrame with hourly generation data (MW) for each source.
-    :return: DataFrame with added column "carbon_intensity" (gCO₂/kWh).
-    """
-
-    # Updated Carbon Intensity Values (gCO₂/kWh) for German Energy Mix
-    carbon_intensity = {
-        'wind_onshore': 0,         # No direct emissions
-        'wind_offshore': 0,        # No direct emissions
-        'solar': 0,                # No direct emissions
-        'renewables': 0,           # Hydro and similar renewables assumed negligible emissions (~0 gCO₂/kWh)
-        'biomass': 50,             # Biomass varies (typically 20-100 gCO₂/kWh), assumed near carbon-neutral
-        'waste': 300,              # Waste-to-energy varies widely (~250-400 gCO₂/kWh), depending on composition
-        'lignite': 1_100,          # Brown coal (lignite) is highly carbon-intensive (~1,000-1,200 gCO₂/kWh)
-        'hard_coal': 850,          # Hard coal typically ranges from ~700-900 gCO₂/kWh
-        'coal_derived_gas': 450,   # Coal-derived gas assumed similar to natural gas (~400-500 gCO₂/kWh)
-        'gas': 400,                # Natural gas combustion ranges ~350-450 gCO₂/kWh, depending on efficiency
-        'oil': 900,                # Oil-fired power ranges ~850-950 gCO₂/kWh
-        'other_fossil': 700        # Other fossil fuels assumed similar to hard coal (~650-800 gCO₂/kWh)
-    }
-
-    df_generation_mw = pd.DataFrame()
-    for target_, df_ in dfs.items():
-        if target_ != 'load':
-            col_name = f'{target_}_{type}'
-            if not col_name in df_.columns:
-                raise KeyError(f"Column {col_name} not found")
-
-            # Rename the series to match the energy type key
-            series_gen = df_[col_name].rename(target_)
-            if df_generation_mw.empty:
-                df_generation_mw = series_gen.to_frame()
-            else:
-                # Join on the index (timestamps)
-                df_generation_mw = df_generation_mw.join(series_gen, how='outer')
-
-    # Convert MW to kWh (1 MW = 1000 kWh)
-    df_kWh = df_generation_mw * 1000
-
-    # Compute total electricity generation (kWh) per timestamp
-    total_generation = df_kWh.sum(axis=1)
-
-    # Compute weighted carbon emissions (gCO₂)
-    total_emissions = sum(df_kWh[col] * carbon_intensity[col] for col in df_generation_mw.columns)
-
-    # Compute carbon intensity (gCO₂/kWh)
-    df = pd.DataFrame(index=df_generation_mw.index)
-
-    target = "carbon_intensity"
-
-    for type_ in ["fitted", "actual", "lower", "upper"]:
-        if (type_ == type): df[f"{target}_{type_}"] = total_emissions / total_generation
-        else: df[f"{target}_{type_}"] = np.full_like(df.index, 0)
-
-    # Handle cases where total generation is zero (avoid NaN values)
-    df = df.fillna(0)
-
-    return df
-
+# --- combine two TargetData classess
 def add_datas(dt1:TargetData, dt2:TargetData, target1:str, target2:str, expect_same_dates:bool)->TargetData:
 
     if dt1.df_metrics.empty and not dt2.df_metrics.empty: dt1.df_metrics = copy.deepcopy(dt2.df_metrics)
@@ -1649,39 +845,6 @@ def add_datas(dt1:TargetData, dt2:TargetData, target1:str, target2:str, expect_s
                          f"Got {len(dt1.df_train_res.columns)} \n {dt1.df_train_res.columns.to_list()}")
     return dt1
 
-def compute_error_metrics_cutoffs(
-        df_, cutoffs:list, horizon:int, target:str, key_actual:str, key_fitted:str)->dict:
-    if not key_actual in df_.columns:
-        raise ValueError(f"key_actual {key_actual} not found in dataframe columns \n{df_.columns.tolist()}")
-    if not key_fitted in df_.columns:
-        raise ValueError(f"key_fitted {key_fitted} not found in dataframe columns \n{df_.columns.tolist()}")
-    ''' compute errror metrics for batches separated by cutoffs'''
-    metrics = {}
-    for i, cutoff in enumerate(cutoffs):
-        mask_ = (df_.index >= cutoff) & (df_.index < cutoff + pd.Timedelta(hours=horizon))
-        actual = df_[key_actual]
-        predicted = df_[key_fitted]
-
-        df = pd.DataFrame({
-            f'{target}_actual':actual[mask_].values,
-            f'{target}_fitted': predicted[mask_].values,
-            f'{target}_lower': np.zeros_like(actual[mask_].values),
-            f'{target}_upper': np.zeros_like(actual[mask_].values)
-        }, index=actual[mask_].index)
-
-        metrics[cutoff] = compute_error_metrics([target], df)
-
-    return metrics
-
-def retain_most_recent_entries(data:dict, N:int):
-    # Sort keys by timestamp (assuming keys are sortable timestamps)
-    sorted_keys = sorted(data.keys(), reverse=True)
-    # Select the most recent N keys
-    most_recent_keys = sorted_keys[:N]
-    # Create a new dictionary with only the most recent N entries
-    recent_entries = {key: data[key] for key in most_recent_keys}
-    return recent_entries
-
 def save_carbon_intensity_json(dts:dict[str:TargetData],suffix:str,output_dir_for_figs:str):
 
     # --- CARBON INTENSITY: past actual ---
@@ -1720,6 +883,7 @@ def save_carbon_intensity_json(dts:dict[str:TargetData],suffix:str,output_dir_fo
         cols= [f"fitted"]
     )
 
+
 class PublishGenerationLoad:
 
     def __init__(self, country_dict:dict, db_path:str, results_root_dir:str,
@@ -1730,7 +894,10 @@ class PublishGenerationLoad:
         self.results_root_dir = results_root_dir # 'forecasting_modules/output/',
 
         self.load_entsoe_data()
-        self.load_smard_data()
+        if country_dict['code'] == 'DE':
+            self.load_smard_data()
+        else:
+            self.df_smard = None
 
         self.metric = 'rmse'
         self.n_folds = 3
@@ -1980,101 +1147,6 @@ For a detailed breakdown of forecast error metrics, see the **'Individual Foreca
             file.write(output_mrkdown_text)
 
 
-        # tso_names:list = list(dts_tso_.keys())
-        # target_names = [key for key in list(dts_total_.keys()) if key != 'generation']
-        # renewables_keys = [ 'wind_onshore','wind_offshore','solar','renewables' ]
-        # forecast_idx = dts_total_['generation'].df_forecast.index
-        # 
-        # dts_tso_['Total'] = dts_total_.copy()
-        # 
-        # df_ = pd.DataFrame()
-        # for name, dt in dts_tso_.items():
-        #     df_ii = pd.DataFrame(index=forecast_idx)
-        #     for target_, dt in dt.items():
-        #         df_i = dt.df_forecast.copy()
-        #         df_ii_ = pd.DataFrame(df_i[f'{target_}_fitted']).rename(columns={f'{target_}_fitted':target_}, inplace=False)
-        #         df_ii = pd.merge(df_ii, df_ii_, left_index=True, right_index=True, how='left')
-        #     df_ii['region']:str = name
-        #     df_ii.reset_index(inplace=True,names=['date'])
-        #     df_ = pd.concat([df_, df_ii], axis=0)
-        # # df_.to_csv('./tmp.csv',index=False)
-        # df = df_.copy()
-        # df.fillna(value=0, inplace=True)
-        # 
-        # # Load data
-        # df['date'] = pd.to_datetime(df['date'])  # Ensure date column is in datetime format
-        # # Identify columns that should be included in renewables
-        # renewable_keywords = ['renewables', 'solar', 'wind_onshore', 'wind_offshore', 'biomass']
-        # renewable_columns = [col for col in df.columns if any(keyword in col.lower() for keyword in renewable_keywords)]
-        # 
-        # 
-        # # Sum up the renewable-related columns
-        # df['renewable_fraction'] = df[renewable_columns].fillna(0).sum(axis=1) / df['generation']
-        # df['load_diff'] = df['load'] - df['generation']
-        # df['residual_load'] = df['load'] - df['solar'] - df['wind_offshore'] - df['wind_onshore']
-        # 
-        # # df.to_csv('./tmp.csv',index=False)
-        # # print(df.columns.tolist())
-        # 
-        # 
-        # 
-        # # analyze_energy_forecast(df)
-        # create_carbon_intensity_markdown(df,self.output_dir_for_figs,'energy_mix')
-        # summary_fpath = f"{self.output_dir_for_figs}/{'energy_mix'}_notes_en.md"
-
-        # Compute key statistics
-#         peak_load_row = df.loc[df['load'].idxmax()]
-#         max_diff_row = df.loc[df['load_diff'].idxmax()]
-#         max_renewable_row = df.loc[df['renewable_fraction'].idxmax()]
-#         min_renewable_row = df.loc[df['renewable_fraction'].idxmin()]
-#
-#         # Aggregate by region
-#         regional_peak_load = df.groupby('region')['load'].max()
-#         regional_max_renewable = df.groupby('region')['renewable_fraction'].max()
-#
-#         # Compute energy mix over the week
-#         energy_mix = df.groupby('region').sum(numeric_only=True)
-#         total_generation = energy_mix['generation']
-#         energy_mix_percentage = energy_mix.div(total_generation, axis=0) * 100
-#         energy_mix['% of Total Generation'] = energy_mix_percentage['generation']
-#         energy_mix = energy_mix[['generation', '% of Total Generation']]
-#
-#         # Save as markdown
-#         # energy_mix.to_markdown("energy_mix_report.md")
-#
-#         # Generate report
-#         report = \
-#         f"""
-# Germany Energy Forecast Report ({df['date'].min().date()} to {df['date'].max().date()})
-#
-# 1. Peak Load Events
-# - Highest demand: {peak_load_row['date']} with {peak_load_row['load']:.2f} MW
-#
-# 2. Largest Load-Generation Difference
-# - Date: {max_diff_row['date']} with a deficit of {max_diff_row['load_diff']:.2f} MW
-#
-# 3. Highest Renewable Energy Contribution
-# - Date: {max_renewable_row['date']} with {max_renewable_row['renewable_fraction']:.2%} renewable generation
-#
-# 4. Lowest Renewable Contribution
-# - Date: {min_renewable_row['date']} with only {min_renewable_row['renewable_fraction']:.2%} renewable generation
-#
-# 5. Regional Highlights
-# - Peak demand by region:
-# {regional_peak_load.to_string()}
-#
-# - Highest renewable fraction by region:
-# {regional_max_renewable.to_string()}
-#
-# Energy mix report saved as "energy_mix_report.md"
-#         """
-#
-#         summary_fpath = f"{self.output_dir_for_figs}/{'energy_mix'}_notes_en.md"
-#         with open(summary_fpath, "w") as file:
-#             file.write(report)
-
-        # return report
-
     def process(self, target_label:str, avail_regions:tuple,positive_floor:float or None):
         # compute forecast error over the past N horizons
         if target_label == 'energy_mix':
@@ -2112,15 +1184,6 @@ For a detailed breakdown of forecast error metrics, see the **'Individual Foreca
             #     dts_total[target_] = add_datas(dts_tso[target_], dt, target_, target_, expect_same_dates=False)
                 # dt_total = add_datas(dt_total, dt, 'generation', 'generation', expect_same_dates=False)
 
-        # dt_total = TargetData(self.results_root_dir, self.verbose)
-        # for target_, dt in dts_total.items():
-        #     dt_total = add_datas(dt_total, dt, 'generation', target_, expect_same_dates=False)
-
-        # dts_total = {}
-        # for tso_key, dt in dts_total.items():
-        #     for target_, dt in dt.items():
-        #         dt_total = add_datas(dt_total, dt[target], target, target, expect_same_dates=False)
-
         # publish the results (forecasts) to .json for ./deploy/...
         dts_total[target].save_past_and_current_forecasts_json(
             self.output_dir_for_figs + '/' + target + '/', target
@@ -2140,9 +1203,14 @@ For a detailed breakdown of forecast error metrics, see the **'Individual Foreca
         )
 
         # compute smard total error
-        ave_smard_metric = dts_total[target].get_ave_metric(
-            self.df_smard, target, target, f"{target}_forecast", self.metric, self.n_folds
-        )
+        if self.df_smard:
+            ave_smard_metric = dts_total[target].get_ave_metric(
+                self.df_smard, target, target, f"{target}_forecast", self.metric, self.n_folds
+            )
+        else:
+            if len(regions) != 1:
+                raise ValueError("Expect one TSO for using ENTSOE average error as an overall error metric")
+            ave_smard_metric = metadatas_tso[region_dict['TSO']]['RMSE']
 
         logger.info(f"For {target} average over {self.n_folds} "
                     f"total RMSE is {ave_total_metric:.0f} | SMARD RMSE is {ave_smard_metric:.0f}")
@@ -2209,31 +1277,8 @@ Die SMARD __Tagesprognose__ weist eine durchschnittliche Genauigkeit von __{ave_
         with open(summary_fpath, "w") as file:
             file.write(updated_markdown_content)
 
-def publish_main():
 
-    publisher = PublishGenerationLoad(
-        db_path='./database/DE/',
-        results_root_dir='output/DE/forecasts/',
-        output_dir_for_figs ='deploy/data/DE/forecasts/',
-        output_dir_for_api ='deploy/data/DE/api/forecasts/',
-        verbose=True
-    )
-    target_settings = [
-        {'label' : 'wind_offshore', 'target' : 'wind_offshore', "regions" : ('DE_50HZ', 'DE_TENNET'), 'positive_floor':0},
-        {'label' : 'wind_onshore', 'target' : 'wind_onshore', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0},
-        {'label' : 'solar', 'target' : 'solar', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0},
-        {'label' : 'load', 'target' : 'load', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0},
-        {'label' : 'energy_mix', 'target' : 'energy_mix', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0}
-    ]
-    for target_dict in target_settings:
-        publisher.process(
-            target_label=target_dict['label'],
-            avail_regions=target_dict['regions'],
-            positive_floor=target_dict['positive_floor']
-        )
-
-
-def main(country_code:str, target:str, freq:str, verboose:bool):
+def main(country_code:str, target:str, verboose:bool):
 
     countries = ['DE', 'FR', 'all']
     if not country_code in countries:
@@ -2248,6 +1293,7 @@ def main(country_code:str, target:str, freq:str, verboose:bool):
     else: target_ = [target]
 
     for country_code in country_code_:
+
         # check country
         c_dict:dict = [dict_ for dict_ in countries_metadata if dict_["code"] == country_code][0]
         if len(list(c_dict.keys())) == 0:
@@ -2260,33 +1306,32 @@ def main(country_code:str, target:str, freq:str, verboose:bool):
             logger.warning(f"No locations (for weather data) found for country code {country_code}.")
 
         # set database location
-        db_path = f'./database/{country_code}/'
-        results = f'./output/{country_code}/forecasts/'
 
         start_time = time.time()  # Start the timer
 
         publisher = PublishGenerationLoad(
             country_dict=c_dict,
-            db_path=db_path,
-            results_root_dir=results,
+            db_path = f'./database/{country_code}/',
+            results_root_dir = f'./output/{country_code}/forecasts/',
             output_dir_for_figs = f'./deploy/data/{country_code}/forecasts/',
             output_dir_for_api = f'./deploy/data/{country_code}/api/forecasts/',
-            verbose=True
+            verbose=verboose
         )
 
-        target_settings = [
-            {'label' : 'wind_offshore', 'target' : 'wind_offshore', "regions" : ('DE_50HZ', 'DE_TENNET'), 'positive_floor':0},
-            {'label' : 'wind_onshore', 'target' : 'wind_onshore', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0},
-            {'label' : 'solar', 'target' : 'solar', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0},
-            {'label' : 'load', 'target' : 'load', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0},
-            {'label' : 'energy_mix', 'target' : 'energy_mix', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0}
-        ]
+        # target_settings = [
+        #     {'label' : 'wind_offshore', 'target' : 'wind_offshore', "regions" : ('DE_50HZ', 'DE_TENNET'), 'positive_floor':0},
+        #     {'label' : 'wind_onshore', 'target' : 'wind_onshore', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0},
+        #     {'label' : 'solar', 'target' : 'solar', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0},
+        #     {'label' : 'load', 'target' : 'load', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0},
+        #     {'label' : 'energy_mix', 'target' : 'energy_mix', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET'), 'positive_floor':0}
+        # ]
         for target__ in target_:
-            target_dict = [t for t in target_settings if t["target"] == target__][0]
+            # target_dict = [t for t in target_settings if t["target"] == target__][0]
+            regions = tuple([reg['name'] for reg in c_dict['regions'] if target__ in reg['available_targets']])
             publisher.process(
-                target_label=target_dict['label'],
-                avail_regions=target_dict['regions'],
-                positive_floor=target_dict['positive_floor']
+                target_label=target__,#target_dict['label'],
+                avail_regions=regions,#target_dict['regions'],
+                positive_floor=0.#target_dict['positive_floor']
             )
 
 
@@ -2303,38 +1348,15 @@ if __name__ == '__main__':
 
     print("launching publish_data.py")
 
-    if len(sys.argv) != 4:
+    if len(sys.argv) != 3:
         # raise KeyError("Usage: python update_database.py <country_code> <task> <freq>")
-        country_code = str( 'DE' )
+        country_code = str( 'FR' )
         target = str( 'all' )
-        freq = str( 'hourly' )
+        # freq = str( 'hourly' )
     else:
         country_code = str( sys.argv[1] )
         target = str( sys.argv[2] )
-        freq = str( sys.argv[3] )
+        # freq = str( sys.argv[3] )
 
-    main(country_code, target, freq, True)
+    main(country_code, target, True)
 
-
-
-# if __name__ == '__main__':
-#     db_path = './database/'
-#     #
-#     #
-#     # target_settings = [
-#     #     {'label' : 'wind_offshore', 'target' : 'wind_offshore', "regions" : ('DE_50HZ', 'DE_TENNET')},
-#     #     # {'label' : 'wind_onshore', 'target' : 'wind_onshore', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')},
-#     #     # {'label' : 'solar', 'target' : 'solar', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')},
-#     #     # {'label' : 'load', 'target' : 'load', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')},
-#     #     # {'label' : 'energy_mix', 'target' : 'energy_mix', "regions" : ('DE_50HZ', 'DE_TENNET', 'DE_AMPRION', 'DE_TRANSNET')}
-#     # ]
-#     #
-#     # # publish_forecasts(target_settings=target_settings, db_path=db_path, verbose=True)
-#     publish_main()
-#
-#
-#
-#     logger.info(f"All tasks in update are completed successfully!")
-#
-#
-#

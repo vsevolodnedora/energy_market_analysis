@@ -1,0 +1,37 @@
+{
+    "log_target": false,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "copy_input": true,
+    "locations": [
+        "F\u00e9camp Offshore Wind Farm",
+        "Saint-Brieuc Offshore Wind Farm",
+        "Saint-Nazaire Offshore Wind Farm"
+    ],
+    "add_cyclical_time_features": true,
+    "feature_engineer": "WeatherWindPowerFE",
+    "targets": [
+        "wind_offshore_rte"
+    ],
+    "label": "wind_offshore_rte",
+    "verbose": true,
+    "compute_air_density": true,
+    "compute_wind_power_density": true,
+    "encode_wind_direction": true,
+    "compute_wind_shear": true,
+    "compute_wind_ramp": false,
+    "compute_air_density_moiust_air_correction": true,
+    "dew_point_temperature": false,
+    "vapor_pressure": true,
+    "gust_factor": true,
+    "turbulence_window": 2,
+    "lags_choice": "none",
+    "precip_lags_choice": "large",
+    "drop_raw_main_features": false,
+    "drop_raw_wind_features": false,
+    "spatial_agg_method": "None",
+    "lags_target": null,
+    "l1_ratio": 0.23481360603312834,
+    "alpha": 0.6099642476384698
+}

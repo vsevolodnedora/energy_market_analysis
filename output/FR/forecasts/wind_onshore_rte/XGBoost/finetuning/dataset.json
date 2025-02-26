@@ -1,0 +1,20 @@
+{
+    "log_target": false,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "copy_input": true,
+    "locations": [
+        "Ensemble Eolien Catalan Wind Farm",
+        "Salles-Curan Wind Farm",
+        "Les Hauts Pays Wind Farm",
+        "Champagne Picardie Project Wind Farm",
+        "Mont Payard Wind Farm"
+    ],
+    "add_cyclical_time_features": true,
+    "feature_engineer": "WeatherWindPowerFE",
+    "targets": [
+        "wind_onshore_rte"
+    ],
+    "label": "wind_onshore_rte"
+}

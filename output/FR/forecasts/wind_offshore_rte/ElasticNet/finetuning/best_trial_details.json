@@ -1,0 +1,24 @@
+{
+    "trial_id": 26,
+    "best_value": 273.43559958718646,
+    "params": {
+        "compute_air_density": true,
+        "compute_wind_power_density": true,
+        "encode_wind_direction": true,
+        "compute_wind_shear": true,
+        "compute_wind_ramp": false,
+        "compute_air_density_moiust_air_correction": true,
+        "dew_point_temperature": false,
+        "vapor_pressure": true,
+        "gust_factor": true,
+        "turbulence_window": 2,
+        "lags_choice": "none",
+        "precip_lags_choice": "large",
+        "drop_raw_main_features": false,
+        "drop_raw_wind_features": false,
+        "spatial_agg_method": "None",
+        "lags_target": null,
+        "l1_ratio": 0.23481360603312834,
+        "alpha": 0.6099642476384698
+    }
+}

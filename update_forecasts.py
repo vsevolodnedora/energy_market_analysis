@@ -1,11 +1,6 @@
 import copy
 import os, time, sys
 
-
-from forecasting_modules import (
-    update_forecast_production
-)
-
 from data_collection_modules.eu_locations import (
     countries_metadata
 )
@@ -534,7 +529,7 @@ def adjust_and_run_for_tasklist(database:str,c_dict:dict, task_list:list, variab
 
     ''' -------------- OFFSHORE WIND POWER GENERATION (2 TSOs) ------------- '''
     if variable == "wind_offshore":
-        avail_regions = ["DE_50HZ", "DE_TENNET"]
+        avail_regions = [tso['name'] for tso in c_dict['regions'] if variable in tso['available_targets']]#["DE_50HZ", "DE_TENNET"]
         locations = c_dict['locations']['offshore']
         for tso_reg in de_regions:
             if tso_reg['name'] in avail_regions:
@@ -555,7 +550,8 @@ def adjust_and_run_for_tasklist(database:str,c_dict:dict, task_list:list, variab
     ''' -------------- ONSHORE WIND POWER GENERATION (4 TSOs) ------------- '''
 
     if variable == "wind_onshore":
-        avail_regions = ["DE_AMPRION","DE_TENNET", "DE_50HZ", "DE_TRANSNET"]
+        # avail_regions = ["DE_AMPRION","DE_TENNET", "DE_50HZ", "DE_TRANSNET"]
+        avail_regions = [tso['name'] for tso in c_dict['regions'] if variable in tso['available_targets']]
         locations = c_dict['locations']['onshore']
         for tso_reg in de_regions:
             if tso_reg['name'] in avail_regions:
@@ -576,7 +572,8 @@ def adjust_and_run_for_tasklist(database:str,c_dict:dict, task_list:list, variab
     ''' -------------- SOLAR POWER GENERATION (4 TSOs) ------------- '''
 
     if variable == "solar":
-        avail_regions = ["DE_TENNET", "DE_50HZ", "DE_AMPRION", "DE_TRANSNET"]
+        # avail_regions = ["DE_TENNET", "DE_50HZ", "DE_AMPRION", "DE_TRANSNET"]
+        avail_regions = [tso['name'] for tso in c_dict['regions'] if variable in tso['available_targets']]
         locations = c_dict['locations']['solar']
         for tso_reg in de_regions:
             if tso_reg['name'] in avail_regions:
@@ -598,7 +595,8 @@ def adjust_and_run_for_tasklist(database:str,c_dict:dict, task_list:list, variab
     ''' -------------- LOAD (4 TSOs) ------------- '''
 
     if variable == "load":
-        avail_regions = [ "DE_TENNET", "DE_50HZ", "DE_AMPRION", "DE_TRANSNET" ]
+        # avail_regions = [ "DE_TENNET", "DE_50HZ", "DE_AMPRION", "DE_TRANSNET" ]
+        avail_regions = [tso['name'] for tso in c_dict['regions'] if variable in tso['available_targets']]
         locations = c_dict['locations']['cities']
         for tso_reg in de_regions:
             if tso_reg['name'] in avail_regions:
@@ -620,7 +618,8 @@ def adjust_and_run_for_tasklist(database:str,c_dict:dict, task_list:list, variab
 
     if variable == "energy_mix":
 
-        avail_regions = [ "DE_50HZ", "DE_TENNET", "DE_AMPRION", "DE_TRANSNET" ] # [ "DE_50HZ", "DE_TENNET", "DE_AMPRION", "DE_TRANSNET" ]
+        # avail_regions = [ "DE_50HZ", "DE_TENNET", "DE_AMPRION", "DE_TRANSNET" ] # [ "DE_50HZ", "DE_TENNET", "DE_AMPRION", "DE_TRANSNET" ]
+        avail_regions = [tso['name'] for tso in c_dict['regions'] if variable in tso['available_targets']]
         locations = c_dict['locations']['cities']
         for tso_reg in de_regions:
             if tso_reg['name'] in avail_regions:
@@ -675,10 +674,10 @@ def main(country_code:str, target:str, model:str, mode:str, freq:str,verbose:boo
     # if model == 'all': model = models[:-1]
     # else: model = [model]
 
-    modes = ['finetune', 'train', 'forecast', 'summarize', 'all']
+    modes = ['finetune', 'train', 'forecast', 'plot', 'summarize', 'all']
     if not mode in modes:
         raise ValueError(f'mode must be in {modes}. Given: {mode}')
-    if mode == 'all': mode = modes[:-1]
+    if mode == 'all': mode = modes[1:-1]
     else: mode = [mode]
 
     freqs = ['hourly', 'minutely_15']
@@ -784,10 +783,10 @@ if __name__ == '__main__':
 
     if len(sys.argv) != 6:
         # raise KeyError("Usage: python update_database.py <country_code> <task> <freq>")
-        country_code = str( 'DE' )
-        target = str( 'all' )
-        model = str( 'all' )
-        mode = str( 'summarize' )
+        country_code = str( 'FR' )
+        target = str( 'wind_offshore' )
+        model = str( 'LightGBM' )
+        mode = str( 'finetune' )
         freq = str( 'hourly' )
     else:
         country_code = str( sys.argv[1] )

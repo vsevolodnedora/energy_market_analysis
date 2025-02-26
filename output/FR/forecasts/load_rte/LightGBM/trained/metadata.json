@@ -1,0 +1,136 @@
+{
+    "start_date": "2023-04-03T00:00:00+00:00",
+    "end_date": "2025-02-23T23:00:00+00:00",
+    "horizon": 168,
+    "features": [
+        "temperature_2m_agg",
+        "relative_humidity_2m_agg",
+        "surface_pressure_agg",
+        "precipitation_agg",
+        "cloud_cover_agg",
+        "shortwave_radiation_agg",
+        "direct_radiation_agg",
+        "diffuse_radiation_agg",
+        "direct_normal_irradiance_agg",
+        "global_tilted_irradiance_agg",
+        "terrestrial_radiation_agg",
+        "HDH_agg",
+        "CDH_agg",
+        "dew_point_temperature_agg",
+        "dew_point_spread_agg",
+        "humidex_agg",
+        "pressure_trend_agg",
+        "wind_speed_gradient_agg",
+        "wind_u_agg",
+        "wind_v_agg",
+        "cloud_cover_fraction_agg",
+        "effective_solar_agg",
+        "temp_lag_1_agg",
+        "temp_lag_3_agg",
+        "temp_lag_6_agg",
+        "cloud_lags_lag_1_agg",
+        "cloud_lags_lag_3_agg",
+        "temp_roll_6_agg",
+        "temp_roll_12_agg",
+        "temp_roll_24_agg",
+        "wind_offshore_rte",
+        "wind_onshore_rte",
+        "solar_rte",
+        "hour",
+        "dayofweek",
+        "is_holiday",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos",
+        "load_rte_lag_1",
+        "load_rte_lag_2",
+        "load_rte_lag_3",
+        "load_rte_lag_4",
+        "load_rte_lag_5",
+        "load_rte_lag_6",
+        "load_rte_lag_7",
+        "load_rte_lag_8",
+        "load_rte_lag_9",
+        "load_rte_lag_10",
+        "load_rte_lag_11",
+        "load_rte_lag_12"
+    ],
+    "error_metrics": {
+        "2025-01-20T00:00:00+00:00": {
+            "load_rte": {
+                "mse": 14075533.881149454,
+                "rmse": 3751.7374483230374,
+                "mae": 2917.6867360653955,
+                "mape": 4.647511935996353,
+                "smape": 9.644593221175601,
+                "bias": -2217.9574243233938,
+                "variance": 9156198.745038193,
+                "std": 3025.9211399238734,
+                "r2": 0.7642367049578048,
+                "prediction_interval_coverage": 0.2916666666666667,
+                "prediction_interval_width": 2488.889580155491
+            }
+        },
+        "2025-01-27T00:00:00+00:00": {
+            "load_rte": {
+                "mse": 13076427.946816102,
+                "rmse": 3616.1343928034676,
+                "mae": 3171.9029404691883,
+                "mape": 4.992972007550859,
+                "smape": 10.317243139959675,
+                "bias": -3164.7261138746835,
+                "variance": 3060936.570975745,
+                "std": 1749.5532489683603,
+                "r2": 0.47468366452826516,
+                "prediction_interval_coverage": 0.15476190476190477,
+                "prediction_interval_width": 2480.614456859405
+            }
+        },
+        "2025-02-03T00:00:00+00:00": {
+            "load_rte": {
+                "mse": 16451262.333587864,
+                "rmse": 4056.0155736372444,
+                "mae": 3576.6173302002403,
+                "mape": 5.247926157283754,
+                "smape": 10.84719906962625,
+                "bias": -3535.869120013336,
+                "variance": 3948891.899723979,
+                "std": 1987.1818990027004,
+                "r2": 0.5518629484278317,
+                "prediction_interval_coverage": 0.07738095238095238,
+                "prediction_interval_width": 2492.7021758188494
+            }
+        },
+        "2025-02-10T00:00:00+00:00": {
+            "load_rte": {
+                "mse": 5377485.135509701,
+                "rmse": 2318.940520045674,
+                "mae": 1906.5663112310776,
+                "mape": 2.9982273982522027,
+                "smape": 6.028968553625286,
+                "bias": -592.097743135069,
+                "variance": 5026905.398084058,
+                "std": 2242.0761356573194,
+                "r2": 0.7909544976662859,
+                "prediction_interval_coverage": 0.40476190476190477,
+                "prediction_interval_width": 2469.6881428006627
+            }
+        },
+        "2025-02-17T00:00:00+00:00": {
+            "load_rte": {
+                "mse": 4511437.128373567,
+                "rmse": 2124.014389869703,
+                "mae": 1621.192336355018,
+                "mape": 2.826073507068188,
+                "smape": 5.677964016401401,
+                "bias": -32.79530697466821,
+                "variance": 4510361.596214004,
+                "std": 2123.761190956743,
+                "r2": 0.912076422022119,
+                "prediction_interval_coverage": 0.4642857142857143,
+                "prediction_interval_width": 2501.494051891346
+            }
+        }
+    }
+}

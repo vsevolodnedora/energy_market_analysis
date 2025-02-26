@@ -1,0 +1,20 @@
+{
+    "log_target": false,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "copy_input": true,
+    "locations": [
+        "Paris",
+        "Marseille",
+        "Lyon",
+        "Toulouse",
+        "Lille"
+    ],
+    "add_cyclical_time_features": true,
+    "feature_engineer": "WeatherLoadFE",
+    "targets": [
+        "load_rte"
+    ],
+    "label": "load_rte"
+}

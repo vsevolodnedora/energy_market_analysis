@@ -1,0 +1,132 @@
+{
+    "start_date": "2023-04-03T00:00:00+00:00",
+    "end_date": "2025-02-23T23:00:00+00:00",
+    "horizon": 168,
+    "features": [
+        "shortwave_radiation_agg",
+        "direct_radiation_agg",
+        "diffuse_radiation_agg",
+        "direct_normal_irradiance_agg",
+        "global_tilted_irradiance_agg",
+        "terrestrial_radiation_agg",
+        "cloud_cover_fraction_agg",
+        "clear_sky_fraction_agg",
+        "air_density_agg",
+        "air_density_moist_agg",
+        "direct_ratio_agg",
+        "global_tilted_ratio_agg",
+        "dew_point_temperature_agg",
+        "cloud_lag_1_agg",
+        "cloud_lag_3_agg",
+        "cloud_lag_6_agg",
+        "cloud_lag_12_agg",
+        "shortwave_lag_1_agg",
+        "shortwave_lag_3_agg",
+        "shortwave_lag_6_agg",
+        "shortwave_lag_12_agg",
+        "solar_elevation_deg_sol_cestas",
+        "solar_azimuth_deg_sol_cestas",
+        "solar_elevation_deg_sol_athies",
+        "solar_azimuth_deg_sol_athies",
+        "solar_elevation_deg_sol_toul",
+        "solar_azimuth_deg_sol_toul",
+        "solar_elevation_deg_sol_gabardan",
+        "solar_azimuth_deg_sol_gabardan",
+        "hour",
+        "dayofweek",
+        "is_holiday",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos",
+        "solar_rte_lag_1",
+        "solar_rte_lag_2",
+        "solar_rte_lag_3",
+        "solar_rte_lag_4",
+        "solar_rte_lag_5",
+        "solar_rte_lag_6",
+        "solar_rte_lag_7",
+        "solar_rte_lag_8",
+        "solar_rte_lag_9",
+        "solar_rte_lag_10",
+        "solar_rte_lag_11",
+        "solar_rte_lag_12"
+    ],
+    "error_metrics": {
+        "2025-01-20T00:00:00+00:00": {
+            "solar_rte": {
+                "mse": 423445.5925250961,
+                "rmse": 650.7269723356302,
+                "mae": 373.75584555439474,
+                "mape": 3551167475936.277,
+                "smape": 249.20651810562737,
+                "bias": 5.151006634435838,
+                "variance": 423419.05965574813,
+                "std": 650.7065849180782,
+                "r2": 0.8869088840529933,
+                "prediction_interval_coverage": 0.5892857142857143,
+                "prediction_interval_width": 482.57519971005087
+            }
+        },
+        "2025-01-27T00:00:00+00:00": {
+            "solar_rte": {
+                "mse": 696791.9886914792,
+                "rmse": 834.7406715210893,
+                "mae": 465.8994329814311,
+                "mape": 5911403336839.972,
+                "smape": 248.16237575066916,
+                "bias": 81.22524512111254,
+                "variance": 690194.4482464943,
+                "std": 830.7794221371244,
+                "r2": 0.8999532459216253,
+                "prediction_interval_coverage": 0.6011904761904762,
+                "prediction_interval_width": 475.40186208482726
+            }
+        },
+        "2025-02-03T00:00:00+00:00": {
+            "solar_rte": {
+                "mse": 1188058.222912473,
+                "rmse": 1089.9808360299153,
+                "mae": 616.9571777843826,
+                "mape": 3784679399283.293,
+                "smape": 236.21641807488749,
+                "bias": -175.17895384123992,
+                "variance": 1157370.5570435617,
+                "std": 1075.8115806420574,
+                "r2": 0.8893181586335888,
+                "prediction_interval_coverage": 0.5714285714285714,
+                "prediction_interval_width": 491.1162443834657
+            }
+        },
+        "2025-02-10T00:00:00+00:00": {
+            "solar_rte": {
+                "mse": 1641967.91827178,
+                "rmse": 1281.3929601304121,
+                "mae": 696.4940739925507,
+                "mape": 1600697615911.0671,
+                "smape": 240.14071408023733,
+                "bias": -87.51443875230672,
+                "variance": 1634309.1412816488,
+                "std": 1278.4010095747144,
+                "r2": 0.8478996208867388,
+                "prediction_interval_coverage": 0.5595238095238095,
+                "prediction_interval_width": 482.9900451813527
+            }
+        },
+        "2025-02-17T00:00:00+00:00": {
+            "solar_rte": {
+                "mse": 1090597.293448704,
+                "rmse": 1044.3166633970293,
+                "mae": 611.7324327912536,
+                "mape": 3205592555771.4136,
+                "smape": 231.54132317300702,
+                "bias": -290.85054731785897,
+                "variance": 1006003.252573606,
+                "std": 1002.9971348780643,
+                "r2": 0.9052583543130975,
+                "prediction_interval_coverage": 0.5773809523809523,
+                "prediction_interval_width": 482.06847480523055
+            }
+        }
+    }
+}

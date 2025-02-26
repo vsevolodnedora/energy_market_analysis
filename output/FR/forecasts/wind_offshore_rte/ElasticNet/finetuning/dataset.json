@@ -1,0 +1,18 @@
+{
+    "log_target": false,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "copy_input": true,
+    "locations": [
+        "F\u00e9camp Offshore Wind Farm",
+        "Saint-Brieuc Offshore Wind Farm",
+        "Saint-Nazaire Offshore Wind Farm"
+    ],
+    "add_cyclical_time_features": true,
+    "feature_engineer": "WeatherWindPowerFE",
+    "targets": [
+        "wind_offshore_rte"
+    ],
+    "label": "wind_offshore_rte"
+}

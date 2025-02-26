@@ -1,0 +1,7 @@
+{
+    "solar_rte": {
+        "method": "trained",
+        "model_label": "ensemble[XGBoost](XGBoost,ElasticNet)",
+        "avg_rmse": 369.32200899178434
+    }
+}

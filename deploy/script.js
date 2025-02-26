@@ -1,15 +1,6 @@
 // GLOBAL DEFINITIONS
 let baseUrl = "https://raw.githubusercontent.com/vsevolodnedora/energy_market_analysis/main/deploy/";
 
-
-
-/**
- * Show only one content section and hide the others.
- * @param {string} sectionId - The ID of the section to display.
- */
-
-
-
 /**
  * Toggles a subpage’s visibility by adding/removing an .active class.
  * Called by the onClick of each checkbox in the top nav.
@@ -25,35 +16,10 @@ function toggleSubpage(subpageId, isChecked) {
   } else {
     subpage.classList.remove('active');
   }
-
-
-
-}
-/************************************************************
- * 0) Utils
- ************************************************************/
-
-// Example color utility
-function lightenColor(color, percent) {
-  const num = parseInt(color.slice(1), 16),
-      amt = Math.round(2.55 * percent),
-      R = (num >> 16) + amt,
-      G = (num >> 8 & 0x00FF) + amt,
-      B = (num & 0x0000FF) + amt;
-      return `#${(
-              0x1000000 +
-              (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x25000 +
-              (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x250 +
-              (B < 255 ? (B < 1 ? 0 : B) : 255)
-          ).toString(16).slice(1).toUpperCase()
-      }`;
 }
 
-/************************************************************
- * 0) Language
- ************************************************************/
+// ===================  0) LANGUAGE ========================= */
 
-// Update all elements with [data-i18n] using i18next
 function updateContent() {
   document.querySelectorAll('[data-i18n]').forEach(element => {
       const key = element.getAttribute('data-i18n');
@@ -61,7 +27,6 @@ function updateContent() {
   });
 }
 
-// Function to load JSON file asynchronously
 async function loadTranslations(url) {
     const response = await fetch(url);
     if (!response.ok) {
@@ -71,7 +36,6 @@ async function loadTranslations(url) {
 }
 
 
-// Initialize i18next with external resources
 async function initializeI18n() {
     try {
         const resources = await loadTranslations('translations.json');
@@ -116,11 +80,11 @@ async function toggleLanguage() {
 
     // Reload HTML files with different languages (1/3)
     const mainInfoFileName = (newLang === 'en') ? 'main_info_en.html' : 'main_info_de.html';
-    await loadHTML(`${mainInfoFileName}`, 'main_info-content');
+    await loadHTML(`${mainInfoFileName}`, './assets/html/main_info-content');
 
     // Reload HTML files with different languages (1/3)
     const apiInfoFileName = (newLang === 'en') ? 'api_info_en.html' : 'api_info_de.html';
-    await loadHTML(`${apiInfoFileName}`, 'api_info-content');
+    await loadHTML(`./assets/html/${apiInfoFileName}`, 'api_info-content');
 
     // Update the text of the language toggle button
     const languageToggleButton = document.getElementById('language-toggle');
@@ -129,16 +93,14 @@ async function toggleLanguage() {
 }
 
 
-/************************************************************
- * 0) HTML LOADERS (LANGUAGE DEPENDENT) (2 and 3 / 3)
- ************************************************************/
+// *****  0) HTML LOADERS (LANGUAGE DEPENDENT) (2 and 3 / 3) ****/
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         // Load the default mainFile content based on the initial language
         const initialLanguage = i18next.language || 'en'; // Use 'en' if not set
         const mainFileFileName = (initialLanguage === 'en') ? 'main_info_en.html' : 'main_info_de.html';
-        await loadHTML(`${mainFileFileName}`, 'main_info-content');
+        await loadHTML(`./assets/html/${mainFileFileName}`, 'main_info-content');
     } catch (error) {
         console.error('Error initializing i18next or loading mainFile content:', error);
     }
@@ -148,7 +110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Load the default apiFile content based on the initial language
         const initialLanguage = i18next.language || 'en'; // Use 'en' if not set
         const apiFileFileName = (initialLanguage === 'en') ? 'api_info_en.html' : 'api_info_de.html';
-        await loadHTML(`${apiFileFileName}`, 'api_info-content');
+        await loadHTML(`./assets/html/${apiFileFileName}`, 'api_info-content');
     } catch (error) {
         console.error('Error initializing i18next or loading apiFile content:', error);
     }
@@ -172,30 +134,14 @@ async function loadHTML(filePath, containerId) {
     Prism.highlightAll(); // syntax highlighting
 }
 
-/************************************************************
- * 0) Dark Mode
- ************************************************************/
+// ==========================  0) Dark Mode =================================== */
 
 let isDarkMode = true;
 
 
-let chartState = {
-   "chart1DescLoaded": false, // offshore wind power
-   "chart2DescLoaded": false, // onshore wind power
-   "chart3DescLoaded": false, // solar power
+let chartState = { };
 
-   "chart1Created": false,
-   "chart2Created": false,
-   "chart3Created": false,
-
-   "chartInstance1": null,
-   "chartInstance2": null,
-   "chartInstance3": null
-};
-
-/************************************************************
- * 0) Load Markdown FIles
- ************************************************************/
+// =========================== 0) Load Markdown Files ======================================== */
 
 // Helper function to load Markdown from a given URL
 async function loadMarkdown(url, containerId) {
@@ -246,17 +192,14 @@ async function loadMarkdown(url, containerId) {
 // Optional: start in dark mode
 toggleDarkMode();
 
-/************************************************************
- * -1) Create a CACHE
- ************************************************************/
+
+
 // Global cache to store data once fetched
 const forecastDataCache = {};
 
-/************************************************************
- * 0) Fetches a data file and returns it as an array of { x: Date, y: number }.
- ************************************************************/
 async function getCachedData(variable, file, errorElementId) {
-  const locDir = 'data/DE/forecasts';  // local directory
+  // 0) Fetches a data file and returns it as an array of { x: Date, y: number }.
+  // const datadir = 'data/DE/forecasts';  // local directory
   const cacheKey = `${variable}-${file}`;
 
   // If data is already in cache, return immediately
@@ -266,7 +209,7 @@ async function getCachedData(variable, file, errorElementId) {
 
   // Otherwise, fetch from default location
   try {
-    const response = await fetch(`${locDir}/${variable}/${file}`);
+    const response = await fetch(`${variable}/${file}`);
     if (!response.ok) {
       throw new Error(`Failed to load ${variable} from default location`);
     }
@@ -279,7 +222,7 @@ async function getCachedData(variable, file, errorElementId) {
 
   // Attempt fallback only if default fetch fails
   try {
-    const fallbackResponse = await fetch(`${baseUrl}${locDir}/${variable}/${file}`);
+    const fallbackResponse = await fetch(`${baseUrl}$/${variable}/${file}`);
     if (!fallbackResponse.ok) {
       throw new Error(`Failed to load ${variable} from fallback URL`);
     }
@@ -295,9 +238,7 @@ async function getCachedData(variable, file, errorElementId) {
   }
 }
 
-/************************************************************
- * 1) Create a new chart in a given container
- ************************************************************/
+//  1) Create a new chart in a given container */
 async function createChart(containerSelector, baseOptions) {
   const chart = new ApexCharts(
     document.querySelector(containerSelector), baseOptions
@@ -306,11 +247,9 @@ async function createChart(containerSelector, baseOptions) {
   return chart;
 }
 
-/************************************************************
- * 3) Function that adds series (and intervals) to the chart
- ************************************************************/
+// 3) Function that adds series (and intervals) to the chart */
 async function addSeries({
-  variable,
+  varpath,
   alias,
   color,
   pastDataRatio,
@@ -329,9 +268,9 @@ async function addSeries({
     pastActualData,
     currentData
   ] = await Promise.all([
-    getCachedData(variable, prevFittedFile, errorElementId),
-    getCachedData(variable, prevActualFile, errorElementId),
-    getCachedData(variable, currFittedFile, errorElementId)
+    getCachedData(varpath, prevFittedFile, errorElementId),
+    getCachedData(varpath, prevActualFile, errorElementId),
+    getCachedData(varpath, currFittedFile, errorElementId)
   ]);
 
   // -------------------- PAST FITTED (Solid Line) --------------------
@@ -403,11 +342,9 @@ async function addSeries({
   }
 }
 
-/************************************************************
- * Function that adds confidence intervals (area regions) to the chart
- ************************************************************/
+// Function that adds confidence intervals (area regions) to the chart */
  async function addCI({
-  variable,
+  varpath,
   alias,
   color,
   showInterval,
@@ -428,10 +365,10 @@ async function addSeries({
     currentLowerData,
     currentUpperData
   ] = await Promise.all([
-    getCachedData(variable, prevLowerFile, errorElementId),
-    getCachedData(variable, prevUpperFile, errorElementId),
-    getCachedData(variable, currLowerFile, errorElementId),
-    getCachedData(variable, currUpperFile, errorElementId)
+    getCachedData(varpath, prevLowerFile, errorElementId),
+    getCachedData(varpath, prevUpperFile, errorElementId),
+    getCachedData(varpath, currLowerFile, errorElementId),
+    getCachedData(varpath, currUpperFile, errorElementId)
   ]);
 
   // -------------------- PREV FORECAST INTERVAL (Area) --------------------
@@ -479,9 +416,7 @@ async function addSeries({
   }
 }
 
-/************************************************************
- * 4) The generic “updateChart” Pass a config object so you can re-use for onshore, solar, etc.
- ************************************************************/
+// 4) The generic “updateChart” Pass a config object so you can re-use for onshore, solar, etc. */
 async function updateChartGeneric(config) {
   const {
     chartInstance,
@@ -513,7 +448,7 @@ async function updateChartGeneric(config) {
     if (checkbox && checkbox.checked) {
       // Fetch series for the region
       await addSeries({
-        variable: region.variable,
+        varpath: region.varpath,
         alias: region.alias,
         color: region.color,
         pastDataRatio: pastDataRatio,
@@ -531,7 +466,7 @@ async function updateChartGeneric(config) {
       // Fetch confidence intervals for the region if showInterval is enabled
       if (showInterval) {
         await addCI({
-          variable: region.variable,
+          varpath: region.varpath,
           alias: region.alias,
           color: region.color,
           showInterval: showInterval,
@@ -641,9 +576,7 @@ async function updateChartGeneric(config) {
 
 }
 
-/************************************************************
- * 5) Setup for the first chart
- ************************************************************/
+// 5) Setup for the first chart */
 function getBaseChartOptions() {
   return {
       chart: {
@@ -718,72 +651,532 @@ function getBaseChartOptions() {
   };
 }
 
-/************************************************************
- * 6) Controls
- ************************************************************/
-const forecastData = [
-  {
-    id: 1,
-    title: "Offshore Wind Power Forecast",
-    dataKey: "offshore-forecast",
-    descriptionFile: "wind_offshore_notes",
-    // Show all TSO areas for this ID:
-    buttons: ["50hz", "tenn"]
-  },
-  {
-    id: 2,
-    title: "Onshore Wind Power Forecast",
-    dataKey: "onshore-forecast",
-    descriptionFile: "wind_onshore_notes",
-    // Only show 50Hertz & TenneT for this ID:
-    buttons: ["50hz", "tenn", "tran", "ampr"]
-  },
-  {
-    id: 3,
-    title: "Solar Power Forecast",
-    dataKey: "solar-forecast",
-    descriptionFile: "solar_notes",
-    // Show none of the TSO checkboxes here (only the "always" buttons):
-    buttons: ["50hz", "tenn", "tran", "ampr"]
-  },
-  {
-    id: 4,
-    title: "Load Forecast",
-    dataKey: "load-forecast",
-    descriptionFile: "load_notes",
-    // Show none of the TSO checkboxes here (only the "always" buttons):
-    buttons: ["50hz", "tenn", "tran", "ampr"]
-  },
-  {
-    id: 5,
-    title: "Generation Forecast",
-    dataKey: "generation-forecast",
-    descriptionFile: "generation_notes",
-    // Show none of the TSO checkboxes here (only the "always" buttons):
-    buttons: ["50hz", "tenn", "tran", "ampr"]
-  },
-];
 
-// Helper object to define each TSO button’s label & CSS class
+// GERMAN TSOs
 const TSO_BUTTONS = {
-  "50hz": { label: "50Hertz", colorClass: "btn-blue" },
-  "tenn": { label: "TenneT", colorClass: "btn-green" },
-  "tran": { label: "TransnetBW", colorClass: "btn-red" },
-  "ampr": { label: "Amprion", colorClass: "btn-yellow" }
+    "total": { label: "Total", colorClass: "btn-purple" },
+    "50hz": { label: "50Hertz", colorClass: "btn-blue" },
+    "tenn": { label: "TenneT", colorClass: "btn-green" },
+    "tran": { label: "TransnetBW", colorClass: "btn-red" },
+    "ampr": { label: "Amprion", colorClass: "btn-yellow" },
+    "rte":  { label: "RTE", colorClass: "btn-blue" },
 };
 
+const tsoColorMap = {
+    "50Hertz": "#0000FF",  // Blue
+    "TenneT": "#008000",   // Green
+    "TransnetBW": "#FF0000", // Red
+    "Amprion": "#FFFF00",  // Yellow
+    "Total": "#800090",     // Purple
+    "RTE": "#0000FF", // blue
+};
+
+/// ================================================================================= ///
+
+
+const forecastChartDataDE = [
+    {
+        // Forecast / display info
+        id: 1,
+        country_code: 'DE',
+        title: "Offshore Wind Power Forecast",
+        dataKey: "offshore-forecast",
+        descriptionFile: "wind_offshore_notes",
+        buttons: ["50hz", "tenn"],
+
+        // Chart-specific metadata (dynamically generated from id)
+        get descriptionToggleId()    { return `description${this.id}-toggle-checkbox`; },
+        get descriptionContainerId() { return `chart${this.id}-description-container`; },
+        get descLoadedKey()          { return `chart${this.id}DescLoaded`; },
+        get createdKey()             { return `chart${this.id}Created`; },
+        get instanceKey()            { return `chartInstance${this.id}`; },
+        detailsSelector: 'details:nth-of-type(1)', // always “1”
+        filePrefix: 'data/DE/forecasts/wind_offshore_notes',
+
+        // Provide the chart config inline (replaces getChart1Config)
+        getConfigFunction(chartId) {
+            return {
+                chartInstance : chartState[`chartInstance${chartId}`],
+                yAxisLabel    : 'Power (MW)',
+                regionConfigs : [
+                    {
+                        checkboxId: `50hz-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/wind_offshore_50hz',
+                        alias     : '50Hertz',
+                        color     : tsoColorMap['50Hertz'],
+                    },
+                    {
+                        checkboxId: `tenn-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/wind_offshore_tenn',
+                        alias     : 'TenneT',
+                        color     : tsoColorMap['TenneT'],
+                    },
+                    {
+                        checkboxId: `total-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/wind_offshore',
+                        alias     : 'Total',
+                        color     : tsoColorMap['Total']
+                    }
+                ],
+                pastDataSliderId : `past-data-slider-${chartId}`,
+                showIntervalId   : `showci_checkbox-${chartId}`,
+                errorElementId   : `error-message${chartId}`,
+                isDarkMode       : isDarkMode
+            };
+        }
+    },
+    {
+        // Forecast / display info
+        id: 2,
+        country_code: 'DE',
+        title: "Onshore Wind Power Forecast",
+        dataKey: "onshore-forecast",
+        descriptionFile: "wind_onshore_notes",
+        buttons: ["50hz", "tenn", "tran", "ampr"],
+
+        // Chart-specific metadata (dynamically generated from id)
+        get descriptionToggleId()    { return `description${this.id}-toggle-checkbox`; },
+        get descriptionContainerId() { return `chart${this.id}-description-container`; },
+        get descLoadedKey()          { return `chart${this.id}DescLoaded`; },
+        get createdKey()             { return `chart${this.id}Created`; },
+        get instanceKey()            { return `chartInstance${this.id}`; },
+        detailsSelector: 'details:nth-of-type(1)',
+        filePrefix: 'data/DE/forecasts/wind_onshore_notes',
+
+        // Provide the chart config inline
+        getConfigFunction(chartId) {
+            return {
+                chartInstance : chartState[`chartInstance${chartId}`],
+                yAxisLabel    : 'Power (MW)',
+                regionConfigs : [
+                    {
+                        checkboxId: `ampr-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/wind_onshore_ampr',
+                        alias     : 'Amprion',
+                        color     : tsoColorMap['Amprion'],
+                    },
+                    {
+                        checkboxId: `tran-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/wind_onshore_tran',
+                        alias     : 'TransnetBW',
+                        color     : tsoColorMap['TransnetBW'],
+                    },
+                    {
+                        checkboxId: `50hz-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/wind_onshore_50hz',
+                        alias     : '50Hertz',
+                        color     : tsoColorMap['50Hertz'],
+                    },
+                    {
+                        checkboxId: `tenn-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/wind_onshore_tenn',
+                        alias     : 'TenneT',
+                        color     : tsoColorMap['TenneT'],
+                    },
+                    {
+                        checkboxId: `total-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/wind_onshore',
+                        alias     : 'Total',
+                        color     : tsoColorMap['Total']
+                    }
+                ],
+                pastDataSliderId : `past-data-slider-${chartId}`,
+                showIntervalId   : `showci_checkbox-${chartId}`,
+                errorElementId   : `error-message${chartId}`,
+                isDarkMode       : isDarkMode
+            };
+        }
+    },
+    {
+        // Forecast / display info
+        id: 3,
+        country_code: 'DE',
+        title: "Solar Power Forecast",
+        dataKey: "solar-forecast",
+        descriptionFile: "solar_notes",
+        buttons: ["50hz", "tenn", "tran", "ampr"],
+
+        // Chart-specific metadata (dynamically generated from id)
+        get descriptionToggleId()    { return `description${this.id}-toggle-checkbox`; },
+        get descriptionContainerId() { return `chart${this.id}-description-container`; },
+        get descLoadedKey()          { return `chart${this.id}DescLoaded`; },
+        get createdKey()             { return `chart${this.id}Created`; },
+        get instanceKey()            { return `chartInstance${this.id}`; },
+        detailsSelector: 'details:nth-of-type(1)',
+        filePrefix: 'data/DE/forecasts/solar_notes',
+
+        getConfigFunction(chartId) {
+            return {
+                chartInstance : chartState[`chartInstance${chartId}`],
+                yAxisLabel    : 'Power (MW)',
+                regionConfigs : [
+                    {
+                        checkboxId: `ampr-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/solar_ampr',
+                        alias     : 'Amprion',
+                        color     : tsoColorMap['Amprion'],
+                    },
+                    {
+                        checkboxId: `tran-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/solar_tran',
+                        alias     : 'TransnetBW',
+                        color     : tsoColorMap['TransnetBW'],
+                    },
+                    {
+                        checkboxId: `50hz-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/solar_50hz',
+                        alias     : '50Hertz',
+                        color     : tsoColorMap['50Hertz'],
+                    },
+                    {
+                        checkboxId: `tenn-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/solar_tenn',
+                        alias     : 'TenneT',
+                        color     : tsoColorMap['TenneT'],
+                    },
+                    {
+                        checkboxId: `total-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/solar',
+                        alias     : 'Total',
+                        color     : tsoColorMap['Total']
+                    }
+                ],
+                pastDataSliderId : `past-data-slider-${chartId}`,
+                showIntervalId   : `showci_checkbox-${chartId}`,
+                errorElementId   : `error-message${chartId}`,
+                isDarkMode       : isDarkMode
+            };
+        }
+    },
+    {
+        // Forecast / display info
+        id: 4,
+        country_code: 'DE',
+        title: "Load Forecast",
+        dataKey: "load-forecast",
+        descriptionFile: "load_notes",
+        buttons: ["50hz", "tenn", "tran", "ampr"],
+
+        // Chart-specific metadata (dynamically generated from id)
+        get descriptionToggleId()    { return `description${this.id}-toggle-checkbox`; },
+        get descriptionContainerId() { return `chart${this.id}-description-container`; },
+        get descLoadedKey()          { return `chart${this.id}DescLoaded`; },
+        get createdKey()             { return `chart${this.id}Created`; },
+        get instanceKey()            { return `chartInstance${this.id}`; },
+        detailsSelector: 'details:nth-of-type(1)',
+        filePrefix: 'data/DE/forecasts/load_notes',
+
+        getConfigFunction(chartId) {
+            return {
+                chartInstance : chartState[`chartInstance${chartId}`],
+                yAxisLabel    : 'Load (MW)',
+                regionConfigs : [
+                    {
+                        checkboxId: `ampr-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/load_ampr',
+                        alias     : 'Amprion',
+                        color     : tsoColorMap['Amprion'],
+                    },
+                    {
+                        checkboxId: `tran-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/load_tran',
+                        alias     : 'TransnetBW',
+                        color     : tsoColorMap['TransnetBW'],
+                    },
+                    {
+                        checkboxId: `50hz-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/load_50hz',
+                        alias     : '50Hertz',
+                        color     : tsoColorMap['50Hertz'],
+                    },
+                    {
+                        checkboxId: `tenn-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/load_tenn',
+                        alias     : 'TenneT',
+                        color     : tsoColorMap['TenneT'],
+                    },
+                    {
+                        checkboxId: `total-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/load',
+                        alias     : 'Total',
+                        color     : tsoColorMap['Total']
+                    }
+                ],
+                pastDataSliderId : `past-data-slider-${chartId}`,
+                showIntervalId   : `showci_checkbox-${chartId}`,
+                errorElementId   : `error-message${chartId}`,
+                isDarkMode       : isDarkMode
+            };
+        }
+    },
+    {
+        // Forecast / display info
+        id: 5,
+        country_code: 'DE',
+        title: "Generation Forecast",
+        dataKey: "generation-forecast",
+        descriptionFile: "generation_notes",
+        buttons: ["50hz", "tenn", "tran", "ampr"],
+
+        // Chart-specific metadata (dynamically generated from id)
+        get descriptionToggleId()    { return `description${this.id}-toggle-checkbox`; },
+        get descriptionContainerId() { return `chart${this.id}-description-container`; },
+        get descLoadedKey()          { return `chart${this.id}DescLoaded`; },
+        get createdKey()             { return `chart${this.id}Created`; },
+        get instanceKey()            { return `chartInstance${this.id}`; },
+        detailsSelector: 'details:nth-of-type(1)',
+        filePrefix: 'data/DE/forecasts/generation_notes',
+
+        getConfigFunction(chartId) {
+            return {
+                chartInstance : chartState[`chartInstance${chartId}`],
+                yAxisLabel    : 'Power (MW)',
+                regionConfigs : [
+                    {
+                        checkboxId: `ampr-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/generation_ampr',
+                        alias     : 'Amprion',
+                        color     : tsoColorMap['Amprion'],
+                    },
+                    {
+                        checkboxId: `tran-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/generation_tran',
+                        alias     : 'TransnetBW',
+                        color     : tsoColorMap['TransnetBW'],
+                    },
+                    {
+                        checkboxId: `50hz-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/generation_50hz',
+                        alias     : '50Hertz',
+                        color     : tsoColorMap['50Hertz'],
+                    },
+                    {
+                        checkboxId: `tenn-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/generation_tenn',
+                        alias     : 'TenneT',
+                        color     : tsoColorMap['TenneT'],
+                    },
+                    {
+                        checkboxId: `total-checkbox-${chartId}`,
+                        varpath   : './data/DE/forecasts/generation',
+                        alias     : 'Total',
+                        color     : tsoColorMap['Total']
+                    }
+                ],
+                pastDataSliderId : `past-data-slider-${chartId}`,
+                showIntervalId   : `showci_checkbox-${chartId}`,
+                errorElementId   : `error-message${chartId}`,
+                isDarkMode       : isDarkMode
+            };
+        }
+    },
+];
+const forecastChartDataFR = [
+    {
+        // Forecast / display info
+        id: 6,
+        country_code: 'FR',
+        title: "Offshore Wind Power Forecast",
+        dataKey: "offshore-forecast",
+        descriptionFile: "wind_offshore_notes",
+        buttons: [],
+
+        // Chart-specific metadata (dynamically generated from id)
+        get descriptionToggleId()    { return `description${this.id}-toggle-checkbox`; },
+        get descriptionContainerId() { return `chart${this.id}-description-container`; },
+        get descLoadedKey()          { return `chart${this.id}DescLoaded`; },
+        get createdKey()             { return `chart${this.id}Created`; },
+        get instanceKey()            { return `chartInstance${this.id}`; },
+        detailsSelector: 'details:nth-of-type(1)', // always “1”
+        filePrefix: 'data/FR/forecasts/wind_offshore_notes',
+
+        // Provide the chart config inline (replaces getChart1Config)
+        getConfigFunction(chartId) {
+            return {
+                chartInstance : chartState[`chartInstance${chartId}`],
+                yAxisLabel    : 'Power (MW)',
+                regionConfigs : [
+                    {
+                        checkboxId: `total-checkbox-${chartId}`,
+                        varpath   : './data/FR/forecasts/wind_offshore',
+                        alias     : 'Total',
+                        color     : tsoColorMap['Total']
+                    }
+                ],
+                pastDataSliderId : `past-data-slider-${chartId}`,
+                showIntervalId   : `showci_checkbox-${chartId}`,
+                errorElementId   : `error-message${chartId}`,
+                isDarkMode       : isDarkMode
+            };
+        }
+    },
+    {
+        // Forecast / display info
+        id: 7,
+        country_code: 'FR',
+        title: "Onshore Wind Power Forecast",
+        dataKey: "onshore-forecast",
+        descriptionFile: "wind_onshore_notes",
+        buttons: [],
+
+        // Chart-specific metadata (dynamically generated from id)
+        get descriptionToggleId()    { return `description${this.id}-toggle-checkbox`; },
+        get descriptionContainerId() { return `chart${this.id}-description-container`; },
+        get descLoadedKey()          { return `chart${this.id}DescLoaded`; },
+        get createdKey()             { return `chart${this.id}Created`; },
+        get instanceKey()            { return `chartInstance${this.id}`; },
+        detailsSelector: 'details:nth-of-type(1)',
+        filePrefix: 'data/FR/forecasts/wind_onshore_notes',
+
+        // Provide the chart config inline
+        getConfigFunction(chartId) {
+            return {
+                chartInstance : chartState[`chartInstance${chartId}`],
+                yAxisLabel    : 'Power (MW)',
+                regionConfigs : [
+                    {
+                        checkboxId: `total-checkbox-${chartId}`,
+                        varpath   : './data/FR/forecasts/wind_onshore',
+                        alias     : 'Total',
+                        color     : tsoColorMap['Total']
+                    }
+                ],
+                pastDataSliderId : `past-data-slider-${chartId}`,
+                showIntervalId   : `showci_checkbox-${chartId}`,
+                errorElementId   : `error-message${chartId}`,
+                isDarkMode       : isDarkMode
+            };
+        }
+    },
+    {
+        // Forecast / display info
+        id: 8,
+        country_code: 'FR',
+        title: "Solar Power Forecast",
+        dataKey: "solar-forecast",
+        descriptionFile: "solar_notes",
+        buttons: [],
+
+        // Chart-specific metadata (dynamically generated from id)
+        get descriptionToggleId()    { return `description${this.id}-toggle-checkbox`; },
+        get descriptionContainerId() { return `chart${this.id}-description-container`; },
+        get descLoadedKey()          { return `chart${this.id}DescLoaded`; },
+        get createdKey()             { return `chart${this.id}Created`; },
+        get instanceKey()            { return `chartInstance${this.id}`; },
+        detailsSelector: 'details:nth-of-type(1)',
+        filePrefix: 'data/FR/forecasts/solar_notes',
+
+        getConfigFunction(chartId) {
+            return {
+                chartInstance : chartState[`chartInstance${chartId}`],
+                yAxisLabel    : 'Power (MW)',
+                regionConfigs : [
+                    {
+                        checkboxId: `total-checkbox-${chartId}`,
+                        varpath   : './data/FR/forecasts/solar',
+                        alias     : 'Total',
+                        color     : tsoColorMap['Total']
+                    }
+                ],
+                pastDataSliderId : `past-data-slider-${chartId}`,
+                showIntervalId   : `showci_checkbox-${chartId}`,
+                errorElementId   : `error-message${chartId}`,
+                isDarkMode       : isDarkMode
+            };
+        }
+    },
+    {
+        // Forecast / display info
+        id: 9,
+        country_code: 'FR',
+        title: "Load Forecast",
+        dataKey: "load-forecast",
+        descriptionFile: "load_notes",
+        buttons: ["50hz", "tenn", "tran", "ampr"],
+
+        // Chart-specific metadata (dynamically generated from id)
+        get descriptionToggleId()    { return `description${this.id}-toggle-checkbox`; },
+        get descriptionContainerId() { return `chart${this.id}-description-container`; },
+        get descLoadedKey()          { return `chart${this.id}DescLoaded`; },
+        get createdKey()             { return `chart${this.id}Created`; },
+        get instanceKey()            { return `chartInstance${this.id}`; },
+        detailsSelector: 'details:nth-of-type(1)',
+        filePrefix: 'data/FR/forecasts/load_notes',
+
+        getConfigFunction(chartId) {
+            return {
+                chartInstance : chartState[`chartInstance${chartId}`],
+                yAxisLabel    : 'Load (MW)',
+                regionConfigs : [
+                    {
+                        checkboxId: `total-checkbox-${chartId}`,
+                        varpath   : './data/FR/forecasts/load',
+                        alias     : 'Total',
+                        color     : tsoColorMap['Total']
+                    }
+                ],
+                pastDataSliderId : `past-data-slider-${chartId}`,
+                showIntervalId   : `showci_checkbox-${chartId}`,
+                errorElementId   : `error-message${chartId}`,
+                isDarkMode       : isDarkMode
+            };
+        }
+    },
+    {
+        // Forecast / display info
+        id: 10,
+        country_code: 'FR',
+        title: "Generation Forecast",
+        dataKey: "generation-forecast",
+        descriptionFile: "generation_notes",
+        buttons: [],
+
+        // Chart-specific metadata (dynamically generated from id)
+        get descriptionToggleId()    { return `description${this.id}-toggle-checkbox`; },
+        get descriptionContainerId() { return `chart${this.id}-description-container`; },
+        get descLoadedKey()          { return `chart${this.id}DescLoaded`; },
+        get createdKey()             { return `chart${this.id}Created`; },
+        get instanceKey()            { return `chartInstance${this.id}`; },
+        detailsSelector: 'details:nth-of-type(1)',
+        filePrefix: 'data/FR/forecasts/generation_notes',
+
+        getConfigFunction(chartId) {
+            return {
+                chartInstance : chartState[`chartInstance${chartId}`],
+                yAxisLabel    : 'Power (MW)',
+                regionConfigs : [
+                    {
+                        checkboxId: `total-checkbox-${chartId}`,
+                        varpath   : './data/FR/forecasts/generation',
+                        alias     : 'Total',
+                        color     : tsoColorMap['Total']
+                    }
+                ],
+                pastDataSliderId : `past-data-slider-${chartId}`,
+                showIntervalId   : `showci_checkbox-${chartId}`,
+                errorElementId   : `error-message${chartId}`,
+                isDarkMode       : isDarkMode
+            };
+        }
+    },
+];
+
+// The rest of your code (generateForecastSection, etc.) remains unchanged
+// -----------------------------------------------------
+// The snippet below remains the same in your file:
+
 function generateForecastSection({ id, title, dataKey, descriptionFile, buttons = [] }) {
-  // Build the HTML for any TSO buttons this forecast wants:
-  const tsoButtonsHtml = buttons.map(btnKey => {
-    const btn = TSO_BUTTONS[btnKey];
-    return `
+    // ...
+    // This uses ${id} for all IDs:
+    const tsoButtonsHtml = buttons.map(btnKey => {
+        const btn = TSO_BUTTONS[btnKey];
+        return `
       <input type="checkbox" name="tso-area" id="${btnKey}-checkbox-${id}" onchange="updateChart${id}()" />
       <label for="${btnKey}-checkbox-${id}" class="${btn.colorClass}">${btn.label}</label>
     `;
-  }).join("");
+    }).join("");
 
-  // Mandatory buttons that are always shown
-  const mandatoryButtons = `
+    const mandatoryButtons = `
     <!-- Always show 'Total' -->
     <input type="checkbox" name="tso-area" id="total-checkbox-${id}" checked onchange="updateChart${id}()" />
     <label for="total-checkbox-${id}" class="btn-purple">Total</label>
@@ -801,8 +1194,8 @@ function generateForecastSection({ id, title, dataKey, descriptionFile, buttons 
     <input type="checkbox" id="reloadChart${id}" style="display: none;" onchange="renderOrReloadChart${id}()" />
   `;
 
-  return `
-    <details class="forecast-section" open>
+    return `
+    <details class="forecast-section"> 
       <summary class="forecast-summary" data-i18n="${dataKey}">
         ${title}
       </summary>
@@ -829,419 +1222,534 @@ function generateForecastSection({ id, title, dataKey, descriptionFile, buttons 
         </div>
       </div>
       <div id="chart${id}-description-container" class="dropdown-content">
-        <!-- content loaded asynchronously, e.g. via fetch for descriptionFile -->
+        <!-- content loaded asynchronously -->
       </div>
     </details>
   `;
 }
 
-// Insert all forecast sections into the page
-document.getElementById("individual-forecasts").innerHTML = forecastData
-  .map(generateForecastSection)
-  .join("");
+// Insert the merged forecast sections
+const allForecastSectionsDE = forecastChartDataDE
+    .map(generateForecastSection)
+    .join("");
+const allForecastSectionsFR = forecastChartDataFR
+    .map(generateForecastSection)
+    .join("");
 
-const tsoColorMap = {
-  "50Hertz": "#0000FF",  // Blue
-  "TenneT": "#008000",   // Green
-  "TransnetBW": "#FF0000", // Red
-  "Amprion": "#FFFF00",  // Yellow
-  "Total": "#800090"     // Purple
-};
+document.getElementById("individual-forecasts").innerHTML = `
+  <!-- Germany (DE) -->
+  <details class="country-section" open>
+    <summary>DE</summary>
+    ${allForecastSectionsDE}
+  </details>
+  <!-- Frace (FR) -->
+  <details class="country-section" open>
+    <summary>FR</summary>
+    ${allForecastSectionsFR}
+  </details>
+`;
 
-/************************************************************
- * 6.0) Define an array describing each chart
- ************************************************************/
-
-const getChart1Config = () => {
-  return {
-    chartInstance   : chartState["chartInstance1"],
-    yAxisLabel      : 'Power (MW)',//i18next.t('offshore-power-label-mw'),
-
-    regionConfigs   : [
-      {
-        checkboxId: '50hz-checkbox-1',
-        variable  : 'wind_offshore_50hz',
-        alias     : '50Hertz',
-        color     : tsoColorMap['50Hertz'],
-      },
-      {
-        checkboxId: 'tenn-checkbox-1',
-        variable  : 'wind_offshore_tenn',
-        alias     : 'TenneT',
-        color     : tsoColorMap['TenneT'],
-      },
-      {
-        checkboxId: 'total-checkbox-1',
-        variable  : 'wind_offshore',
-        alias     : 'Total',
-        color     : tsoColorMap['Total']
-      }
-    ],
-
-    pastDataSliderId: 'past-data-slider-1',
-    showIntervalId  : 'showci_checkbox-1',
-    errorElementId  : 'error-message1',
-    isDarkMode      : isDarkMode // or define it yourself
-  };
-};
-
-const getChart2Config = () => {
-  return {
-    chartInstance   : chartState["chartInstance2"],
-    yAxisLabel      : 'Power (MW)',//i18next.t('onshore-power-label-mw'),
-
-    regionConfigs   : [
-      {
-        checkboxId: 'ampr-checkbox-2',
-        variable  : 'wind_onshore_ampr',
-        alias     : 'Amprion',
-        color     : tsoColorMap['Amprion'],
-      },
-      {
-        checkboxId: 'tran-checkbox-2',
-        variable  : 'wind_onshore_tran',
-        alias     : 'TransnetBW',
-        color     : tsoColorMap['TransnetBW'],
-      },
-      {
-        checkboxId: '50hz-checkbox-2',
-        variable  : 'wind_onshore_50hz',
-        alias     : '50Hertz',
-        color     : tsoColorMap['50Hertz'],
-      },
-      {
-        checkboxId: 'tenn-checkbox-2',
-        variable  : 'wind_onshore_tenn',
-        alias     : 'TenneT',
-        color     : tsoColorMap['TenneT'],
-      },
-      {
-        checkboxId: 'total-checkbox-2',
-        variable  : 'wind_onshore',
-        alias     : 'Total',
-        color     : tsoColorMap['Total']
-      }
-    ],
-
-    pastDataSliderId: 'past-data-slider-2',
-    showIntervalId  : 'showci_checkbox-2',
-    errorElementId  : 'error-message2',
-    isDarkMode      : isDarkMode // or define it yourself
-  };
-};
-
-const getChart3Config = () => {
-  return {
-    chartInstance   : chartState["chartInstance3"],
-    yAxisLabel      : 'Power (MW)',//i18next.t('onshore-power-label-mw'),
-
-    regionConfigs   : [
-      {
-        checkboxId: 'ampr-checkbox-3',
-        variable  : 'solar_ampr',
-        alias     : 'Amprion',
-        color     : tsoColorMap['Amprion'],
-      },
-      {
-        checkboxId: 'tran-checkbox-3',
-        variable  : 'solar_tran',
-        alias     : 'TransnetBW',
-        color     : tsoColorMap['TransnetBW'],
-      },
-      {
-        checkboxId: '50hz-checkbox-3',
-        variable  : 'solar_50hz',
-        alias     : '50Hertz',
-        color     : tsoColorMap['50Hertz'],
-      },
-      {
-        checkboxId: 'tenn-checkbox-3',
-        variable  : 'solar_tenn',
-        alias     : 'TenneT',
-        color     : tsoColorMap['TenneT'],
-      },
-      {
-        checkboxId: 'total-checkbox-3',
-        variable  : 'solar',
-        alias     : 'Total',
-        color     : tsoColorMap['Total']
-      }
-    ],
-
-    pastDataSliderId: 'past-data-slider-3',
-    showIntervalId  : 'showci_checkbox-3',
-    errorElementId  : 'error-message3',
-    isDarkMode      : isDarkMode // or define it yourself
-  };
-};
-
-const getChart4Config = () => {
-  return {
-    chartInstance   : chartState["chartInstance4"],
-    yAxisLabel      : 'Load (MW)',//i18next.t('onshore-power-label-mw'),
-
-    regionConfigs   : [
-      {
-        checkboxId: 'ampr-checkbox-4',
-        variable  : 'load_ampr',
-        alias     : 'Amprion',
-        color     : tsoColorMap['Amprion'],
-      },
-      {
-        checkboxId: 'tran-checkbox-4',
-        variable  : 'load_tran',
-        alias     : 'TransnetBW',
-        color     : tsoColorMap['TransnetBW'],
-      },
-      {
-        checkboxId: '50hz-checkbox-4',
-        variable  : 'load_50hz',
-        alias     : '50Hertz',
-        color     : tsoColorMap['50Hertz'],
-      },
-      {
-        checkboxId: 'tenn-checkbox-4',
-        variable  : 'load_tenn',
-        alias     : 'TenneT',
-        color     : tsoColorMap['TenneT'],
-      },
-      {
-        checkboxId: 'total-checkbox-4',
-        variable  : 'load',
-        alias     : 'Total',
-        color     : tsoColorMap['Total']
-      }
-    ],
-
-    pastDataSliderId: 'past-data-slider-4',
-    showIntervalId  : 'showci_checkbox-4',
-    errorElementId  : 'error-message4',
-    isDarkMode      : isDarkMode // or define it yourself
-  };
-};
-
-const getChart5Config = () => {
-  return {
-    chartInstance   : chartState["chartInstance5"],
-    yAxisLabel      : 'Generation (MW)',//i18next.t('onshore-power-label-mw'),
-
-    regionConfigs   : [
-      {
-        checkboxId: 'ampr-checkbox-5',
-        variable  : 'generation_ampr',
-        alias     : 'Amprion',
-        color     : tsoColorMap['Amprion'],
-      },
-      {
-        checkboxId: 'tran-checkbox-5',
-        variable  : 'generation_tran',
-        alias     : 'TransnetBW',
-        color     : tsoColorMap['TransnetBW'],
-      },
-      {
-        checkboxId: '50hz-checkbox-5',
-        variable  : 'generation_50hz',
-        alias     : '50Hertz',
-        color     : tsoColorMap['50Hertz'],
-      },
-      {
-        checkboxId: 'tenn-checkbox-5',
-        variable  : 'generation_tenn',
-        alias     : 'TenneT',
-        color     : tsoColorMap['TenneT'],
-      },
-      {
-        checkboxId: 'total-checkbox-5',
-        variable  : 'generation',
-        alias     : 'Total',
-        color     : tsoColorMap['Total']
-      }
-    ],
-
-    pastDataSliderId: 'past-data-slider-5',
-    showIntervalId  : 'showci_checkbox-5',
-    errorElementId  : 'error-message5',
-    isDarkMode      : isDarkMode // or define it yourself
-  };
-};
-
-const chartConfigs = [
-  {
-    chartNum: 1,
-    descriptionToggleId: 'description1-toggle-checkbox',
-    descriptionContainerId: 'chart1-description-container',
-    descLoadedKey: 'chart1DescLoaded',
-    createdKey: 'chart1Created',
-    instanceKey: 'chartInstance1',
-    detailsSelector: 'details:nth-of-type(1)',
-    filePrefix: 'wind_offshore_notes',
-    getConfigFunction: getChart1Config
-  },
-  {
-    chartNum: 2,
-    descriptionToggleId: 'description2-toggle-checkbox',
-    descriptionContainerId: 'chart2-description-container',
-    descLoadedKey: 'chart2DescLoaded',
-    createdKey: 'chart2Created',
-    instanceKey: 'chartInstance2',
-    detailsSelector: 'details:nth-of-type(1)',
-    filePrefix: 'wind_onshore_notes',
-    getConfigFunction: getChart2Config
-  },
-  {
-    chartNum: 3,
-    descriptionToggleId: 'description3-toggle-checkbox',
-    descriptionContainerId: 'chart3-description-container',
-    descLoadedKey: 'chart3DescLoaded',
-    createdKey: 'chart3Created',
-    instanceKey: 'chartInstance3',
-    detailsSelector: 'details:nth-of-type(1)',
-    filePrefix: 'solar_notes',
-    getConfigFunction: getChart3Config
-  },
-  {
-    chartNum: 4,
-    descriptionToggleId: 'description4-toggle-checkbox',
-    descriptionContainerId: 'chart4-description-container',
-    descLoadedKey: 'chart4DescLoaded',
-    createdKey: 'chart4Created',
-    instanceKey: 'chartInstance4',
-    detailsSelector: 'details:nth-of-type(1)',
-    filePrefix: 'load_notes',
-    getConfigFunction: getChart4Config
-  },
-  {
-    chartNum: 5,
-    descriptionToggleId: 'description5-toggle-checkbox',
-    descriptionContainerId: 'chart5-description-container',
-    descLoadedKey: 'chart5DescLoaded',
-    createdKey: 'chart5Created',
-    instanceKey: 'chartInstance5',
-    detailsSelector: 'details:nth-of-type(1)',
-    filePrefix: 'generation_notes',
-    getConfigFunction: getChart5Config
-  }
-];
-
-/************************************************************
- * 6.1) The actual update function for “Offshore” Chart #1
- *    (matching the onChange handlers in the HTML)
- ************************************************************/
-
-function toggleDarkMode() {
-  document.body.classList.toggle('dark-mode');
-  isDarkMode = !isDarkMode;
-
-  // If charts exist, refresh them (loop over all instances)
-  // Example: any key named "chartInstanceX" in chartState
-  for (let key of Object.keys(chartState)) {
-    if (key.startsWith('chartInstance') && chartState[key]) {
-      // Extract the chart number from the key, e.g. "chartInstance1" -> "1"
-      const chartNum = key.replace('chartInstance', '');
-      // Call updateChart1(), updateChart2(), ...
-      window[`updateChart${chartNum}`]?.();
-    }
-  }
-
-  window["updateStackedChart100"]?.();
-}
-
-/************************************************************
- * 6.2) Helper function to set up each chart’s event listeners
- *    and “render/reload” + “update” functions.
- ************************************************************/
+// Setup events for each chart
 function setupChartEvents({
-  chartNum,
-  descriptionToggleId,
-  descriptionContainerId,
-  descLoadedKey,
-  createdKey,
-  instanceKey,
-  detailsSelector,
-  filePrefix,
-  getConfigFunction
+    id, descriptionToggleId, descriptionContainerId, descLoadedKey,
+    createdKey, instanceKey, detailsSelector, filePrefix, getConfigFunction
 }) {
-  // 6.2a) Toggle the Markdown description
-  document
-    .getElementById(descriptionToggleId)
-    .addEventListener('click', async function () {
-      const content = document.getElementById(descriptionContainerId);
 
-      // Toggle visibility
-      const isVisible = (content.style.display === 'block');
-      content.style.display = isVisible ? 'none' : 'block';
+    // Toggle the Markdown description
+    document
+        .getElementById(descriptionToggleId)
+        .addEventListener('click', async function () {
+            const content = document.getElementById(descriptionContainerId);
+            const isVisible = (content.style.display === 'block');
+            content.style.display = isVisible ? 'none' : 'block';
 
-      // If opening it for the first time, load the Markdown
-      if (!isVisible && !chartState[descLoadedKey]) {
-        chartState[descLoadedKey] = true;
+            // If opening for the first time, load the Markdown
+            if (!isVisible && !chartState[descLoadedKey]) {
+                chartState[descLoadedKey] = true;
+                const language = i18next.language; // e.g. 'en' or 'de'
+                const fileName = `${filePrefix}_${language}.md`;
+                await loadMarkdown(`${fileName}`, descriptionContainerId);
+            }
+        });
 
-        // Determine the language and load
-        const language = i18next.language; // e.g. 'en' or 'de'
-        const fileName = `${filePrefix}_${language}.md`;
-        await loadMarkdown(`data/DE/forecasts/${fileName}`, descriptionContainerId);
-      }
-    });
+    // <details> toggle => create chart only when opened
+    document
+        .querySelector(detailsSelector)
+        .addEventListener('toggle', async function(e) {
+            if (e.target.open && !chartState[createdKey]) {
+                await initializeI18n();
+                chartState[createdKey] = true;
+                chartState[instanceKey] = await createChart(`#chart${id}`, getBaseChartOptions());
+                window[`updateChart${id}`](); // first update
+            }
+        });
 
-  // 6.2b) <details> toggle to create the chart only when opened
-  document
-    .querySelector(detailsSelector)
-    .addEventListener('toggle', async function(e) {
-      if (e.target.open && !chartState[createdKey]) {
-        await initializeI18n();   // loads i18n, sets default language
+    // “renderOrReloadChartX”
+    window[`renderOrReloadChart${id}`] = async function() {
+        if (chartState[instanceKey]) {
+            chartState[instanceKey].destroy();
+            chartState[createdKey] = false;
+        }
+        await initializeI18n();
         chartState[createdKey] = true;
-        chartState[instanceKey] = await createChart(`#chart${chartNum}`, getBaseChartOptions());
-        window[`updateChart${chartNum}`](); // first update
-      }
-    });
+        chartState[instanceKey] = await createChart(`#chart${id}`, getBaseChartOptions());
+        window[`updateChart${id}`](); // first update
+    };
 
-  // 6.2c) Create a global function like “renderOrReloadChart1”
-  //     but parametric for each chartNum
-  window[`renderOrReloadChart${chartNum}`] = async function() {
-    // If the chart exists, destroy it
-    if (chartState[instanceKey]) {
-      chartState[instanceKey].destroy();
-      chartState[createdKey] = false;
-    }
-    // Recreate
-    await initializeI18n();
-    chartState[createdKey] = true;
-    chartState[instanceKey] = await createChart(`#chart${chartNum}`, getBaseChartOptions());
-    window[`updateChart${chartNum}`](); // first update
-  };
-
-  // 6.2d) Create a global function like “updateChart1” for each chartNum
-  window[`updateChart${chartNum}`] = async function() {
-    const config = getConfigFunction(); // e.g. getChart1Config()
-    await updateChartGeneric(config);
-  };
+    // “updateChartX”
+    window[`updateChart${id}`] = async function() {
+        const config = getConfigFunction(id);
+        await updateChartGeneric(config);
+    };
 }
 
-/************************************************************
- * 6.3) Loop through our array and set everything up in one go
- ************************************************************/
-chartConfigs.forEach(cfg => setupChartEvents(cfg));
+// Finally, attach all event setup for each forecast object
+forecastChartDataDE.forEach(cfg => setupChartEvents(cfg));
+forecastChartDataFR.forEach(cfg => setupChartEvents(cfg));
+
+
+// // Single array with both forecast and chart config info
+// const forecastChartData = [
+//     {
+//         // Forecast / display info
+//         id: 1,
+//         country_code: 'DE',
+//         title: "Offshore Wind Power Forecast",
+//         dataKey: "offshore-forecast",
+//         descriptionFile: "wind_offshore_notes",
+//         buttons: ["50hz", "tenn"],
+//
+//         // Chart-specific metadata
+//         descriptionToggleId: 'description1-toggle-checkbox',
+//         descriptionContainerId: 'chart1-description-container',
+//         descLoadedKey: 'chart1DescLoaded',
+//         createdKey: 'chart1Created',
+//         instanceKey: 'chartInstance1',
+//         detailsSelector: 'details:nth-of-type(1)',
+//         filePrefix: 'data/DE/forecasts/wind_offshore_notes',
+//
+//         // Provide the chart config inline (replaces getChart1Config)
+//         getConfigFunction(chartId) {
+//             return {
+//                 chartInstance : chartState[`chartInstance${chartId}`],
+//                 yAxisLabel    : 'Power (MW)',
+//                 regionConfigs : [
+//                     {
+//                         checkboxId: `50hz-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/wind_offshore_50hz',
+//                         alias     : '50Hertz',
+//                         color     : tsoColorMap['50Hertz'],
+//                     },
+//                     {
+//                         checkboxId: `tenn-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/wind_offshore_tenn',
+//                         alias     : 'TenneT',
+//                         color     : tsoColorMap['TenneT'],
+//                     },
+//                     {
+//                         checkboxId: `total-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/wind_offshore',
+//                         alias     : 'Total',
+//                         color     : tsoColorMap['Total']
+//                     }
+//                 ],
+//                 pastDataSliderId : `past-data-slider-${chartId}`,
+//                 showIntervalId   : `showci_checkbox-${chartId}`,
+//                 errorElementId   : `error-message${chartId}`,
+//                 isDarkMode       : isDarkMode
+//             };
+//         }
+//     },
+//     {
+//         // Forecast / display info
+//         id: 2,
+//         country_code: 'DE',
+//         title: "Onshore Wind Power Forecast",
+//         dataKey: "onshore-forecast",
+//         descriptionFile: "wind_onshore_notes",
+//         buttons: ["50hz", "tenn", "tran", "ampr"],
+//
+//         // Chart-specific metadata
+//         descriptionToggleId: 'description2-toggle-checkbox',
+//         descriptionContainerId: 'chart2-description-container',
+//         descLoadedKey: 'chart2DescLoaded',
+//         createdKey: 'chart2Created',
+//         instanceKey: 'chartInstance2',
+//         detailsSelector: 'details:nth-of-type(1)',
+//         filePrefix: 'data/DE/forecasts/wind_onshore_notes',
+//
+//         // Provide the chart config inline (replaces getChart2Config)
+//         getConfigFunction(chartId) {
+//             return {
+//                 chartInstance : chartState[`chartInstance${chartId}`],
+//                 yAxisLabel    : 'Power (MW)',
+//                 regionConfigs : [
+//                     {
+//                         checkboxId: `ampr-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/wind_onshore_ampr',
+//                         alias     : 'Amprion',
+//                         color     : tsoColorMap['Amprion'],
+//                     },
+//                     {
+//                         checkboxId: `tran-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/wind_onshore_tran',
+//                         alias     : 'TransnetBW',
+//                         color     : tsoColorMap['TransnetBW'],
+//                     },
+//                     {
+//                         checkboxId: `50hz-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/wind_onshore_50hz',
+//                         alias     : '50Hertz',
+//                         color     : tsoColorMap['50Hertz'],
+//                     },
+//                     {
+//                         checkboxId: `tenn-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/wind_onshore_tenn',
+//                         alias     : 'TenneT',
+//                         color     : tsoColorMap['TenneT'],
+//                     },
+//                     {
+//                         checkboxId: `total-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/wind_onshore',
+//                         alias     : 'Total',
+//                         color     : tsoColorMap['Total']
+//                     }
+//                 ],
+//                 pastDataSliderId : `past-data-slider-${chartId}`,
+//                 showIntervalId   : `showci_checkbox-${chartId}`,
+//                 errorElementId   : `error-message${chartId}`,
+//                 isDarkMode       : isDarkMode
+//             };
+//         }
+//     },
+//     {
+//         // Forecast / display info
+//         id: 3,
+//         country_code: 'DE',
+//         title: "Solar Power Forecast",
+//         dataKey: "solar-forecast",
+//         descriptionFile: "solar_notes",
+//         buttons: ["50hz", "tenn", "tran", "ampr"],
+//
+//         // Chart-specific metadata
+//         descriptionToggleId: 'description3-toggle-checkbox',
+//         descriptionContainerId: 'chart3-description-container',
+//         descLoadedKey: 'chart3DescLoaded',
+//         createdKey: 'chart3Created',
+//         instanceKey: 'chartInstance3',
+//         detailsSelector: 'details:nth-of-type(1)',
+//         filePrefix: 'data/DE/forecasts/solar_notes',
+//
+//         getConfigFunction(chartId) {
+//             return {
+//                 chartInstance : chartState[`chartInstance${chartId}`],
+//                 yAxisLabel    : 'Power (MW)',
+//                 regionConfigs : [
+//                     {
+//                         checkboxId: `ampr-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/solar_ampr',
+//                         alias     : 'Amprion',
+//                         color     : tsoColorMap['Amprion'],
+//                     },
+//                     {
+//                         checkboxId: `tran-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/solar_tran',
+//                         alias     : 'TransnetBW',
+//                         color     : tsoColorMap['TransnetBW'],
+//                     },
+//                     {
+//                         checkboxId: `50hz-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/solar_50hz',
+//                         alias     : '50Hertz',
+//                         color     : tsoColorMap['50Hertz'],
+//                     },
+//                     {
+//                         checkboxId: `tenn-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/solar_tenn',
+//                         alias     : 'TenneT',
+//                         color     : tsoColorMap['TenneT'],
+//                     },
+//                     {
+//                         checkboxId: `total-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/solar',
+//                         alias     : 'Total',
+//                         color     : tsoColorMap['Total']
+//                     }
+//                 ],
+//                 pastDataSliderId : `past-data-slider-${chartId}`,
+//                 showIntervalId   : `showci_checkbox-${chartId}`,
+//                 errorElementId   : `error-message${chartId}`,
+//                 isDarkMode       : isDarkMode
+//             };
+//         }
+//     },
+//     {
+//         // Forecast / display info
+//         id: 4,
+//         country_code: 'DE',
+//         title: "Load Forecast",
+//         dataKey: "load-forecast",
+//         descriptionFile: "load_notes",
+//         buttons: ["50hz", "tenn", "tran", "ampr"],
+//
+//         // Chart-specific metadata
+//         descriptionToggleId: 'description4-toggle-checkbox',
+//         descriptionContainerId: 'chart4-description-container',
+//         descLoadedKey: 'chart4DescLoaded',
+//         createdKey: 'chart4Created',
+//         instanceKey: 'chartInstance4',
+//         detailsSelector: 'details:nth-of-type(1)',
+//         filePrefix: 'data/DE/forecasts/load_notes',
+//
+//         getConfigFunction(chartId) {
+//             return {
+//                 chartInstance : chartState[`chartInstance${chartId}`],
+//                 yAxisLabel    : 'Load (MW)',
+//                 regionConfigs : [
+//                     {
+//                         checkboxId: `ampr-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/load_ampr',
+//                         alias     : 'Amprion',
+//                         color     : tsoColorMap['Amprion'],
+//                     },
+//                     {
+//                         checkboxId: `tran-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/load_tran',
+//                         alias     : 'TransnetBW',
+//                         color     : tsoColorMap['TransnetBW'],
+//                     },
+//                     {
+//                         checkboxId: `50hz-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/load_50hz',
+//                         alias     : '50Hertz',
+//                         color     : tsoColorMap['50Hertz'],
+//                     },
+//                     {
+//                         checkboxId: `tenn-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/load_tenn',
+//                         alias     : 'TenneT',
+//                         color     : tsoColorMap['TenneT'],
+//                     },
+//                     {
+//                         checkboxId: `total-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/load',
+//                         alias     : 'Total',
+//                         color     : tsoColorMap['Total']
+//                     }
+//                 ],
+//                 pastDataSliderId : `past-data-slider-${chartId}`,
+//                 showIntervalId   : `showci_checkbox-${chartId}`,
+//                 errorElementId   : `error-message${chartId}`,
+//                 isDarkMode       : isDarkMode
+//             };
+//         }
+//     },
+//     {
+//         // Forecast / display info
+//         id: 5,
+//         country_code: 'DE',
+//         title: "Generation Forecast",
+//         dataKey: "generation-forecast",
+//         descriptionFile: "generation_notes",
+//         buttons: ["50hz", "tenn", "tran", "ampr"],
+//
+//         // Chart-specific metadata
+//         descriptionToggleId: 'description5-toggle-checkbox',
+//         descriptionContainerId: 'chart5-description-container',
+//         descLoadedKey: 'chart5DescLoaded',
+//         createdKey: 'chart5Created',
+//         instanceKey: 'chartInstance5',
+//         detailsSelector: 'details:nth-of-type(1)',
+//         filePrefix: 'data/DE/forecasts/generation_notes',
+//
+//         getConfigFunction(chartId) {
+//             return {
+//                 chartInstance : chartState[`chartInstance${chartId}`],
+//                 yAxisLabel    : 'Power (MW)',
+//                 regionConfigs : [
+//                     {
+//                         checkboxId: `ampr-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/generation_ampr',
+//                         alias     : 'Amprion',
+//                         color     : tsoColorMap['Amprion'],
+//                     },
+//                     {
+//                         checkboxId: `tran-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/generation_tran',
+//                         alias     : 'TransnetBW',
+//                         color     : tsoColorMap['TransnetBW'],
+//                     },
+//                     {
+//                         checkboxId: `50hz-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/generation_50hz',
+//                         alias     : '50Hertz',
+//                         color     : tsoColorMap['50Hertz'],
+//                     },
+//                     {
+//                         checkboxId: `tenn-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/generation_tenn',
+//                         alias     : 'TenneT',
+//                         color     : tsoColorMap['TenneT'],
+//                     },
+//                     {
+//                         checkboxId: `total-checkbox-${chartId}`,
+//                         varpath   : './data/DE/forecasts/generation',
+//                         alias     : 'Total',
+//                         color     : tsoColorMap['Total']
+//                     }
+//                 ],
+//                 pastDataSliderId : `past-data-slider-${chartId}`,
+//                 showIntervalId   : `showci_checkbox-${chartId}`,
+//                 errorElementId   : `error-message${chartId}`,
+//                 isDarkMode       : isDarkMode
+//             };
+//         }
+//     },
+// ];
+//
+// //  Use one function to build the forecast HTML (unchanged except we now map forecastChartData)
+// function generateForecastSection({ id, title, dataKey, descriptionFile, buttons = [] }) {
+//     // Build the HTML for TSO buttons this forecast wants:
+//     const tsoButtonsHtml = buttons.map(btnKey => {
+//         const btn = TSO_BUTTONS[btnKey];
+//         return `
+//       <input type="checkbox" name="tso-area" id="${btnKey}-checkbox-${id}" onchange="updateChart${id}()" />
+//       <label for="${btnKey}-checkbox-${id}" class="${btn.colorClass}">${btn.label}</label>
+//     `;
+//     }).join("");
+//
+//     // Mandatory buttons that are always shown
+//     const mandatoryButtons = `
+//     <!-- Always show 'Total' -->
+//     <input type="checkbox" name="tso-area" id="total-checkbox-${id}" checked onchange="updateChart${id}()" />
+//     <label for="total-checkbox-${id}" class="btn-purple">Total</label>
+//
+//     <!-- Always show 'CI' -->
+//     <input type="checkbox" name="tso-area" id="showci_checkbox-${id}" onchange="updateChart${id}()" />
+//     <label for="showci_checkbox-${id}" class="btn-purple">CI</label>
+//
+//     <!-- Always show 'Details' -->
+//     <input type="checkbox" id="description${id}-toggle-checkbox" class="description-toggle-checkbox" onchange="toggleDescription()" />
+//     <label for="description${id}-toggle-checkbox" class="description-button" data-i18n="details-label">Details</label>
+//
+//     <!-- Always show 'RESET' -->
+//     <label for="reloadChart${id}" class="btn-purple">RESET</label>
+//     <input type="checkbox" id="reloadChart${id}" style="display: none;" onchange="renderOrReloadChart${id}()" />
+//   `;
+//
+//     // Return the whole <details> block
+//     return `
+//     <details class="forecast-section">
+//       <summary class="forecast-summary" data-i18n="${dataKey}">
+//         ${title}
+//       </summary>
+//       <div class="chart-container" id="chart${id}"></div>
+//       <div id="error-message${id}" class="error-message"></div>
+//       <div class="control-area">
+//         <div class="controls">
+//           <div class="slider-container">
+//             <label for="past-data-slider-${id}" data-i18n="historic-data">Historic Data:</label>
+//             <input
+//               type="range"
+//               id="past-data-slider-${id}"
+//               min="1"
+//               max="100"
+//               step="1"
+//               value="20"
+//               onchange="updateChart${id}()"
+//             />
+//           </div>
+//           <div class="controls-buttons">
+//             ${tsoButtonsHtml}
+//             ${mandatoryButtons}
+//           </div>
+//         </div>
+//       </div>
+//       <div id="chart${id}-description-container" class="dropdown-content">
+//         <!-- content loaded asynchronously, e.g. via fetch for descriptionFile -->
+//       </div>
+//     </details>
+//   `;
+// }
+//
+// // Insert the merged forecast sections into the page */
+// const allForecastSections = forecastChartData
+//     .map(generateForecastSection)
+//     .join("");
+//
+// document.getElementById("individual-forecasts").innerHTML = `
+//   <details class="country-section" open>
+//     <summary>DE</summary>
+//     ${allForecastSections}
+//   </details>
+// `;
+//
+//
+// // Setup events for each chart*/
+// function setupChartEvents({
+//     id,descriptionToggleId,descriptionContainerId,descLoadedKey,
+//     createdKey,instanceKey,detailsSelector,filePrefix,getConfigFunction
+// }) {
+//
+//     // Toggle the Markdown description
+//     document
+//         .getElementById(descriptionToggleId)
+//         .addEventListener('click', async function () {
+//             const content = document.getElementById(descriptionContainerId);
+//             const isVisible = (content.style.display === 'block');
+//             content.style.display = isVisible ? 'none' : 'block';
+//
+//             // If opening for the first time, load the Markdown
+//             if (!isVisible && !chartState[descLoadedKey]) {
+//                 chartState[descLoadedKey] = true;
+//                 const language = i18next.language; // e.g. 'en' or 'de'
+//                 const fileName = `${filePrefix}_${language}.md`;
+//                 await loadMarkdown(`${fileName}`, descriptionContainerId);
+//             }
+//         });
+//
+//     // <details> toggle => create chart only when opened
+//     document
+//         .querySelector(detailsSelector)
+//         .addEventListener('toggle', async function(e) {
+//             if (e.target.open && !chartState[createdKey]) {
+//                 await initializeI18n();
+//                 chartState[createdKey] = true;
+//                 chartState[instanceKey] = await createChart(`#chart${id}`, getBaseChartOptions());
+//                 window[`updateChart${id}`](); // first update
+//             }
+//         });
+//
+//     // “renderOrReloadChartX”
+//     window[`renderOrReloadChart${id}`] = async function() {
+//         if (chartState[instanceKey]) {
+//             chartState[instanceKey].destroy();
+//             chartState[createdKey] = false;
+//         }
+//         await initializeI18n();
+//         chartState[createdKey] = true;
+//         chartState[instanceKey] = await createChart(`#chart${id}`, getBaseChartOptions());
+//         window[`updateChart${id}`](); // first update
+//     };
+//
+//     // “updateChartX”
+//     window[`updateChart${id}`] = async function() {
+//         const config = getConfigFunction(id);
+//         await updateChartGeneric(config);
+//     };
+// }
+//
+// // Loop and set up chart events in one go */
+// forecastChartData.forEach(cfg => setupChartEvents(cfg));
 
 
 
+/// ================================= “Energy Mix” chart definitions & HTML ================================== */
 
-/************************************************************
- * ========================================================= *
- ************************************************************/
-
-
-
-
-
-/********************************************
- * 2) “Energy Mix” chart definitions & HTML
- ********************************************/
 
 var stackedChartState = {};
 
-/********************************************
- * 2) “Energy Mix” chart definitions & HTML
- ********************************************/
-
+// 2) “Energy Mix” chart definitions & HTML */
 const energyMixData = [
   {
     id: 100,
@@ -1334,9 +1842,7 @@ function generateEnergyMixSection({ id, title, dataKey, descriptionFile, buttons
 document.getElementById("energy-mix").innerHTML =
   energyMixData.map(generateEnergyMixSection).join("");
 
-/*****************************************************
- * 3) Define the chart config for the chart ID=100
- *****************************************************/
+// 3) Define the chart config for the chart ID=100 */
 
 // Define fixed color mapping to ensure all contributions are visible
 const energyMixColorMapping = {
@@ -1394,66 +1900,46 @@ function getStackedChart100Config() {
     regionConfigs: [
       {
         checkboxId: 'ampr-checkbox-100',
-        variables: [
-          'wind_onshore','wind_offshore', 'solar',
-          'gas','hard_coal','lignite','renewables'
-        ],
-        var_label: 'energy_mix_ampr',  // The folder name for this TSO
-        generation_var_label: 'generation_ampr',
-        load_var_label: 'load_ampr',
-        carbon_var_label: 'carbon_intensity_ampr',
+          varpath : './data/DE/forecasts/energy_mix_ampr',
+          genvarpath : './data/DE/forecasts/generation_ampr',
+          loadvarpath: './data/DE/forecasts/load_ampr',
+          carbonvarpath: './data/DE/forecasts/carbon_intensity_ampr',
         alias: 'Amprion',
         color: tsoColorMap['Amprion']  // Make sure tsoColorMap is defined globally
       },
       {
         checkboxId: 'tran-checkbox-100',
-        variables: [
-          'wind_onshore','wind_offshore', 'solar',
-          'gas','hard_coal','lignite','renewables'
-        ],
-        var_label: 'energy_mix_tran',
-        generation_var_label: 'generation_tran',
-        load_var_label: 'load_tran',
-        carbon_var_label: 'carbon_intensity_tran',
+          varpath : './data/DE/forecasts/energy_mix_tran',
+          genvarpath : './data/DE/forecasts/generation_tran',
+          loadvarpath: './data/DE/forecasts/load_tran',
+          carbonvarpath: './data/DE/forecasts/carbon_intensity_tran',
         alias: 'TransnetBW',
         color: tsoColorMap['TransnetBW']
       },
       {
         checkboxId: '50hz-checkbox-100',
-        variables: [
-          'wind_onshore','wind_offshore', 'solar',
-          'gas','hard_coal','lignite','renewables'
-        ],
-        var_label: 'energy_mix_50hz',
-        generation_var_label: 'generation_50hz',
-        load_var_label: 'load_50hz',
-        carbon_var_label: 'carbon_intensity_50hz',
+          varpath : './data/DE/forecasts/energy_mix_50hz',
+          genvarpath : './data/DE/forecasts/generation_50hz',
+          loadvarpath: './data/DE/forecasts/load_50hz',
+          carbonvarpath: './data/DE/forecasts/carbon_intensity_50hz',
         alias: '50Hertz',
         color: tsoColorMap['50Hertz']
       },
       {
         checkboxId: 'tenn-checkbox-100',
-        variables: [
-          'wind_onshore','wind_offshore', 'solar',
-          'gas','hard_coal','lignite','renewables'
-        ],
-        var_label: 'energy_mix_tenn',
-        generation_var_label: 'generation_tenn',
-        load_var_label: 'load_tenn',
-        carbon_var_label: 'carbon_intensity_tenn',
+          varpath : './data/DE/forecasts/energy_mix_tenn',
+          genvarpath : './data/DE/forecasts/generation_ampr',
+          loadvarpath: './data/DE/forecasts/load_tenn',
+          carbonvarpath: './data/DE/forecasts/carbon_intensity_tenn',
         alias: 'TenneT',
         color: tsoColorMap['TenneT']
       },
       {
         checkboxId: 'total-checkbox-100',
-        variables: [
-          'wind_onshore','wind_offshore', 'solar',
-          'gas','hard_coal','lignite','renewables'
-        ],
-        var_label: 'energy_mix',  // “Total” folder name
-        generation_var_label: 'generation',
-        load_var_label: 'load',
-        carbon_var_label: 'carbon_intensity',
+          varpath : './data/DE/forecasts/energy_mix',
+          genvarpath : './data/DE/forecasts/generation',
+          loadvarpath: './data/DE/forecasts/load',
+          carbonvarpath: './data/DE/forecasts/carbon_intensity',
         alias: 'Total',
         color: tsoColorMap['Total']
       }
@@ -1475,26 +1961,20 @@ const StackedChartConfigs = [
     createdKey: 'stackedChart100Created',
     instanceKey: 'stackedChartInstance100',
     detailsSelector: 'details.energy-mix:nth-of-type(1)',
-    filePrefix: 'energy_mix_notes',
+    filePrefix: 'data/DE/forecasts/energy_mix_notes',
     getConfigFunction: getStackedChart100Config
   }
 ];
 
-/***************************************************
- * 6) Fetch & merge data from the three JSON files
- ***************************************************/
-
-// Cache for forecast data
-const forecastCache = {};
-
-async function fetchForecastData(varLabel, fileName) {
+// 6) Fetch & merge data from the three JSON files */
+async function fetchForecastData(varpath, fileName) {
     /**
      * Fetches forecast data from a specified file and processes it into a structured time-series format.
      * @param {string} varLabel - The variable label representing the dataset type.
      * @param {string} fileName - The filename of the forecast data.
      * @returns {Array} - An array of processed series objects with sorted time-series data.
      */
-    const basePath = `./data/DE/forecasts/${varLabel}`;
+    const basePath = `${varpath}`;
     const allSeriesMap = {}; // Stores the fetched data categorized by series name
 
     try {
@@ -1522,7 +2002,7 @@ async function fetchForecastData(varLabel, fileName) {
             }
         }
     } catch (err) {
-        console.error("Error fetching", fileName, "for", varLabel, err);
+        console.error("Error fetching", fileName, "for", varpath, err);
     }
 
     // Convert the processed data into an array of objects formatted for plotting
@@ -1545,13 +2025,13 @@ async function processStackedChartData(config) {
         if (!checkBox || !checkBox.checked) continue; // Skip unchecked regions
 
         try {
-            console.log(`Processing region: ${regionCfg.var_label}`);
+            // console.log(`Processing region: ${regionCfg.var_label}`);
 
             // Load both current fitted and past actual forecast datasets concurrently
             const [currFittedData, prevActualData] = await Promise.all([
-                fetchForecastData(regionCfg.var_label, 'forecast_curr_fitted.json'),
-                fetchForecastData(regionCfg.var_label, 'forecast_prev_actual.json'),
-//                fetchForecastData(regionCfg.var_label, 'forecast_prev_fitted.json')
+                fetchForecastData(regionCfg.varpath, 'forecast_curr_fitted.json'),
+                fetchForecastData(regionCfg.varpath, 'forecast_prev_actual.json'),
+//                fetchForecastData(regionCfg.varpath, 'forecast_prev_fitted.json')
             ]);
 
             // Determine forecast start time by checking the last timestamp in past actual data
@@ -1603,38 +2083,7 @@ async function processStackedChartData(config) {
     return { finalSeries: Object.values(finalSeries), forecastStartTime }; // Return structured time-series data and forecast reference point
 }
 
-function computeTotalSeries(finalSeries) {
-  /**
-   * finalSeries is an array of { name, data: [[ts, val], [ts, val], ...], color: ... }
-   * We want to sum across all series at each timestamp => produce [[ts, totalVal], ...].
-   */
-  const sumMap = new Map();  // key = timestamp (numeric), val = sum of all MW
-
-  // Go through each series, accumulate the value in sumMap
-  for (const seriesObj of finalSeries) {
-    for (const [tsStr, val] of seriesObj.data) {
-      // Convert ISO string to numeric time to unify
-      const t = new Date(tsStr).getTime();
-      sumMap.set(t, (sumMap.get(t) || 0) + (val || 0));
-    }
-  }
-
-  // Convert map -> sorted array of [timestamp, totalVal]
-  const summedData = Array.from(sumMap.entries())
-    .sort((a, b) => a[0] - b[0])
-    .map(([t, totalVal]) => [new Date(t).toISOString(), totalVal]);
-
-  // Return an Apex-compatible single series
-  return [{
-    name: 'Total Generation (Sum)',
-    data: summedData,
-    color: '#FF0000' // pick a highlight color for the line
-  }];
-}
-
-/*****************************************************
- * 7) Plot the data
- *****************************************************/
+// 7) Plot the data */
 
 function getBaseLineChartOptions() {
   return {
@@ -2098,10 +2547,6 @@ function updateStackedChart(config, finalSeries, forecastStartTime) {
     stackedChart.updateSeries(finalSeries);
 }
 
-async function updateStackedChartGeneric(config) {
-    const { finalSeries, forecastStartTime } = await processStackedChartData(config);
-    updateStackedChart(config, finalSeries, forecastStartTime, isDarkMode);
-}
 
 function getForecastAnnotations(forecastStartTime, withText, withNow) {
     /**
@@ -2172,11 +2617,8 @@ function getForecastAnnotations(forecastStartTime, withText, withNow) {
 }
 
 
-// Insert all figures into #energy-mix
-//document.getElementById("energy-mix").innerHTML =
-//  energyMixData.map(generateEnergyMixSection).join("");
 
-/* --- Refactored setupStackedChartEvents and helper functions --- */
+// --- Refactored setupStackedChartEvents and helper functions --- */
 
 /**
  * Sets up the click event listener for the description toggle.
@@ -2195,9 +2637,9 @@ function setupDescriptionToggleEvent({
     // Lazy-load the markdown content if not loaded yet
     if (!isVisible && !stackedChartState[descLoadedKey]) {
       stackedChartState[descLoadedKey] = true;
-      const language = 'en'; // Adjust if localization is used
+      const language = 'en'; // TODO Adjust if localization is used
       const fileName = `${filePrefix}_${language}.md`;
-      await loadMarkdown(`data/DE/forecasts/${fileName}`, descriptionContainerId);
+      await loadMarkdown(`${fileName}`, descriptionContainerId);
     }
   });
 }
@@ -2291,7 +2733,7 @@ function defineUpdateChartFunction({ stackedChartNum, getConfigFunction }) {
       if (!checkBox || !checkBox.checked) continue;
 
       const series = await getCombinedLoadSeries(
-        regionCfg.generation_var_label,
+        regionCfg.genvarpath,
         'forecast_prev_actual.json',
         'forecast_prev_fitted.json',
         'forecast_curr_fitted.json',
@@ -2324,7 +2766,7 @@ function defineUpdateChartFunction({ stackedChartNum, getConfigFunction }) {
       if (!checkBox || !checkBox.checked) continue;
 
       const series = await getCombinedLoadSeries(
-        regionCfg.load_var_label,
+        regionCfg.loadvarpath,
         'forecast_prev_actual.json',
         'forecast_prev_fitted.json',
         'forecast_curr_fitted.json',
@@ -2353,7 +2795,7 @@ function defineUpdateChartFunction({ stackedChartNum, getConfigFunction }) {
       if (!checkBox || !checkBox.checked) continue;
 
       const series = await getCombinedLoadSeries(
-        regionCfg.carbon_var_label,
+        regionCfg.carbonvarpath,
         'forecast_prev_actual.json',
         'forecast_prev_fitted.json',
         'forecast_curr_fitted.json',
@@ -2385,11 +2827,11 @@ function defineUpdateChartFunction({ stackedChartNum, getConfigFunction }) {
 
 
 async function getCombinedLoadSeries(
-        var_label, pastFileActual, pastForecastFile, currentForecastFile, config) {
+        varpath, pastFileActual, pastForecastFile, currentForecastFile, config) {
   // Fetch data
-  const prevActualData = await getCachedData(var_label, pastFileActual, config.errorElementId);
-  const prevFittedData = await getCachedData(var_label, pastForecastFile, config.errorElementId);
-  const currFittedData = await getCachedData(var_label, currentForecastFile, config.errorElementId);
+  const prevActualData = await getCachedData(varpath, pastFileActual, config.errorElementId);
+  const prevFittedData = await getCachedData(varpath, pastForecastFile, config.errorElementId);
+  const currFittedData = await getCachedData(varpath, currentForecastFile, config.errorElementId);
   let forecastStartTime = null; // Variable to store the forecast start time
 
   if (!prevFittedData && !currFittedData) return null;
@@ -2439,13 +2881,13 @@ async function getCombinedLoadSeries(
 
   return {
     fittedSeries: {
-      name: `${var_label} - Fitted`,
+      // name: `${var_label} - Fitted`,
       data: fittedData,
       color: '#008080',
       forecastStartTime: forecastStartTime
     },
     actualSeries: {
-      name: `${var_label} - Actual`,
+      // name: `${var_label} - Actual`,
       data: actualData,
       color: '#FF5733',
       forecastStartTime:forecastStartTime
@@ -2453,9 +2895,8 @@ async function getCombinedLoadSeries(
   };
 }
 
-/**
- * Main function that wires up all the event listeners and global functions for a given chart configuration.
- */
+// Main function that wires up all the event listeners and global functions for a given chart configuration.
+
 function setupStackedChartEvents({
   stackedChartNum,
   descriptionToggleId,
@@ -2475,3 +2916,24 @@ function setupStackedChartEvents({
 
 // Wire-up all stacked chart events based on the StackedChartConfigs array
 StackedChartConfigs.forEach(cfg => setupStackedChartEvents(cfg));
+
+
+
+// DARK MODE
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    isDarkMode = !isDarkMode;
+
+    // If charts exist, refresh them (loop over all instances)
+    // Example: any key named "chartInstanceX" in chartState
+    for (let key of Object.keys(chartState)) {
+        if (key.startsWith('chartInstance') && chartState[key]) {
+            // Extract the chart number from the key, e.g. "chartInstance1" -> "1"
+            const chartNum = key.replace('chartInstance', '');
+            // Call updateChart1(), updateChart2(), ...
+            window[`updateChart${chartNum}`]?.();
+        }
+    }
+
+    window["updateStackedChart100"]?.();
+}

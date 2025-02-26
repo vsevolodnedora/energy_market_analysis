@@ -1,6 +1,7 @@
 import copy, re, pandas as pd
 import numpy as np
 import os
+import json
 from datetime import datetime, timedelta
 
 from data_collection_modules.collect_data_openmeteo import OpenMeteo
@@ -35,7 +36,7 @@ def compute_residual_load(df:pd.DataFrame, suffix:str):
     return pd.Series(load.values, index=df.index, name=f'residual_load{suffix}')
 
 
-def load_combine_continous_weather(c_dict:dict,db_path:str, freq:str, suffix:str)->tuple[pd.DataFrame, pd.DataFrame]:
+def load_combine_continous_weather(regions:list[dict],db_path:str, freq:str, suffix:str)->tuple[pd.DataFrame, pd.DataFrame]:
 
     # def drop_trailing_nan_columns(df):
     #     # Find the index of the last non-NaN column
@@ -48,7 +49,7 @@ def load_combine_continous_weather(c_dict:dict,db_path:str, freq:str, suffix:str
     #         # Drop all columns after (including) the last NaN-only column
     #     return df.loc[:, :last_valid_idx]
 
-    regions = c_dict['regions']
+    # regions = c_dict['regions']
 
     if freq == 'hourly':
         df_past = pd.DataFrame()
@@ -159,22 +160,29 @@ def load_combine_continous_weather(c_dict:dict,db_path:str, freq:str, suffix:str
         raise NotImplementedError("Frequency not implemented {}".format(freq))
 
 # TODO: USE SQL HERE!!!
-def extract_from_database(main_pars:dict,c_dict, db_path:str, outdir:str, freq:str, verbose:bool)\
+def extract_from_database(main_pars:dict,c_dict:dict, db_path:str, outdir:str, freq:str, verbose:bool)\
         -> tuple[pd.DataFrame, pd.DataFrame]:
 
     tso_name = main_pars['region']
     targets = main_pars['targets']
     target_label = main_pars['label']
+    # regions = [tso_dict for tso_dict in c_dict['regions'] if target_label in tso_dict['available_targets']]
+    regions = [
+        tso_dict for tso_dict in c_dict['regions']
+        if any(target_label.startswith(target) for target in tso_dict['available_targets'])
+    ]
+    if len(regions) == 0:
+        raise ValueError(f'No TSO regions found for target {target_label}')
 
     n_horizons = 100 # amount of data to extract
     horizon = 7*24 if freq == 'hourly' else 7*24*4
 
     # -------- laod database TODO move to SQLlite DB
-    df_smard = pd.read_parquet(db_path + 'smard/' + 'history_hourly.parquet')
-    df_om_offshore, df_om_offshore_f = load_combine_continous_weather(c_dict,db_path, freq, suffix='offshore')
-    df_om_onshore, df_om_onshore_f = load_combine_continous_weather(c_dict,db_path, freq, suffix='onshore')
-    df_om_solar, df_om_solar_f = load_combine_continous_weather(c_dict,db_path, freq, suffix='solar')
-    df_om_cities, df_om_cities_f = load_combine_continous_weather(c_dict,db_path, freq, suffix='cities')
+    # df_smard = pd.read_parquet(db_path + 'smard/' + 'history_hourly.parquet')
+    df_om_offshore, df_om_offshore_f = load_combine_continous_weather(regions,db_path, freq, suffix='offshore')
+    df_om_onshore, df_om_onshore_f = load_combine_continous_weather(regions,db_path, freq, suffix='onshore')
+    df_om_solar, df_om_solar_f = load_combine_continous_weather(regions,db_path, freq, suffix='solar')
+    df_om_cities, df_om_cities_f = load_combine_continous_weather(regions,db_path, freq, suffix='cities')
 
 
 
@@ -193,7 +201,7 @@ def extract_from_database(main_pars:dict,c_dict, db_path:str, outdir:str, freq:s
     # ----- CHECKS AND NOTES ----
     if verbose:
         logger.info("---------- LOADING DATABASE DATA ----------")
-        logger.info(f"SMARD data shapes hist={df_smard.shape} (days={len(df_smard)/24}) start={df_smard.index[0]} end={df_smard.index[-1]}")
+        # logger.info(f"SMARD data shapes hist={df_smard.shape} (days={len(df_smard)/24}) start={df_smard.index[0]} end={df_smard.index[-1]}")
         logger.info(f"ENTSOE data shapes hist={df_entsoe.shape} (days={len(df_entsoe)/24}) start={df_entsoe.index[0]} end={df_entsoe.index[-1]}")
         logger.info(f"OM offshore data shapes hist={df_om_offshore.shape} (days={len(df_om_offshore)/24}) start={df_om_offshore.index[0]} end={df_om_offshore.index[-1]}")
         logger.info(f"OM offshore data shapes forecast={df_om_offshore_f.shape} (days={len(df_om_offshore_f)/24}) start={df_om_offshore_f.index[0]} end={df_om_offshore_f.index[-1]}")
@@ -229,7 +237,7 @@ def extract_from_database(main_pars:dict,c_dict, db_path:str, outdir:str, freq:s
     target_label_notso = ''
     tso_dict = {}
 
-    regions = c_dict['regions']
+    # regions = c_dict['regions']
     for de_reg in regions:
         if target_label.__contains__(de_reg['suffix']) and tso_name != de_reg['name']:
             raise IOError(f"The region must be {de_reg} for target_label={target_label}")
@@ -412,12 +420,17 @@ def extract_from_database(main_pars:dict,c_dict, db_path:str, outdir:str, freq:s
                 df_hist = pd.merge(left=df_hist, right=entsoe_col, left_index=True, right_index=True, how='left')
 
                 # load forecast from current best forecast
-                best_model = None
-                fpath = outdir+exog_tso_+'/'+'best_model.txt'
-                if not os.path.isfile(fpath):
-                    raise FileNotFoundError(f"Best model file not found {fpath}")
-                with open(fpath, 'r') as f:
-                    best_model = f.read().strip()
+                # best_model = None
+                # fpath = outdir+exog_tso_+'/'+'best_model.txt'
+                # if not os.path.isfile(fpath):
+                #     raise FileNotFoundError(f"Best model file not found {fpath}")
+                # with open(fpath, 'r') as f:
+                #     best_model = f.read().strip()
+
+                with open(outdir+exog_tso_+'/' + 'best_model.json', 'r') as file:
+                    best_models : dict = json.load(file)
+                target_dict = best_models[exog_tso_]
+                best_model = target_dict['model_label']
 
                 if best_model.__contains__('ensemble'):
                     best_model = convert_ensemble_string(best_model)

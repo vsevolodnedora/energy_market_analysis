@@ -1,0 +1,111 @@
+{
+    "start_date": "2023-03-27T00:00:00+00:00",
+    "end_date": "2025-02-23T23:00:00+00:00",
+    "horizon": 168,
+    "features": [
+        "relative_humidity_2m_agg",
+        "wind_speed_10m_agg",
+        "wind_speed_100m_agg",
+        "wind_direction_10m_agg",
+        "wind_gusts_10m_agg",
+        "air_density_agg",
+        "wind_power_density_agg",
+        "air_density_moist_agg",
+        "wind_dir_sin_agg",
+        "wind_dir_cos_agg",
+        "turbulence_intensity_agg",
+        "wind_ramp_agg",
+        "gust_factor_agg",
+        "wind_speed_lag_1_agg",
+        "wind_speed_lag_6_agg",
+        "wind_speed_lag_12_agg",
+        "precip_lag_1_agg",
+        "precip_lag_6_agg",
+        "precip_lag_12_agg",
+        "precip_lag_24_agg",
+        "hour",
+        "dayofweek",
+        "is_holiday",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos"
+    ],
+    "error_metrics": {
+        "2025-01-20T00:00:00+00:00": {
+            "wind_offshore_rte": {
+                "mse": 15152.198024694151,
+                "rmse": 123.09426479204525,
+                "mae": 90.50676285030234,
+                "mape": 27.591196519293415,
+                "smape": 56.18265240748108,
+                "bias": -33.58207692954653,
+                "variance": 14024.442133792169,
+                "std": 118.42483748687253,
+                "r2": 0.9445184380605163,
+                "prediction_interval_coverage": 0.6964285714285714,
+                "prediction_interval_width": 227.20397678438457
+            }
+        },
+        "2025-01-27T00:00:00+00:00": {
+            "wind_offshore_rte": {
+                "mse": 17301.5667099978,
+                "rmse": 131.53541998259556,
+                "mae": 98.04677152037172,
+                "mape": 30.997539273991272,
+                "smape": 45.27037623223602,
+                "bias": 40.11850385543802,
+                "variance": 15692.07235839901,
+                "std": 125.26800213302282,
+                "r2": 0.9396106458193553,
+                "prediction_interval_coverage": 0.6964285714285714,
+                "prediction_interval_width": 227.89538404681966
+            }
+        },
+        "2025-02-03T00:00:00+00:00": {
+            "wind_offshore_rte": {
+                "mse": 18296.957022954775,
+                "rmse": 135.2662449503008,
+                "mae": 109.27614367207067,
+                "mape": 49.621914820081415,
+                "smape": 69.74933729862191,
+                "bias": -11.14986858601124,
+                "variance": 18172.63745346946,
+                "std": 134.80592514229284,
+                "r2": 0.8957959524708126,
+                "prediction_interval_coverage": 0.5833333333333334,
+                "prediction_interval_width": 220.95379506641626
+            }
+        },
+        "2025-02-10T00:00:00+00:00": {
+            "wind_offshore_rte": {
+                "mse": 12221.394580108492,
+                "rmse": 110.55041646284509,
+                "mae": 84.46005192963801,
+                "mape": 25.975543484147206,
+                "smape": 47.176200825475206,
+                "bias": -18.666673435630848,
+                "variance": 11872.949882956005,
+                "std": 108.96306660036696,
+                "r2": 0.7985695032966975,
+                "prediction_interval_coverage": 0.7023809523809523,
+                "prediction_interval_width": 228.18400351935946
+            }
+        },
+        "2025-02-17T00:00:00+00:00": {
+            "wind_offshore_rte": {
+                "mse": 14953.746810202398,
+                "rmse": 122.28551349281892,
+                "mae": 90.00238335840636,
+                "mape": 16.406649353606642,
+                "smape": 33.53043752323463,
+                "bias": -48.74294692534874,
+                "variance": 12577.871935235034,
+                "std": 112.15111205527583,
+                "r2": 0.9305979548884195,
+                "prediction_interval_coverage": 0.7023809523809523,
+                "prediction_interval_width": 226.3442306151428
+            }
+        }
+    }
+}

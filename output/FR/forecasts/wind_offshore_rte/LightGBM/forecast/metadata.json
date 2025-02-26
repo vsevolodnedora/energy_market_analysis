@@ -1,0 +1,110 @@
+{
+    "start_date": "2023-03-27T00:00:00+00:00",
+    "end_date": "2025-02-23T23:00:00+00:00",
+    "horizon": 168,
+    "features": [
+        "relative_humidity_2m_agg",
+        "wind_speed_10m_agg",
+        "wind_speed_100m_agg",
+        "wind_direction_10m_agg",
+        "wind_direction_100m_agg",
+        "wind_gusts_10m_agg",
+        "air_density_agg",
+        "wind_power_density_agg",
+        "air_density_moist_agg",
+        "turbulence_intensity_agg",
+        "dew_point_temperature_agg",
+        "vapor_pressure_agg",
+        "wind_speed_lag_1_agg",
+        "wind_speed_lag_6_agg",
+        "wind_speed_lag_12_agg",
+        "precip_lag_1_agg",
+        "precip_lag_6_agg",
+        "precip_lag_12_agg",
+        "precip_lag_24_agg",
+        "hour",
+        "dayofweek",
+        "is_holiday",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos"
+    ],
+    "error_metrics": {
+        "2025-01-20T00:00:00+00:00": {
+            "wind_offshore_rte": {
+                "mse": 24635.935933023193,
+                "rmse": 156.95838917695096,
+                "mae": 111.0898868102054,
+                "mape": 23.724442513699863,
+                "smape": 45.63877464318048,
+                "bias": -88.91032324057952,
+                "variance": 16730.890354278865,
+                "std": 129.34794298433533,
+                "r2": 0.9097926120568393,
+                "prediction_interval_coverage": 0.8809523809523809,
+                "prediction_interval_width": 499.5822860353588
+            }
+        },
+        "2025-01-27T00:00:00+00:00": {
+            "wind_offshore_rte": {
+                "mse": 18280.841295220023,
+                "rmse": 135.20666143064113,
+                "mae": 105.01098720180111,
+                "mape": 24.215596690425883,
+                "smape": 42.11587162177825,
+                "bias": -49.744465660418015,
+                "variance": 15806.32943137952,
+                "std": 125.72322550499378,
+                "r2": 0.9361925877464459,
+                "prediction_interval_coverage": 0.9345238095238095,
+                "prediction_interval_width": 499.5822860353588
+            }
+        },
+        "2025-02-03T00:00:00+00:00": {
+            "wind_offshore_rte": {
+                "mse": 15505.580512182893,
+                "rmse": 124.52140583924874,
+                "mae": 92.90724186151424,
+                "mape": 35.99653103688472,
+                "smape": 58.42691042488861,
+                "bias": -51.74667623334989,
+                "variance": 12827.86201098375,
+                "std": 113.26015191135738,
+                "r2": 0.9116932806568826,
+                "prediction_interval_coverage": 0.9464285714285714,
+                "prediction_interval_width": 499.5822860353589
+            }
+        },
+        "2025-02-10T00:00:00+00:00": {
+            "wind_offshore_rte": {
+                "mse": 11862.457396467951,
+                "rmse": 108.91490897240814,
+                "mae": 74.71063866645201,
+                "mape": 20.56638838902262,
+                "smape": 40.19107678032701,
+                "bias": -48.47224565095703,
+                "variance": 9512.89879802123,
+                "std": 97.53409044032364,
+                "r2": 0.8044854316886729,
+                "prediction_interval_coverage": 0.9702380952380952,
+                "prediction_interval_width": 499.5822860353589
+            }
+        },
+        "2025-02-17T00:00:00+00:00": {
+            "wind_offshore_rte": {
+                "mse": 140584.35375516224,
+                "rmse": 374.9458010901872,
+                "mae": 290.19278165012906,
+                "mape": 31.663022121548874,
+                "smape": 77.4319687460392,
+                "bias": -277.299806615144,
+                "variance": 63689.171006365956,
+                "std": 252.36713535317145,
+                "r2": 0.3475319740841524,
+                "prediction_interval_coverage": 0.5059523809523809,
+                "prediction_interval_width": 499.5822860353588
+            }
+        }
+    }
+}
