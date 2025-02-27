@@ -4,4 +4,4 @@ Die SMARD __Tagesprognose__ weist eine durchschnittliche Genauigkeit von __865__
     
 | ÜNB/Region   | Trainingsdatum   |   Anzahl der Merkmale | Bestes Modell   |   RMSE |   TSO RMSE |
 |:-------------|:-----------------|----------------------:|:----------------|-------:|-----------:|
-| RTE          | 2025-02-26       |                    87 | LightGBM        |   1436 |        865 |
+| RTE          | 2025-02-27       |                    87 | LightGBM        |   1436 |        865 |

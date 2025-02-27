@@ -4,4 +4,4 @@ SMARD __day-ahead__ forecast has average accuracy of __3577__.
     
 | TSO/Region   | Train Date   |   N Features | Best Model            |   RMSE |   TSO RMSE |
 |:-------------|:-------------|-------------:|:----------------------|-------:|-----------:|
-| RTE          | 2025-02-26   |           38 | MultiTargetElasticNet |   3244 |       3577 |
+| RTE          | 2025-02-27   |           38 | MultiTargetElasticNet |   3244 |       3577 |
