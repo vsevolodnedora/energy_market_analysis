@@ -1,7 +1,7 @@
 {
     "load_rte": {
         "method": "trained",
-        "model_label": "ensemble[LightGBM](LightGBM,ElasticNet)",
-        "avg_rmse": 2248.7512145774513
+        "model_label": "LightGBM",
+        "avg_rmse": 2031.7800341269265
     }
 }

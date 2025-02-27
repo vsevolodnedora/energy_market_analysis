@@ -38,8 +38,8 @@
                 "variance": 7817946.194456754,
                 "std": 2796.059047026145,
                 "r2": 0.2907280641676119,
-                "prediction_interval_coverage": 0.5952380952380952,
-                "prediction_interval_width": 6399.621834981524
+                "prediction_interval_coverage": 0.5892857142857143,
+                "prediction_interval_width": 6387.883178966122
             }
         },
         "2025-01-29T00:00:00+00:00": {
@@ -54,7 +54,7 @@
                 "std": 1406.616430534204,
                 "r2": 0.7772318398853945,
                 "prediction_interval_coverage": 0.9642857142857143,
-                "prediction_interval_width": 6406.322911010703
+                "prediction_interval_width": 6387.950187021964
             }
         },
         "2025-02-05T00:00:00+00:00": {
@@ -69,7 +69,7 @@
                 "std": 1404.8839854576722,
                 "r2": 0.7096631226615452,
                 "prediction_interval_coverage": 0.9940476190476191,
-                "prediction_interval_width": 6400.303088576605
+                "prediction_interval_width": 6385.745782875274
             }
         },
         "2025-02-12T00:00:00+00:00": {
@@ -84,7 +84,7 @@
                 "std": 840.2293425582448,
                 "r2": 0.8240360966574884,
                 "prediction_interval_coverage": 1.0,
-                "prediction_interval_width": 6401.464512237819
+                "prediction_interval_width": 6384.392986022773
             }
         },
         "2025-02-19T00:00:00+00:00": {
@@ -99,7 +99,7 @@
                 "std": 1883.6065386787257,
                 "r2": 0.4440473845385018,
                 "prediction_interval_coverage": 0.8511904761904762,
-                "prediction_interval_width": 6398.918929758975
+                "prediction_interval_width": 6386.846922789044
             }
         }
     }

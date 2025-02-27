@@ -4,4 +4,4 @@ Die SMARD __Tagesprognose__ weist eine durchschnittliche Genauigkeit von __3577_
     
 | ÜNB/Region   | Trainingsdatum   |   Anzahl der Merkmale | Bestes Modell         |   RMSE |   TSO RMSE |
 |:-------------|:-----------------|----------------------:|:----------------------|-------:|-----------:|
-| RTE          | 2025-02-26       |                    38 | MultiTargetElasticNet |   3244 |       3577 |
+| RTE          | 2025-02-27       |                    38 | MultiTargetElasticNet |   3244 |       3577 |
