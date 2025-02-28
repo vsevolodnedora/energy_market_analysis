@@ -76,7 +76,7 @@ def create_task_list(country_dict:str,target:str,freq:str,models:list,tasks:list
                  'add_cyclical_time_features':True,
                  'feature_engineer':'WeatherWindPowerFE'
              },
-             'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+             'finetuning_pars':{'n_trials':70,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
             {'model':'XGBoost',
              'dataset_pars':{
                  'log_target':False,
@@ -88,7 +88,7 @@ def create_task_list(country_dict:str,target:str,freq:str,models:list,tasks:list
                  'add_cyclical_time_features':True,
                  'feature_engineer':'WeatherWindPowerFE'
              },
-             'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+             'finetuning_pars':{'n_trials':70,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
             {'model':'ElasticNet',
              'dataset_pars':{
                  'log_target':False,
@@ -100,7 +100,7 @@ def create_task_list(country_dict:str,target:str,freq:str,models:list,tasks:list
                  'add_cyclical_time_features':True,
                  'feature_engineer':'WeatherWindPowerFE'
              },
-             'finetuning_pars':{'n_trials':30,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
+             'finetuning_pars':{'n_trials':70,'optim_metric':'rmse','cv_folds':cv_folds_ft}},
 
             {'model':'ensemble[XGBoost](XGBoost,ElasticNet)',
              'dataset_pars': {
@@ -114,7 +114,7 @@ def create_task_list(country_dict:str,target:str,freq:str,models:list,tasks:list
                  'lags_target': None,
                  'copy_input':True
              },
-             'finetuning_pars':{'n_trials':20,
+             'finetuning_pars':{'n_trials':50,
                                 'optim_metric':'rmse',
                                 'cv_folds':cv_folds_ft,
                                 'cv_folds_base':40,#35, # at least cv_folds_eval + 1
@@ -131,7 +131,7 @@ def create_task_list(country_dict:str,target:str,freq:str,models:list,tasks:list
                  'lags_target': None,
                  'copy_input':True
              },
-             'finetuning_pars':{'n_trials':20,
+             'finetuning_pars':{'n_trials':70,
                                 'optim_metric':'rmse',
                                 'cv_folds':cv_folds_ft,
                                 'cv_folds_base':40,#35, # at least cv_folds_eval + 1
@@ -681,6 +681,7 @@ def main(country_code:str, target:str, model:str, mode:str, freq:str,verbose:boo
     if not mode in modes:
         raise ValueError(f'mode must be in {modes}. Given: {mode}')
     if mode == 'all': mode = modes[1:-1]
+    elif model == 'forecast': mode = ['forecast','summarize']
     else: mode = [mode]
 
     freqs = ['hourly', 'minutely_15']

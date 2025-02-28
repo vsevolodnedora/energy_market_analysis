@@ -35,7 +35,7 @@ jobs:
         run: pipenv install
 
       - name: Publish Forecasts
-        run: pipenv run python publish_data.py
+        run: pipenv run python publish_data.py all all
 
       - name: Commit Changes
         run: |
