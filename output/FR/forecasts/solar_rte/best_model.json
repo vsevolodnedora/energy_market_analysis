@@ -1,7 +1,7 @@
 {
     "solar_rte": {
         "method": "trained",
-        "model_label": "ensemble[LightGBM](LightGBM,ElasticNet)",
-        "avg_rmse": 852.3249311969527
+        "model_label": "ensemble[XGBoost](XGBoost,ElasticNet)",
+        "avg_rmse": 860.0399810885614
     }
 }

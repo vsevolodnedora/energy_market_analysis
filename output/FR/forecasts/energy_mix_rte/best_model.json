@@ -2,36 +2,36 @@
     "biomass_rte": {
         "method": "trained",
         "model_label": "MultiTargetElasticNet",
-        "avg_rmse": 69.09282622306098
+        "avg_rmse": 65.72875759717574
     },
     "gas_rte": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-        "avg_rmse": 1147.8813011967661
+        "avg_rmse": 1079.525612582738
     },
     "hard_coal_rte": {
         "method": "trained",
-        "model_label": "MultiTargetLGBM",
-        "avg_rmse": 151.63085351634223
+        "model_label": "MultiTargetElasticNet",
+        "avg_rmse": 133.9293836857248
     },
     "nuclear_rte": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-        "avg_rmse": 2057.7849096068844
+        "avg_rmse": 1966.973791378893
     },
     "oil_rte": {
         "method": "trained",
         "model_label": "MultiTargetElasticNet",
-        "avg_rmse": 54.182964341218764
+        "avg_rmse": 53.062776593192176
     },
     "renewables_rte": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-        "avg_rmse": 1325.568417025331
+        "avg_rmse": 1343.4825469220036
     },
     "waste_rte": {
         "method": "trained",
         "model_label": "MultiTargetLGBM",
-        "avg_rmse": 97.02133583849525
+        "avg_rmse": 101.43302830241112
     }
 }
