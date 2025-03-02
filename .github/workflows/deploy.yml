@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   workflow_run:
-    workflows: ["Update Forecasts"]  # Name of the workflow to wait for
+    workflows: ["Publish Forecasts"]  # Name of the workflow to wait for
     types:
       - completed  # Trigger only when the workflow is completed successfully
 
