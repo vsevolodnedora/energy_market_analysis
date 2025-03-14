@@ -115,7 +115,8 @@ class DataEnergySMARD:
         'Gesamt (Netzlast) [MWh] Originalauflösungen':'total_grid_load',
         'Gesamt [MWh] Berechnete Auflösungen':'total_load',
         'Gesamt [MWh] Originalauflösungen':'total',
-        'Residuallast [MWh] Originalauflösungen':'residual_load'
+        'Residuallast [MWh] Originalauflösungen':'residual_load',
+        'Netzlast [MWh] Originalauflösungen':'total_grid_load' # new column name...
     }
     mapping_prices = {
         'Deutschland/Luxemburg [€/MWh] Berechnete Auflösungen':'spot_price',
@@ -803,6 +804,8 @@ def update_smard_from_api(today:pd.Timestamp,data_dir:str,freq:str,verbose:bool)
     # check columns
     for col in df_hist.columns:
         if not col in df_smard.columns:
+            print(f"Expected cols: {df_hist.columns.tolist()}")
+            print(f"Actual cols: {df_smard.columns.tolist()}")
             raise IOError(f"Error. col={col} is not in the update dataframe. Cannot continue. ")
 
     if freq == 'hourly':

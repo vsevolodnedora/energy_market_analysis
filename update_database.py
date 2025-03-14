@@ -150,10 +150,10 @@ if __name__ == '__main__':
     print("launching update_database.py")
 
     if len(sys.argv) != 4:
-        raise KeyError("Usage: python update_database.py <country_code> <task> <freq>")
-        # country_code = 'FR'
-        # task_argument = str( 'update_entsoe' )
-        # freq = str( 'hourly' )
+        # raise KeyError("Usage: python update_database.py <country_code> <task> <freq>")
+        country_code = 'DE'
+        task_argument = str( 'update_smard' )
+        freq = str( 'hourly' )
     else:
         country_code = str( sys.argv[1] )
         task_argument = str( sys.argv[2] )
