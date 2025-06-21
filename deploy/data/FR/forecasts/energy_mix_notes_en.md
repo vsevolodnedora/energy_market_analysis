@@ -1,5 +1,5 @@
  
-The total energy generation week-ahead forecast has a RMSE of **2988**, compared to **3726** for the TSO day-ahead reference forecast.  
+The total energy generation week-ahead forecast has a RMSE of **2988**, compared to **3731** for the TSO day-ahead reference forecast.  
         
 The largest contributor to the forecast error is **RTE**, with an RMSE of **2988**.  
 
