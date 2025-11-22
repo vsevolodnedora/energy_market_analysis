@@ -27,7 +27,7 @@ jobs:
         env:
           ACCESS_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
         run: |
-          from github import Github
+          from github import Github, Auth
           import datetime
           import requests
           import os
