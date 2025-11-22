@@ -11,7 +11,7 @@
         "model_label": "MultiTargetElasticNet",
         "finetune_datetime": "2025-02-26T14:00:00Z",
         "train_datetime": "2025-03-02T13:00:00Z",
-        "forecast_datetime": "2025-09-27T16:00:00Z",
+        "forecast_datetime": "2025-11-22T07:00:00Z",
         "source": "https://vsevolodnedora.github.io/energy_market_analysis/",
         "forecast_horizon_hours": 168,
         "units": "MW",
@@ -5705,7 +5705,7 @@
         {
             "index": 812,
             "datetime": "2025-09-23T20:00:00Z",
-            "forecast": 58196.284651171765,
+            "forecast": 58045.39234379941,
             "ci_lower": 56151.35909881646,
             "ci_upper": 58127.24210010725
         },
