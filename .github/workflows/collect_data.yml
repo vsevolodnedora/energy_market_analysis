@@ -5,6 +5,8 @@ on:
     branches: ["main"]
     paths:
       - 'data/**'
+  schedule:
+    - cron: '0 8 * * *'  # runs every day at 08:00 UTC
 
 jobs:
   update_data:
