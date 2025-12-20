@@ -11,7 +11,7 @@
         "model_label": "MultiTargetLGBM",
         "finetune_datetime": "2025-02-09T17:00:00Z",
         "train_datetime": "2025-02-26T15:00:00Z",
-        "forecast_datetime": "2025-12-19T23:00:00Z",
+        "forecast_datetime": "2025-12-20T08:00:00Z",
         "source": "https://vsevolodnedora.github.io/energy_market_analysis/",
         "forecast_horizon_hours": 168,
         "units": "MW",
@@ -1498,7 +1498,7 @@
         {
             "index": 211,
             "datetime": "2025-11-22T19:00:00Z",
-            "forecast": 16435.255021003377,
+            "forecast": 16435.255021003373,
             "ci_lower": 14282.488681589313,
             "ci_upper": 16126.374756750134
         },
@@ -2100,7 +2100,7 @@
         {
             "index": 297,
             "datetime": "2025-11-26T09:00:00Z",
-            "forecast": 18904.062841786712,
+            "forecast": 18904.062841786705,
             "ci_lower": 11392.909010243213,
             "ci_upper": 13217.34450765868
         },
@@ -2982,7 +2982,7 @@
         {
             "index": 423,
             "datetime": "2025-12-01T15:00:00Z",
-            "forecast": 19184.56216140347,
+            "forecast": 19184.562161403475,
             "ci_lower": 14736.714530270221,
             "ci_upper": 16589.331262329957
         },
