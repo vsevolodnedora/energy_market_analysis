@@ -1,0 +1,50 @@
+<section id="project-details">
+    <p>
+        This project leverages advanced MLOps pipelines to deliver accurate week-ahead forecasts of renewable energy generation, electricity load, and prices. By combining robust data engineering, state-of-the-art machine learning models, and scalable automation, it empowers stakeholders to optimize operations, enhance trading strategies, and support sustainable energy integration in a dynamic market environment.
+    </p>
+    <p>
+        <strong>Source code:</strong> <a href="https://github.com/vsevolodnedora/energy_market_analysis" target="_blank">Explore Here</a>
+    </p>
+
+    <h3>Value Proposition</h3>
+    <ul>
+        <li><strong>Optimize Operations and Maintenance:</strong> Schedule maintenance and operational changes efficiently, minimizing disruptions and costs.</li>
+        <li><strong>Enhance Trading and Risk Management:</strong> Improve bidding strategies, reduce financial risks, and align operations with market conditions for increased profitability.</li>
+        <li><strong>Support Grid Stability and Renewable Integration:</strong> Balance supply and demand effectively, enabling seamless integration of variable renewable energy sources.</li>
+        <li><strong>Drive Sustainability and Long-term Planning:</strong> Provide actionable insights for decarbonization goals, policy design, and grid modernization efforts.</li>
+    </ul>
+    <p>
+        This project delivers practical tools and insights for utilities, grid operators, energy traders, and policymakers, fostering a more efficient, reliable, and sustainable energy system.
+    </p>
+
+    <h3>Core Features and Workflow</h3>
+    <ul>
+        <li><strong>Daily Data Collection:</strong> Automated data retrieval from public APIs and webpages using GitHub Actions.</li>
+        <li><strong>Data Sources:</strong> Aggregated energy data from
+            <a href="https://transparency.entsoe.eu" target="_blank">ENTSO-E</a>,
+            <a href="https://www.smard.de/home" target="_blank">SMARD</a>,
+            <a href="https://open-meteo.com/" target="_blank">openmeteo</a>,
+            <a href="https://www.epexspot.com/en" target="_blank">EPEXSPOT</a>,
+            and <a href="https://www.eex.com/en/" target="_blank">EEX</a>.
+        </li>
+        <li><strong>Preprocessing:</strong> Tailored cleaning for each energy type, such as wind, solar, and fossil fuels.</li>
+        <li><strong>Forecasting Models:</strong> Using Prophet, XGBoost, and Elastic Net models, with ensemble methods for enhanced accuracy.</li>
+        <li><strong>Hyperparameter Optimization:</strong> Automated tuning to minimize forecast error.</li>
+        <li><strong>Pipeline Automation:</strong> Integrated GitHub Actions for seamless data updates and forecast deployment.</li>
+    </ul>
+
+    <h3>Technical Highlights</h3>
+    <ul>
+        <li><strong>Dynamic Multi-Step Forecasting:</strong> Week-ahead predictions with hourly granularity.</li>
+        <li><strong>Feature Engineering:</strong> Advanced weather-based features, including wind power density and solar radiation metrics.</li>
+        <li><strong>Web Integration:</strong> Interactive visualizations with <a href="https://apexcharts.com/" target="_blank">ApexCharts</a>.</li>
+        <li><strong>Extendability:</strong> Explainable models with SHAP values and customizable pipelines for various energy markets.</li>
+    </ul>
+
+    <h3>Contact and Contributions</h3>
+    <p>
+        We welcome feedback and collaboration! Visit the
+        <a href="https://github.com/vsevolodnedora/energy_market_analysis" target="_blank">GitHub repository</a>
+        to contribute or learn more about the project.
+    </p>
+</section>

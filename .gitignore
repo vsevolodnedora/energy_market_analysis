@@ -1,0 +1,75 @@
+# ============================================================
+# Secrets, caches, IDE
+# ============================================================
+.env
+.env.*
+.idea/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.claude/settings.local.json
+
+# ============================================================
+# Data & model artifacts — now live on the VM, NOT tracked
+# ============================================================
+*.parquet
+*.csv
+*.pkl
+*.joblib
+*.sqlite
+*.db
+*.bak
+*.jsonl
+
+# Trained models / weights
+*.pth
+*.pt
+*.onnx
+*.h5
+*.hdf5
+*.ckpt
+*.npz
+*.npy
+*.bin
+*.model
+
+# Video / archives
+*.mp4
+*.mov
+*.avi
+*.zip
+*.gz
+*.tar
+*.7z
+*.rar
+
+# Bulk images / generated plots
+*.png
+*.jpg
+*.jpeg
+*.gif
+# ...but keep small site/readme images explicitly:
+!deploy/img/**
+!deploy/assets/**
+!img/**
+
+# ============================================================
+# Pure data / output / legacy directories (kept on disk, untracked)
+# ============================================================
+/database/
+/new_database/
+/old_database/
+/output/
+/old_output/
+/data/
+/deploy/data/
+/status/
+/entsoe_database/
+entsoe_presence_report.txt
+
+# Heavy exploratory / blog notebooks (recoverable from backup bundle)
+/notebooks/
+/miscellaneous/
+
+# Refactor-in-progress: keep src/ local until it's ready to commit
+/src/

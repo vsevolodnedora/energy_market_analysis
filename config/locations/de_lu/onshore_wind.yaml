@@ -1,0 +1,177 @@
+- name: Hüselitz Wind Farm
+  label: hueselitz_wind_farm
+  capacity: 151.8
+  n_turbines: 46
+  lat: 52.5347
+  lon: 11.7321
+  elevation: 50
+  z0: 0.1
+  terrain_category: II
+  location: Lower Saxony
+  country_area: DE_50HZ
+  loc_id: won_hueselitz
+  loc_type: onshore_wind
+  link: https://www.gem.wiki/H%C3%BCselitz_wind_farm
+- name: Werder/Kessin Wind Farm
+  label: werder_kessin_wind_farm
+  capacity: 148.05
+  n_turbines: 32
+  lat: 53.727
+  lon: 13.3362
+  elevation: 20
+  z0: 0.03
+  terrain_category: II
+  country_area: DE_50HZ
+  loc_id: won_werder
+  loc_type: onshore_wind
+  link: https://www.google.com/maps/search/Werder%2FKessin+Wind+Farm
+- name: Uckermark Enertrag Wind Farm
+  label: uckermark_enertrag_wind_farm
+  capacity: 106
+  n_turbines: 72
+  location: Uckermark district of Brandenburg
+  lat: 53.3784
+  lon: 13.9491
+  elevation: 40
+  z0: 0.1
+  terrain_category: II
+  country_area: DE_50HZ
+  loc_id: won_uckermark
+  loc_type: onshore_wind
+- name: Feldheim Wind Farm
+  label: feldheim_wind_farm
+  location: Potsdam-Mittelmark
+  capacity: 74
+  n_turbines: 47
+  lat: 52.1165
+  lon: 12.5795
+  elevation: 60
+  z0: 0.1
+  terrain_category: II
+  country_area: DE_50HZ
+  loc_id: won_feldheim
+  loc_type: onshore_wind
+- name: Reußenköge Wind Farm
+  label: reussenkoege_wind_farm
+  capacity: 303
+  n_turbines: 90
+  lat: 54.645
+  lon: 8.877
+  elevation: 2
+  z0: 0.1
+  terrain_category: II
+  location: Schleswig-Holstein
+  country_area: DE_TENNET
+  loc_id: won_reussenkoege
+  loc_type: onshore_wind
+- name: Jade Wind Park
+  label: jade_wind_farm
+  capacity: 40.7
+  n_turbines: 16
+  lat: 53.5923
+  lon: 8.1079
+  elevation: 2
+  z0: 0.03
+  terrain_category: II
+  location: Sengwarden, Wilhelmshaven, Lower Saxony, Germany
+  country_area: DE_TENNET
+  loc_id: won_jade
+  loc_type: onshore_wind
+- name: Bürgerwindpark Veer Dörper
+  label: veer_doerper_wind_farm
+  location: Schleswig-Holstein
+  capacity: 99.95
+  n_turbines: 44
+  lat: 54.6819
+  lon: 9.1684
+  elevation: 2
+  z0: 0.01
+  terrain_category: II
+  country_area: DE_TENNET
+  loc_id: won_doerper
+  loc_type: onshore_wind
+  link: https://veer-doerper.de/
+- name: Windpark Hohenlochen
+  label: hohenlochen_wind_farm
+  location: Oberwolfach and Hausach
+  capacity: 16.8
+  n_turbines: 4
+  lat: 48.3248
+  lon: 8.1882
+  elevation: 650
+  z0: 0.3
+  terrain_category: III
+  country_area: DE_TRANSNET_BW
+  loc_id: won_hohenlochen
+  loc_type: onshore_wind
+  link: https://www.stadtanzeiger-ortenau.de/oberwolfach/c-lokales/feierliche-einweihung-und-taufe_a67585?
+- name: Windpark Harthäuser Wald
+  label: harthaeuser_wald_wind_farm
+  location: Harthäuser Wald
+  capacity: 54.9
+  n_turbines: 18
+  turbine_type: Enercon E-115
+  lat: 49.30139
+  lon: 9.40658
+  elevation: 350
+  z0: 1.2
+  terrain_category: III
+  country_area: DE_TRANSNET_BW
+  loc_id: won_harthaeuser
+  loc_type: onshore_wind
+  link: https://www.zeag-energie.de/energie-zukunft/windkraft/harthaeuser-wald.html
+- name: Windpark Straubenhardt
+  label: straubenhardt_wind_farm
+  location: Gemeinde Straubenhardt im Enzkreis, Baden-Württemberg
+  capacity: 11
+  n_turbines: 18
+  turbine_type: Siemens SWT-3.0-113
+  lat: 48.8176
+  lon: 8.5222
+  elevation: 400
+  z0: 1.2
+  terrain_category: III
+  country_area: DE_TRANSNET_BW
+  loc_id: won_straubenhardt
+  loc_type: onshore_wind
+  link: https://www.gegenwind-kraichgau.de/besuch-des-windparks-straubenhardt
+- name: Windpark Hollich
+  label: hollich_wind_farm
+  capacity: 48
+  n_turbines: 15
+  lat: 52.1788
+  lon: 7.3812
+  elevation: 60
+  z0: 0.3
+  terrain_category: III
+  location: Steinfurt, North Rhine-Westphalia
+  country_area: DE_AMPRION
+  loc_id: won_hollich
+  loc_type: onshore_wind
+  link: https://www.windpark-hollich.de/
+- name: Windpark Coesfeld Letter Bruch
+  label: coesfeld_letter_bruch_wind_farm
+  capacity: 52.8
+  n_turbines: 13
+  lat: 51.8716
+  lon: 7.15
+  elevation: 80
+  z0: 0.03
+  terrain_category: II
+  location: Coesfeld, North Rhine-Westphalia
+  country_area: DE_AMPRION
+  loc_id: won_coesfeld
+  loc_type: onshore_wind
+- name: Windpark A31 Gescher-Reken
+  label: a31_gescher_reken_wind_farm
+  capacity: 45
+  n_turbines: 15
+  lat: 51.85
+  lon: 7.0
+  elevation: 50
+  z0: 0.05
+  terrain_category: II
+  location: Borken, North Rhine-Westphalia
+  country_area: DE_AMPRION
+  loc_id: won_a31
+  loc_type: onshore_wind

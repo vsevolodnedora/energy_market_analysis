@@ -1,0 +1,47 @@
+name: Update Forecasts
+
+on:
+  workflow_run:
+    workflows:
+      - Update Database # The name of the first workflow
+    types:
+      - completed
+#  push:
+#    paths:
+#      - database/**
+      
+jobs:
+  update_forecasts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+      LOG_LEVEL: WARNING
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11.5'
+          cache: 'pipenv'
+
+      - name: Install pipenv
+        run: curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
+
+      - name: Install Dependencies
+        run: pipenv install
+
+      - name: Update Forecasts
+        run: pipenv run python update_forecasts.py all all all forecast hourly
+
+      - name: Commit Changes
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add ./output/*
+          git commit -m "Update forecasts"
+          git pull --rebase origin main
+          git push

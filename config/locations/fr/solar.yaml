@@ -1,0 +1,60 @@
+- name: Cestas Solar Park
+  label: cestas_solar_farm
+  capacity: 300.0
+  n_panels: 983500
+  type_panels: Polycrystalline silicon modules
+  elevation: 60.0
+  z0: 0.3
+  terrain_category: II
+  location: Cestas, Gironde
+  size: 260
+  lat: 44.7262
+  lon: -0.8077
+  country_area: FR_RTE
+  loc_id: sol_cestas
+  loc_type: solar
+- name: Athies-Samoussy Solar Park
+  label: athies_samoussy_solar_farm
+  capacity: 87.5
+  n_panels: 220000
+  type_panels: Photovoltaic (PV) modules
+  elevation: 80.0
+  z0: 0.03
+  terrain_category: II
+  location: Athies-sous-Laon and Samoussy, Hauts-de-France
+  size: 100
+  lat: 49.5879
+  lon: 3.7003
+  country_area: FR_RTE
+  loc_id: sol_athies
+  loc_type: solar
+- name: Toul-Rosières Solar Park
+  label: toul_rosieres_solar_farm
+  capacity: 115.0
+  n_panels: 1400000
+  type_panels: Thin-film CdTe photovoltaic panels
+  elevation: 270.0
+  z0: 0.03
+  terrain_category: II
+  location: Rosières-en-Haye, Meurthe-et-Moselle
+  size: 367
+  lat: 48.785378
+  lon: 5.979309
+  country_area: FR_RTE
+  loc_id: sol_toul
+  loc_type: solar
+- name: Gabardan Solar Park
+  label: gabardan_solar_farm
+  capacity: 67.5
+  n_panels: 872300
+  type_panels: Thin-film photovoltaic panels made by First Solar
+  elevation: 800
+  z0: null
+  terrain_category: null
+  location: Losse, Landes, Nouvelle-Aquitaine, France
+  size: 317
+  lat: 44.061
+  lon: -0.014
+  country_area: FR_RTE
+  loc_id: sol_gabardan
+  loc_type: solar

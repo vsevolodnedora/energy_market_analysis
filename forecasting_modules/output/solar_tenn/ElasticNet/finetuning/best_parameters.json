@@ -1,0 +1,22 @@
+{
+    "compute_cloud_cover_fraction": false,
+    "compute_clear_sky_fraction": true,
+    "use_solar_geometry": true,
+    "compute_air_density": false,
+    "compute_air_density_moist": false,
+    "compute_direct_ratio": false,
+    "compute_diffuse_ratio": false,
+    "compute_dni_ratio": false,
+    "compute_global_tilted_ratio": true,
+    "dew_point_temperature": false,
+    "vapor_pressure": true,
+    "precip_lags_option": "none",
+    "cloud_lags_option": "large",
+    "shortwave_lags_option": "none",
+    "drop_raw_solar_features": false,
+    "drop_raw_features": true,
+    "spatial_agg_method": "idw",
+    "lags_target": null,
+    "l1_ratio": 0.4053741354810276,
+    "alpha": 0.026319663107088387
+}

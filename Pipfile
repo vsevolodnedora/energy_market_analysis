@@ -1,0 +1,43 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+python-dotenv = "*"
+pytz = "*"
+holidays = "*"
+requests = "*"
+pyarrow = "*"
+fastparquet = "*"
+lxml = "*"
+pandas = "*"
+user-agent = "*"
+retry-requests = "*"
+requests-cache = "*"
+openmeteo-requests = "*"
+entsoe-py = "*"
+numpy = "*"
+matplotlib = "*"
+scikit-learn = "==1.5.2"
+torch = "*"
+joblib = "*"
+future = "*"
+xgboost = "*"
+lightgbm = "*"
+catboost = "*"
+shap = "*"
+prophet = "*"
+optuna = "*"
+mapie = "*"
+seaborn = "*"
+statsmodels = "*"
+tabulate = "*"
+pysolar = "*"
+pydantic = "*"
+polars = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.12"

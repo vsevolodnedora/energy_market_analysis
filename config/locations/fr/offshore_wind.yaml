@@ -1,0 +1,33 @@
+- name: Fécamp Offshore Wind Farm
+  label: feecamp_wind_farm
+  capacity: 497.0
+  n_turbines: 71
+  lat: 49.9812
+  lon: 0.4538
+  location: Fécamp, Seine-Maritime
+  country_area: FR_RTE
+  loc_id: woff_feecamp
+  loc_type: offshore_wind
+  link: https://www.enbridge.com/projects-and-infrastructure/projects/fecamp-offshore-wind-project
+- name: Saint-Brieuc Offshore Wind Farm
+  label: saint_brieuc_wind_farm
+  capacity: 496.0
+  n_turbines: 62
+  lat: 48.852
+  lon: -2.539
+  location: Brittany
+  country_area: FR_RTE
+  loc_id: woff_saintb
+  loc_type: offshore_wind
+  link: https://www.iberdrola.com/press-room/news/detail/iberdrola-comissions-saint-brieuc-the-second-offshore-wind-farm-in-france-and-the-first-in-britanny
+- name: Saint-Nazaire Offshore Wind Farm
+  label: saint_nazaire_wind_farm
+  capacity: 480.0
+  n_turbines: 80
+  lat: 47.160459
+  lon: -2.626559
+  location: Loire-Atlantique
+  country_area: FR_RTE
+  loc_id: woff_saintn
+  loc_type: offshore_wind
+  link: https://parc-eolien-en-mer-de-saint-nazaire.fr/

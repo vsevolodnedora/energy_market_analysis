@@ -1,0 +1,15 @@
+{
+    "log_target": true,
+    "forecast_horizon": null,
+    "target_scaler": "StandardScaler",
+    "feature_scaler": "StandardScaler",
+    "copy_input": true,
+    "locations": [
+        "Solarpark Bottrop",
+        "Solarpark Kirchhellen",
+        "Solarpark Nettersheim"
+    ],
+    "add_cyclical_time_features": true,
+    "feature_engineer": "WeatherSolarPowerFE",
+    "target": "solar_ampr"
+}

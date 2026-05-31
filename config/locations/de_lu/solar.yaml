@@ -1,0 +1,240 @@
+- name: Witznitz Solar Farm
+  label: witznitz_solar_farm
+  capacity: 650
+  n_panels: 1100000
+  type_panels: JinkoSolar Tiger Neo modules with Topcon Hot 3.0 technology
+  elevation: 150
+  z0: 0.05
+  terrain_category: II
+  location: Leipzig
+  size: 500
+  lat: 51.1727
+  lon: 12.4024
+  country_area: DE_50HZ
+  loc_id: sol_witznitz
+  loc_type: solar
+- name: Weesow-Willmersdorf Solar PV Park
+  label: weesow_willmersdorf_solar_farm
+  capacity: 187
+  n_panels: 465000
+  type_panels: Trina Solar dual-glass PV modules, each with approximately 400 Wp output
+  elevation: null
+  z0: 0.05
+  terrain_category: null
+  location: Werneuchen, Brandenburg
+  size: 164
+  lat: 52.6475
+  lon: 13.6901
+  country_area: DE_50HZ
+  loc_id: sol_weesow
+  loc_type: solar
+- name: Tramm-Göthen Solar Park
+  label: tramm_Goethen_solar_farm
+  capacity: 172.0
+  n_panels: 420000
+  type_panels: null
+  elevation: null
+  z0: null
+  terrain_category: null
+  location: Tramm and Lewitzrand, Mecklenburg-Western Pomerania, Germany
+  size: 248.0
+  lat: 53.5253
+  lon: 11.6569
+  country_area: DE_50HZ
+  loc_id: sol_tramm
+  loc_type: solar
+- name: Meuro Solar Park
+  label: meuro_solar_farm
+  capacity: 166.0
+  n_panels: 636000
+  type_panels: Canadian Solar photovoltaic panels
+  elevation: 100.0
+  z0: 0.03
+  terrain_category: II
+  location: Meuro, Brandenburg, Germany
+  size: 200.0
+  lat: 51.545
+  lon: 13.98
+  country_area: DE_50HZ
+  loc_id: sol_meuro
+  loc_type: solar
+- name: Gottesgabe Solar Park
+  label: gottesgabe_solar_farm
+  capacity: 153.131
+  n_panels: 350000
+  type_panels: crystalline and bifacial modules
+  elevation: 5
+  z0: 0.03
+  terrain_category: II
+  location: Gottesgabe, Neuhardenberg, Brandenburg, Germany
+  size: 124.36
+  lat: 52.6413
+  lon: 14.1923
+  country_area: DE_50HZ
+  loc_id: sol_gottesgabe
+  loc_type: solar
+- name: Ernsthof Solar Park
+  label: ernsthof_solar_farm
+  capacity: 34.4
+  n_panels: 155480
+  type_panels: LDK Solar Energy Systems modules
+  elevation: 300
+  z0: 0.2
+  terrain_category: II
+  location: Wertheim, Baden-Württemberg, Germany
+  size: 85
+  lat: 49.7074
+  lon: 9.4746
+  country_area: DE_TRANSNET_BW
+  loc_id: sol_ernsthof
+  loc_type: solar
+- name: Solarpark Erbach
+  label: erbach_solar_farm
+  capacity: 5.0
+  n_panels: 20000
+  type_panels: Monocrystalline silicon panels
+  elevation: 400.0
+  z0: 0.1
+  terrain_category: Category II
+  location: Erbach, Baden-Württemberg, Germany
+  size: 10.0
+  lat: 48.1234
+  lon: 9.1234
+  country_area: DE_TRANSNET_BW
+  loc_id: sol_erbach
+  loc_type: solar
+- name: Solarpark Aalen
+  label: aalen_solar_farm
+  capacity: 35.0
+  n_panels: 100000
+  type_panels: Monocrystalline silicon
+  elevation: 554.0
+  z0: 0.03
+  terrain_category: II
+  location: Aalen, Baden-Württemberg, Germany
+  size: 85.0
+  lat: 48.8187
+  lon: 10.0691
+  country_area: DE_TRANSNET_BW
+  loc_id: sol_aalen
+  loc_type: solar
+- name: Lauingen Energy Park
+  label: lauingen_solar_farm
+  capacity: 25.7
+  n_panels: 306084
+  type_panels: 288,132 thin-film CdTe PV modules by First Solar; 17,952 crystalline silicon panels by Yingli
+  elevation: 440
+  z0: 0.03
+  terrain_category: II
+  location: Lauingen, Bavaria, Germany
+  size: 63
+  lat: 48.53694
+  lon: 10.42417
+  country_area: DE_TENNET
+  loc_id: sol_lauingen
+  loc_type: solar
+- name: Schlechtenberg Solar Park
+  label: schlechtenberg_solar_farm
+  capacity: 8.2
+  n_panels: 33000
+  type_panels: Hanwha SolarOne
+  elevation: 700
+  z0: 0.1
+  terrain_category: II
+  location: Sulzberg, Bavaria
+  size: 12
+  lat: 47.68028
+  lon: 10.39417
+  country_area: DE_TENNET
+  loc_id: sol_schlechtenberg
+  loc_type: solar
+- name: Mengkofen Solar Park
+  label: mengkofen_solar_farm
+  capacity: 21.78
+  n_panels: 98978
+  type_panels: Flat-panel PV
+  elevation: null
+  z0: null
+  terrain_category: null
+  location: Mengkofen, Bavaria, Germany
+  size: null
+  lat: 48.7
+  lon: 12.383
+  country_area: DE_TENNET
+  loc_id: sol_mengkofen
+  loc_type: solar
+- name: Solarpark Eggebek
+  label: eggebek_solar_farm
+  capacity: 83.6
+  n_panels: 360000
+  type_panels: TSM-PC05 series by Trina Solar
+  elevation: 20.0
+  z0: 0.03
+  terrain_category: II
+  location: Eggebek, Schleswig-Holstein, Germany
+  size: 160.0
+  lat: 54.62955
+  lon: 9.34596
+  country_area: DE_TENNET
+  loc_id: sol_eggebek
+  loc_type: solar
+- name: Solarpark Bottrop
+  label: bottrop_solar_farm
+  capacity: 10.0
+  n_panels: 40000
+  type_panels: Monocrystalline silicon
+  elevation: 60.0
+  z0: 0.05
+  terrain_category: II
+  location: Bottrop, Germany
+  size: 20.0
+  lat: 51.5236
+  lon: 6.9225
+  country_area: DE_AMPRION
+  loc_id: sol_bottrop
+  loc_type: solar
+- name: Solarpark Kirchhellen
+  label: kirchhellen_solar_farm
+  capacity: 10.0
+  n_panels: 30000
+  type_panels: monocrystalline or polycrystalline
+  elevation: 50.0
+  z0: 0.03
+  terrain_category: II
+  location: Bottrop, Germany
+  size: 20.0
+  lat: 51.5486
+  lon: 6.9261
+  country_area: DE_AMPRION
+  loc_id: sol_krchhellen
+  loc_type: solar
+- name: Solarpark Nettersheim
+  label: nettersheim_solar_farm
+  capacity: 40.5
+  n_panels: 122500
+  type_panels: High-efficiency photovoltaic panels
+  elevation: 300
+  z0: 0.03
+  terrain_category: Open terrain with few or no obstacles (Terrain category 0)
+  location: Nettersheim, Germany
+  size: 40.5
+  lat: 50.5333
+  lon: 6.5667
+  country_area: DE_AMPRION
+  loc_id: sol_nettersheim
+  loc_type: solar
+- name: Solarpark Frankfurt
+  label: frankfurt_solar_farm
+  capacity: 17.4
+  n_panels: 17400
+  type_panels: Vertical bifacial PV modules
+  elevation: 112
+  z0: null
+  terrain_category: null
+  location: Frankfurt Airport, Frankfurt, Germany
+  size: 30.8
+  lat: 50.0379
+  lon: 8.5622
+  country_area: DE_AMPRION
+  loc_id: sol_frankfurt
+  loc_type: solar

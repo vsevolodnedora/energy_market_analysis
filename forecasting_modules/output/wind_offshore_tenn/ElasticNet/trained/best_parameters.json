@@ -1,0 +1,19 @@
+{
+    "compute_air_density": true,
+    "compute_wind_power_density": false,
+    "encode_wind_direction": false,
+    "compute_wind_shear": true,
+    "compute_wind_ramp": true,
+    "compute_air_density_moiust_air_correction": false,
+    "dew_point_temperature": false,
+    "vapor_pressure": true,
+    "gust_factor": true,
+    "compute_turbulence_intensity": false,
+    "lags_option": "none",
+    "precip_lags_option": "large",
+    "drop_raw_features": true,
+    "spatial_agg_method": "max",
+    "lags_target": 1,
+    "l1_ratio": 0.004341266820240229,
+    "alpha": 3.977694585433084e-05
+}

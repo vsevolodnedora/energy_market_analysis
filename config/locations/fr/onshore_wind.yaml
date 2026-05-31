@@ -1,0 +1,70 @@
+- name: Ensemble Eolien Catalan Wind Farm
+  label: eolien_catalan_wind_farm
+  capacity: 96.0
+  n_turbines: 35
+  lat: 42.7274
+  lon: 2.7786
+  elevation: 100
+  z0: 0.1
+  terrain_category: II
+  location: Pyrénées-Orientales, Occitanie, France
+  country_area: FR_RTE
+  loc_id: won_eolien
+  loc_type: onshore_wind
+  link: https://edf-renouvelables.com/en/projet/ensemble-eolien-catalan/
+- name: Salles-Curan Wind Farm
+  label: salles_curan_wind_farm
+  capacity: 87.0
+  n_turbines: 29
+  lat: 44.1633
+  lon: 2.8282
+  elevation: 800.0
+  z0: 0.03
+  terrain_category: II
+  location: Salles-Curan, Aveyron, Occitanie
+  country_area: FR_RTE
+  loc_id: won_salles
+  loc_type: onshore_wind
+  link: https://www.gem.wiki/Salles-Curan_wind_farm
+- name: Les Hauts Pays Wind Farm
+  label: les_hauts_pays_wind_farm
+  capacity: 80.0
+  n_turbines: 39
+  lat: 48.3835
+  lon: 5.3403
+  elevation: 140.0
+  z0: 0.3
+  terrain_category: III
+  location: Epizon, Haute-Marne, Grand Est, France
+  country_area: FR_RTE
+  loc_id: won_leshauts
+  loc_type: onshore_wind
+  link: https://www.gem.wiki/Les_Hauts_Pays_wind_farm
+- name: Champagne Picardie Project Wind Farm
+  label: champagne_picardie_wind_farm
+  capacity: 72.6
+  n_turbines: 22
+  lat: 49.6406
+  lon: 3.8644
+  elevation: 100
+  z0: 0.05
+  terrain_category: II
+  location: Bucy-lès-Pierrepont, Aisne, Hauts-de-France
+  country_area: FR_RTE
+  loc_id: won_champagne
+  loc_type: onshore_wind
+  link: https://edf-renouvelables.com/en/projet/champagne-picarde/
+- name: Mont Payard Wind Farm
+  label: mont_payard_wind_farm
+  capacity: 75.0
+  n_turbines: 30
+  lat: 48.894167
+  lon: 4.194611
+  elevation: 150.0
+  z0: 0.03
+  terrain_category: II
+  location: Germinon, Vélye, Grand Est, France
+  country_area: FR_RTE
+  loc_id: won_mont
+  loc_type: onshore_wind
+  link: https://www.power-technology.com/data-insights/power-plant-profile-mont-payard-france/

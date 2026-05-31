@@ -1,0 +1,70 @@
+name: Sync New Files
+
+on:
+  workflow_dispatch:
+#on:
+#  schedule:
+#    - cron: "0 */3 * * *" # Runs every 3 hour, adjust as needed
+  # push:
+  #   branches:
+  #     - main # Ensures this workflow only triggers on the main branch
+jobs:
+  # ---------------------------------------------------------------	
+  check-and-copy-new-file:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.x'
+
+      - name: Install PyGithub
+        run: pip install PyGithub
+
+      - name: Copy file from external repository
+        env:
+          ACCESS_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+        run: |
+          from github import Github, Auth
+          import datetime
+          import requests
+          import os
+
+          # Initialize GitHub
+          auth = Auth.Token(os.getenv("ACCESS_TOKEN"))
+          g = Github(auth=auth)
+
+          # Repository where the new files are added
+          repo = g.get_repo("vsevolodnedora/epex_de_collector")
+          contents = repo.get_contents("data/DE-LU/DayAhead_MRC")
+
+          # Repository to update or create files
+          dest_repo = g.get_repo("vsevolodnedora/energy_market_analysis")
+
+          # Today's date to check against the latest file
+          today = datetime.date.today().isoformat()
+
+          for content in contents:
+              if today in content.name:
+                  file_content = requests.get(content.download_url).text
+                  # Try to retrieve the file from your repository
+                  try:
+                      # Check if file already exists
+                      dest_contents = dest_repo.get_contents(content.path, ref="main")
+                      if dest_contents:
+                          # If exists, update the file
+                          dest_repo.update_file(path=dest_contents.path, message="Update existing file", content=file_content, sha=dest_contents.sha, branch="main")
+                  except:
+                      # If file does not exist, create a new one
+                      dest_repo.create_file(
+                          path=content.path, 
+                          message="Create new file", 
+                          content=file_content, 
+                          branch="main"
+                      )
+          print("Files synced successfully.")
+        shell: python

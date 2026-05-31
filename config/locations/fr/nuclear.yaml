@@ -1,0 +1,15 @@
+- name: Gravelines Nuclear Power Plant
+  label: gravelines_nuclear_power_plant
+  capacity: 5460.0
+  n_reactors: 6
+  type_reactors: Pressurized Water Reactors (PWR) supplied by Framatome
+  elevation: 5
+  z0: null
+  terrain_category: null
+  location: Gravelines, Nord, Hauts-de-France, France
+  size: null
+  lat: 51.0141
+  lon: 2.1332
+  country_area: FR_RTE
+  loc_id: nuc_gravelines
+  loc_type: nuclear
