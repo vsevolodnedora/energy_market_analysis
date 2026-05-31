@@ -1,0 +1,66 @@
+{
+  "en": {
+    "translation": {
+      "title": "German Energy Market Predictive Analytics",
+      "subtitle": "Accurate Week-Ahead Forecasts for Renewable Energy, Load, and Prices",
+      "description": "Empowering utilities, traders, and policymakers with actionable insights for optimized operations and sustainability.",
+      "updated-daily-label": "Updated Daily:",
+      "updated-daily-description": "Forecasts are refined using the latest energy, weather, and market data.",
+      "personal-project": "Personal project by",
+      "offshore-forecast": "Offshore Wind Power Forecast",
+      "onshore-forecast": "Onshore Wind Power Forecast",
+      "solar-forecast": "Solar Power Forecast",
+      "load-forecast": "Load Forecast",
+      "tso-area": "TSO Area:",
+      "show-hide-description": "Show/Hide Description",
+      "past-data-slider-label": "Amount of past data to show:",
+      "offshore-power-label": "Offshore Wind Power",
+      "offshore-power-label-mw": "Offshore Wind Power [MW]",
+      "onshore-power-label-mw": "Onshore Wind Power [MW]",
+      "load-label": "Load",
+      "now-label": "Now",
+      "last-forecast-label": "Last Forecast",
+      "past-fitted-label": "Previous Fitted",
+      "past-actual-label": "Previous Actual",
+      "current-label": "Current",
+      "prev-forecast-interval-label": "Previous Forecast Interval",
+      "forecast-interval-label": "Forecast Interval",
+      "historic-data": "Historic Data",
+      "details-label": "Details",
+      "forecast-intro":"Renewable energy forecasting is essential for understanding and shaping future energy markets. Leveraging data from a diverse range of wind farms and solar farms, our system employs anautomated approach to identify the most informative features (both raw and engineered) for accurately predicting energy generation. Detailed insights and methodologies are provided within each section below."
+
+    }
+  },
+  "de": {
+    "translation": {
+      "title": "Prognosen für den deutschen Energiemarkt",
+      "subtitle": "Präzise Wochenprognosen für erneuerbare Energien, Last und Preise",
+      "description": "Wir bieten Versorgungsunternehmen, Händlern und politischen Entscheidungsträgern verwertbare Erkenntnisse für optimierte Abläufe und Nachhaltigkeit.",
+      "updated-daily-label": "Täglich aktualisiert:",
+      "updated-daily-description": "Die Prognosen werden mit den neuesten Energie-, Wetter- und Marktdaten verfeinert.",
+      "personal-project": "Persönliches Projekt von",
+      "offshore-forecast": "Offshore-Windprognose",
+      "onshore-forecast": "Onshore-Windprognose",
+      "solar-forecast": "Solarstrom-Prognose",
+      "load-forecast": "Belastung-Prognose",
+      "load-label": "Belastung",
+      "tso-area": "ÜNB-Bereich:",
+      "show-hide-description": "Beschreibung anzeigen/ausblenden",
+      "past-data-slider-label": "Menge der anzuzeigenden vergangenen Daten:",
+      "offshore-power-label": "Offshore-Windenergie",
+      "offshore-power-label-mw": "Offshore-Windenergie [MW]",
+      "onshore-power-label-mw": "Onshore-Windenergie [MW]",
+      "now-label": "Jetzt",
+      "last-forecast-label": "Letzte Prognose",
+      "past-fitted-label": "Vergangenheit Angepasst",
+      "past-actual-label": "Vergangenheit Tatsächlich",
+      "current-label": "Aktuell",
+      "prev-forecast-interval-label": "Vorheriges Prognoseintervall",
+      "forecast-interval-label": "Prognoseintervall",
+      "historic-data": "Historische Daten",
+      "details-label": "Einzelheiten",
+      "forecast-intro": "Die Prognose erneuerbarer Energien ist entscheidend für das Verständnis und die Gestaltung zukünftiger Energiemärkte. Durch die Nutzung von Daten aus einer Vielzahl von Wind- und Solaranlagen verwendet unser System einen automatisierten Ansatz, um die informativsten Merkmale (sowohl rohe als auch abgeleitete) für die genaue Vorhersage der Energieerzeugung zu identifizieren. Detaillierte Einblicke und Methoden finden Sie in den einzelnen Abschnitten unten."
+
+    }
+  }
+}
