@@ -10,7 +10,12 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/showdown/dist/showdown.min.js"></script>
     <script src="https://unpkg.com/i18next/i18next.min.js"></script>
-    <link rel="stylesheet" href="styles.css"> <!-- Link to external CSS file -->
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+
+    <link rel="stylesheet" href="assets/css/styles.css"> <!-- Link to external CSS file -->
 </head>
 
 <body class="dark-mode">
@@ -48,11 +53,11 @@
         <button id="language-toggle" class="toggle-button" onclick="toggleLanguage()">
             🌍 DE
         </button>
-<!--        <a href="https://github.com/vsevolodnedora/energy_market_analysis"-->
-<!--           target="_blank"-->
-<!--           class="cta-link">-->
-<!--            🔗 GitHub-->
-<!--        </a>-->
+        <!--        <a href="https://github.com/vsevolodnedora/energy_market_analysis"-->
+        <!--           target="_blank"-->
+        <!--           class="cta-link">-->
+        <!--            🔗 GitHub-->
+        <!--        </a>-->
     </div>
 </header>
 
@@ -61,16 +66,19 @@
 <nav class="top-nav">
     <div class="controls-buttons">
         <input type="checkbox" id="toggle-main" checked onclick="toggleSubpage('main-page', this.checked)" />
-        <label for="toggle-main">Main Page</label>
+        <label for="toggle-main">Information</label>
 
         <input type="checkbox" id="toggle-market" onclick="toggleSubpage('market-analytics', this.checked)" />
         <label for="toggle-market">Market Analytics</label>
 
-        <input type="checkbox" id="toggle-energy" onclick="toggleSubpage('energy-mix', this.checked)" />
+        <input type="checkbox" id="toggle-energy" checked onclick="toggleSubpage('energy-mix', this.checked)" />
         <label for="toggle-energy">Energy Mix</label>
 
         <input type="checkbox" id="toggle-forecasts" checked onclick="toggleSubpage('individual-forecasts', this.checked)" />
         <label for="toggle-forecasts">Individual Forecasts</label>
+
+        <input type="checkbox" id="toggle-api_info" onclick="toggleSubpage('api-info', this.checked)" />
+        <label for="toggle-api_info">API</label>
     </div>
 </nav>
 
@@ -79,19 +87,22 @@
 <!-- Dark mode & language toggles could stay inside header, or in nav bar, whichever you prefer -->
 <!-- Keeping your existing header with i18n text here (moved inside the "main-page" so it only shows if "Main Page" is toggled on). -->
 <div class="subpages-container">
+
     <!-- ========== MAIN PAGE ========== -->
     <div id="main-page" class="subpage active">
 
-        <details id="project-main_in" open>
-            <summary>About the Project</summary>
-            <div id="main_info-content">
-                <!-- Footer content will be dynamically loaded here -->
-            </div>
-        </details>
+<!--        <details id="project-main_in" open>-->
+<!--            <summary>About the Project</summary>-->
+<!--            <div id="main_info-content">-->
+<!--                &lt;!&ndash; Footer content will be dynamically loaded here &ndash;&gt;-->
+<!--            </div>-->
+<!--        </details>-->
+        <div id="main_info-content">
+            <!-- Footer content will be dynamically loaded here -->
+        </div>
 
     </div>
     <!-- End of #main-page -->
-
 
     <!-- ========== MARKET ANALYTICS (EMPTY SHELL) ========== -->
     <div id="market-analytics" class="subpage">
@@ -99,13 +110,11 @@
         <p>This section is currently empty. Once I am able to forecast generation, load and cross-border flows, I will start this section by adding day-ahead price forecast.</p>
     </div>
 
-
     <!-- ========== ENERGY MIX (EMPTY SHELL) ========== -->
-    <div id="energy-mix" class="subpage">
+    <div id="energy-mix" class="subpage active">
         <h2>Energy Mix</h2>
         <p>This section is currently empty. Once I have most of the energy generation by technology forecasted, I will add the complete chart here.</p>
     </div>
-
 
     <!-- ========== INDIVIDUAL FORECASTS (WITH DETAILS) ========== -->
     <div id="individual-forecasts" class="subpage active">
@@ -114,182 +123,18 @@
             <p data-i18n="forecast-intro"></p>
         </section>
 
-        <!-- ======================= | WIND OFFSHORE | =========================== -->
 
-        <details class="forecast-section" open>
-            <summary class="forecast-summary" data-i18n="offshore-forecast">
-                Offshore Wind Power Forecast
-            </summary>
-            <!-- The chart container -->
-            <div class="chart-container" id="chart1"></div>
-
-            <!-- Show any error messages -->
-            <div id="error-message1" class="error-message"></div>
-
-            <!-- Unified Control Area -->
-            <div class="controls">
-                <div class="slider-container">
-                    <label for="past-data-slider-1" data-i18n="historic-data">Historic Data:</label>
-                    <input
-                            type="range"
-                            id="past-data-slider-1"
-                            min="1"
-                            max="100"
-                            step="1"
-                            value="20"
-                            onchange="updateChart1()"
-                    />
-                </div>
-                <div class="controls-buttons">
-                    <input type="checkbox" name="tso-area" id="50hz-checkbox-1" onchange="updateChart1()">
-                    <label for="50hz-checkbox-1" class="btn-blue">50Hertz</label>
-
-                    <input type="checkbox" name="tso-area" id="tenn-checkbox-1" onchange="updateChart1()">
-                    <label for="tenn-checkbox-1" class="btn-green">TenneT</label>
-
-                    <input type="checkbox" name="tso-area" id="total-checkbox-1" checked onchange="updateChart1()">
-                    <label for="total-checkbox-1" class="btn-purple">Total</label>
-
-                    <input type="checkbox" name="tso-area" id="showci_checkbox-1" onchange="updateChart1()">
-                    <label for="showci_checkbox-1" class="btn-purple">CI</label>
-
-                    <input type="checkbox" id="description1-toggle-checkbox" class="description1-toggle-checkbox" onchange="toggleDescription()">
-                    <label for="description1-toggle-checkbox" class="description-button" data-i18n="details-label">Details</label>
-
-                    <label for="reloadChart1" class="btn-purple">RESET</label>
-                    <input type="checkbox" id="reloadChart1" style="display: none;" onchange="renderOrReloadChart1()">
-
-                </div>
-            </div>
-
-            <!-- Chart description -->
-            <div id="chart1-description-container" class="dropdown-content">
-                <!-- Markdown content will be dynamically loaded here -->
-            </div>
-        </details>
-
-        <!-- ======================= | WIND ONSHORE | =========================== -->
-
-        <details class="forecast-section" open>
-            <summary class="forecast-summary" data-i18n="onshore-forecast">
-                Onshore Wind Power Forecast
-            </summary>
-            <!-- The chart container -->
-            <div class="chart-container" id="chart2"></div>
-            <!-- Show any error messages -->
-            <div id="error-message2" class="error-message"></div>
-
-            <!-- Unified Control Area -->
-            <div class="control-area">
-                <div class="controls">
-                    <div class="slider-container">
-                        <label for="past-data-slider-2" data-i18n="historic-data">Historic Data:</label>
-                        <input
-                                type="range"
-                                id="past-data-slider-2"
-                                min="1"
-                                max="100"
-                                step="1"
-                                value="20"
-                                onchange="updateChart2()"
-                        />
-                    </div>
-                    <div class="controls-buttons">
-                        <input type="checkbox" name="tso-area" id="50hz-checkbox-2" onchange="updateChart2()">
-                        <label for="50hz-checkbox-2" class="btn-blue">50Hertz</label>
-
-                        <input type="checkbox" name="tso-area" id="tenn-checkbox-2" onchange="updateChart2()">
-                        <label for="tenn-checkbox-2" class="btn-green">TenneT</label>
-
-                        <input type="checkbox" name="tso-area" id="tran-checkbox-2" onchange="updateChart2()">
-                        <label for="tran-checkbox-2" class="btn-red">TransnetBW</label>
-
-                        <input type="checkbox" name="tso-area" id="ampr-checkbox-2" onchange="updateChart2()">
-                        <label for="ampr-checkbox-2" class="btn-yellow">Amprion</label>
-
-                        <input type="checkbox" name="tso-area" id="total-checkbox-2" checked onchange="updateChart2()">
-                        <label for="total-checkbox-2" class="btn-purple">Total</label>
-
-                        <input type="checkbox" name="tso-area" id="showci_checkbox-2" onchange="updateChart2()">
-                        <label for="showci_checkbox-2" class="btn-purple">CI</label>
-
-                        <input type="checkbox" id="description2-toggle-checkbox" class="description-toggle-checkbox" onchange="toggleDescription()">
-                        <label for="description2-toggle-checkbox" class="description-button" data-i18n="details-label">Details</label>
-
-                        <label for="reloadChart2" class="btn-purple">RESET</label>
-                        <input type="checkbox" id="reloadChart2" style="display: none;" onchange="renderOrReloadChart2()">
-
-                    </div>
-                </div>
-            </div>
-            <!-- Chart description -->
-            <div id="chart2-description-container" class="dropdown-content">
-                <!-- Markdown content will be dynamically loaded here -->
-            </div>
-        </details>
-
-        <!-- ======================= | SOLAR | =========================== -->
-
-        <details class="forecast-section" open>
-            <summary class="forecast-summary" data-i18n="solar-forecast">
-                Onshore Wind Power Forecast
-            </summary>
-            <!-- The chart container -->
-            <div class="chart-container" id="chart3"></div>
-            <!-- Show any error messages -->
-            <div id="error-message3" class="error-message"></div>
-
-            <!-- Unified Control Area -->
-            <div class="control-area">
-                <div class="controls">
-                    <div class="slider-container">
-                        <label for="past-data-slider-3" data-i18n="historic-data">Historic Data:</label>
-                        <input
-                                type="range"
-                                id="past-data-slider-3"
-                                min="1"
-                                max="100"
-                                step="1"
-                                value="20"
-                                onchange="updateChart3()"
-                        />
-                    </div>
-                    <div class="controls-buttons">
-                        <input type="checkbox" name="tso-area" id="50hz-checkbox-3" onchange="updateChart3()">
-                        <label for="50hz-checkbox-3" class="btn-blue">50Hertz</label>
-
-                        <input type="checkbox" name="tso-area" id="tenn-checkbox-3" onchange="updateChart3()">
-                        <label for="tenn-checkbox-3" class="btn-green">TenneT</label>
-
-                        <input type="checkbox" name="tso-area" id="tran-checkbox-3" onchange="updateChart3()">
-                        <label for="tran-checkbox-3" class="btn-red">TransnetBW</label>
-
-                        <input type="checkbox" name="tso-area" id="ampr-checkbox-3" onchange="updateChart3()">
-                        <label for="ampr-checkbox-3" class="btn-yellow">Amprion</label>
-
-                        <input type="checkbox" name="tso-area" id="total-checkbox-3" checked onchange="updateChart3()">
-                        <label for="total-checkbox-3" class="btn-purple">Total</label>
-
-                        <input type="checkbox" name="tso-area" id="showci_checkbox-3" onchange="updateChart3()">
-                        <label for="showci_checkbox-3" class="btn-purple">CI</label>
-
-                        <input type="checkbox" id="description3-toggle-checkbox" class="description-toggle-checkbox" onchange="toggleDescription()">
-                        <label for="description3-toggle-checkbox" class="description-button" data-i18n="details-label">Details</label>
-
-                        <label for="reloadChart3" class="btn-purple">RESET</label>
-                        <input type="checkbox" id="reloadChart3" style="display: none;" onchange="renderOrReloadChart3()">
-
-
-                    </div>
-                </div>
-            </div>
-            <!-- Chart description -->
-            <div id="chart3-description-container" class="dropdown-content">
-                <!-- Markdown content will be dynamically loaded here -->
-            </div>
-        </details>
     </div>
     <!-- End of #individual-forecasts -->
+
+    <!-- ========== API PAGE ========== -->
+    <div id="api-info" class="subpage">
+
+        <div id="api_info-content">
+            <!-- Footer content will be dynamically loaded here -->
+        </div>
+
+    </div>
 
 </div> <!-- End of .subpages-container -->
 
@@ -316,6 +161,20 @@
       }
     }
 </script>
+
+<script>
+    function showFileURL() {
+        const dropdown = document.getElementById('file-dropdown');
+        const url = dropdown.value;
+        const display = document.getElementById('file-url');
+        if (url) {
+            display.innerHTML = `Selected file URL: <a href="${url}" target="_blank">${url}</a>`;
+        } else {
+            display.innerHTML = '';
+        }
+    }
+</script>
+
 
 </body>
 </html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title data-i18n="title"></title>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/showdown/dist/showdown.min.js"></script>
+  <script src="https://unpkg.com/i18next/i18next.min.js"></script>
+  <link rel="stylesheet" href="styles.css"> <!-- Link to external CSS file -->
+</head>
+
+<body class="dark-mode">
+
+<header>
+  <h1 data-i18n="title"></h1>
+  <p data-i18n="subtitle"></p>
+  <p data-i18n="description"></p>
+
+  <!-- Split "Updated Daily" into two distinct parts for separate translations -->
+  <p>
+    <strong data-i18n="updated-daily-label"></strong>
+    <span data-i18n="updated-daily-description"></span>
+  </p>
+
+  <p>
+    <a href="https://github.com/vsevolodnedora/energy_market_analysis" target="_blank" class="cta-link">
+      Explore on GitHub
+    </a>
+    <button id="dark-mode-toggle" class="toggle-button" onclick="toggleDarkMode()">
+      🌙 Dark Mode
+    </button>
+    <!-- Language toggle button -->
+    <button id="language-toggle" class="toggle-button" onclick="toggleLanguage()">
+      DE
+    </button>
+  </p>
+</header>
+
+  <div id="error-message"></div>
+
+  <!-- First chart collapsible -->
+  <details open>
+    <!-- Change the <summary> to use i18n -->
+    <summary data-i18n="offshore-forecast">Offshore Wind Power Forecast</summary>
+    <div class="forecast-section">
+      <div class="chart-container" id="chart1"></div>
+
+      <!-- Unified Control Area -->
+      <div class="control-area">
+        <div class="controls">
+          <!-- Change the <span> to use i18n -->
+          <span class="controls-label" data-i18n="tso-area">TSO Area:</span>
+          <div class="controls-buttons">
+            <input type="checkbox" name="tso-area" id="50hz-checkbox-1" onchange="updateChart1()">
+            <label for="50hz-checkbox-1">50Hertz</label>
+
+            <input type="checkbox" name="tso-area" id="tenn-checkbox-1" onchange="updateChart1()">
+            <label for="tenn-checkbox-1">TenneT</label>
+
+            <input type="checkbox" name="tso-area" id="total-checkbox-1" checked onchange="updateChart1()">
+            <label for="total-checkbox-1">Total</label> 
+
+            <input type="checkbox" name="tso-area" id="showci_checkbox-1" checked onchange="updateChart1()">
+            <label for="showci_checkbox-1">CI</label>
+          </div>
+        </div>
+
+        <div class="slider-container">
+          <label for="past-data-slider-1" data-i18n="past-data-slider-label">Amount of past data to show:</label>
+          <input
+                  type="range"
+                  id="past-data-slider-1"
+                  min="1"
+                  max="100"
+                  step="1"
+                  value="20"
+                  onchange="updateChart1()"
+          />
+        </div>
+      </div>
+
+      <details id="chart1-description-details">
+        <!-- Change the <summary> to use i18n -->
+        <summary data-i18n="show-hide-description">Show/Hide Description</summary>
+        <div id="chart1-description-container">
+          <!-- Markdown content will be dynamically loaded here -->
+        </div>
+      </details>
+    </div>
+  </details>
+
+  <!-- Second chart collapsible -->
+  <details>
+    <summary>Onshore Forecast (PLACEHOLDER)</summary>
+    <div class="chart-container" id="chart2"></div>
+
+    <div class="controls">
+      <span class="controls-label">TSO Area:</span>
+      <div class="controls-buttons">
+        <label><input type="checkbox" id="50hz-checkbox-2" onchange="updateChart2()"> 50Hz</label>
+        <label><input type="checkbox" id="tenn-checkbox-2" onchange="updateChart2()"> TenneT</label>
+        <label><input type="checkbox" id="total-checkbox-2" checked onchange="updateChart2()"> Total</label>
+      </div>
+    </div>
+    <div class="slider-container">
+      <label for="past-data-slider-2">Amount of past data to show:</label>
+      <input
+        type="range"
+        id="past-data-slider-2"
+        min="1"
+        max="100"
+        step="1"
+        value="20"
+        onchange="updateChart2()"
+      />
+    </div>
+  </details>
+
+  <div id="disclaimer">
+    Data sources: 
+    <a href="https://transparency.entsoe.eu" target="_blank">ENTSO-E</a>, 
+    <a href="https://www.smard.de/home" target="_blank">SMARD</a>, 
+    <a href="https://open-meteo.com/" target="_blank">openmeteo</a>, 
+    <a href="https://www.epexspot.com/en" target="_blank">EPEXSPOT</a>, 
+    <a href="https://www.eex.com/en/" target="_blank">EEX</a>
+  </div>
+
+
+  <!-- ----------- JAVA SCRIPT CODE -----------------  -->
+  <script src="script.js"></script>
+
+    
+</body>
+</html>

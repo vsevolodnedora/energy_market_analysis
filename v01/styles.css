@@ -1,0 +1,633 @@
+/* ============================================= */
+/* ================ BODY STYLES ================ */
+/* ============================================= */
+
+/* Base body styles (shared by all modes) */
+body {
+  font-family: 'Arial', sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f4f4f4;
+  color: #333;
+  line-height: 1.6;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Dark mode overrides for body */
+body.dark-mode {
+  background-color: #202020;
+  color: #e0e0e0;
+}
+
+/* ============================================= */
+/* ================ HEADER STYLES ============== */
+/* ============================================= */
+
+/* Base header styles (shared by all modes) */
+header {
+  background: linear-gradient(0deg, #ffffff, #e6d1fa);
+  color: #333;
+  padding: 10px;               /* Consistent padding */
+  text-align: center;
+  border-radius: 10px;         /* Rounded edges */
+  margin: 10px 10px;           /* Same margin as details */
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.15); /* Soft shadow */
+  border-bottom: none;         /* No border line */
+  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+}
+
+/* Dark mode header overrides */
+body.dark-mode header {
+  background: linear-gradient(0deg, #000000, #44405c);
+  color: #e0e0e0;
+  box-shadow: 0px 1px 3px rgba(255, 255, 255, 0.1); /* Lighter shadow */
+  /* border-bottom: none;  <-- Removed because it's already "none" */
+  /* transition: background 0.3s, color 0.3s, box-shadow 0.3s; <-- Identical, removed */
+}
+
+/* Header text styles */
+header h1 {
+  margin: 0;
+  font-size: 2.5rem;
+  font-weight: bold;
+  line-height: 1.2;
+}
+
+header p {
+  margin: 10px 0;
+  font-size: 1.2rem;
+}
+
+/* ============================================= */
+/* ================ CTA LINK =================== */
+/* ============================================= */
+
+/* Header-specific CTA link in default mode */
+header .cta-link {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 7px 10px;
+  background-color: #6a1b9a;
+  color: #fff;
+  text-decoration: none;
+  font-weight: bold;
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s, transform 0.3s;
+}
+
+header .cta-link:hover {
+  background-color: #5a1782;
+  transform: translateY(-2px);
+}
+
+/* Dark mode override for header CTA link */
+body.dark-mode header .cta-link {
+  background-color: #9e7bd4;
+  color: #202020;
+}
+
+body.dark-mode header .cta-link:hover {
+  background-color: #8465b6;
+}
+
+/* ============================================= */
+/* ========== FORECAST SECTION STYLES ========== */
+/* ============================================= */
+
+/* Base forecast section styles */
+.forecast-section {
+  margin-top: 10px;
+  padding: 15px;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+/* Hover effect */
+.forecast-section:hover {
+  background-color: #fff;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Dark mode overrides for forecast section */
+body.dark-mode .forecast-section {
+  background: #202020;
+  border: 1px solid #555;
+  box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+  /* transition removed (identical to base) */
+}
+
+body.dark-mode .forecast-section:hover {
+  background: #2a2a2a;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.15);
+}
+
+/* ============================================= */
+/* ============ CONTROL AREA STYLES ============ */
+/* ============================================= */
+
+/* Base control area styles */
+.control-area {
+  margin-top: 15px;
+  margin-left: 10px;
+  margin-right: 10px;
+  padding: 10px;
+  background: #f6f6f6;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  /* border-radius: 8px;  <-- commented out originally */
+  /* border: 1px solid #ccc; <-- commented out originally */
+}
+
+/* Dark mode override for control area */
+body.dark-mode .control-area {
+  background: #252525;
+  border: 1px solid #444;
+  color: #d0d0d0;
+}
+
+/* ============================================= */
+/* ====== CHART DESCRIPTION (NESTED DETAILS) ==== */
+/* ============================================= */
+
+#chart1-description-details {
+  margin-top: 15px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #f6f6f6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode override for #chart1-description-details */
+body.dark-mode #chart1-description-details {
+  background: #252525;
+  border: 1px solid #444;
+  box-shadow: 0 1px 3px rgba(255, 255, 255, 0.1);
+  color: #d0d0d0;
+}
+
+/* ============================================= */
+/* ============ DARK MODE LABELS =============== */
+/* ============================================= */
+
+/* Adjust input labels in dark mode for readability */
+body.dark-mode label,
+body.dark-mode .controls-label {
+  color: #e0e0e0;
+}
+
+/* Dark mode input[type="range"] styling */
+body.dark-mode input[type="range"] {
+  background-color: #444;
+  border: 1px solid #666;
+}
+
+/* ============================================= */
+/* ================ OLD DETAILS ================ */
+/* ============================================= */
+
+details {
+  margin: 10px 10px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+details summary {
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  margin-bottom: 5px;
+}
+
+body.dark-mode details {
+  background: #333;
+  border-color: #555;
+  color: #e0e0e0;
+}
+
+/* ============================================= */
+/* ========= CHART CONTAINER & CONTROLS ======== */
+/* ============================================= */
+
+.chart-container {
+  margin-top: 10px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  justify-content: center;
+}
+
+.controls-label {
+  font-weight: bold;
+  font-size: 1rem;
+  margin-right: 10px; /* Merged repeated margin styles */
+}
+
+.controls-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.controls-buttons label {
+  display: inline-block;
+  padding: 10px 20px;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-align: center;
+  color: #333;
+  background: #f4f4f4;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s, border-color 0.3s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.controls-buttons label:hover {
+  background: #e0e0e0;
+  color: #000;
+  border-color: #ccc;
+  transform: translateY(-2px);
+}
+
+.controls-buttons input[type="checkbox"] {
+  display: none; /* Hide the checkbox */
+}
+
+/* Style for toggled buttons (checked) */
+.controls-buttons input[type="checkbox"]:checked + label {
+  background: linear-gradient(90deg, #8a2be2, #6a1bb9);
+  color: #fff;
+  border-color: #6a1bb9;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.controls-buttons label:active {
+  background: #6a1bb9;
+  color: #fff;
+  border-color: #5a1490;
+  transform: translateY(0);
+}
+
+/* Dark mode for controls buttons */
+body.dark-mode .controls-buttons label {
+  background: #333;
+  color: #e0e0e0;
+  border: 1px solid #555;
+  box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .controls-buttons label:hover {
+  background: #444;
+  color: #fff;
+  border-color: #666;
+}
+
+/* Toggled buttons in dark mode */
+body.dark-mode .controls-buttons input[type="checkbox"]:checked + label {
+  background: linear-gradient(90deg, #8a2be2, #6a1bb9);
+  color: #fff;
+  border-color: #6a1bb9;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+body.dark-mode .controls-buttons label:active {
+  background: #6a1bb9;
+  color: #fff;
+  border-color: #5a1490;
+  transform: translateY(0);
+}
+
+/* ============================================= */
+/* ================= SLIDER ==================== */
+/* ============================================= */
+
+.slider-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.slider-container label {
+  font-weight: bold;
+}
+
+.slider-container input[type="range"] {
+  -webkit-appearance: none; /* Remove default styling */
+  width: 200px;
+  height: 8px;
+  background: linear-gradient(90deg, #d3bfff, #9370db, #6a3db9);
+  border-radius: 5px;
+  outline: none;
+  transition: background 0.3s;
+  cursor: pointer;
+}
+
+.slider-container input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border: 2px solid #9370db;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.slider-container input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.slider-container input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border: 2px solid #9370db;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.slider-container input[type="range"]:hover {
+  background: linear-gradient(90deg, #c2a7ff, #8459d6, #5a2fa9);
+}
+
+.slider-container input[type="range"]:focus::-webkit-slider-thumb {
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.slider-container input[type="range"]:focus::-moz-range-thumb {
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================= */
+/* ============ DISCLAIMER & SOURCE ============ */
+/* ============================================= */
+
+#disclaimer {
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: 40px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-top: 1px solid #ddd;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+body.dark-mode #disclaimer {
+  background: #333;
+  color: #e0e0e0;
+  border-color: #555;
+}
+
+#disclaimer a {
+  color: #007BFF;
+  text-decoration: none;
+}
+
+body.dark-mode #disclaimer a {
+  color: #66b2ff;
+}
+
+#disclaimer a:hover {
+  text-decoration: underline;
+}
+
+#source-code-text {
+  text-align: center;
+  margin-top: 10px;
+}
+
+#source-code-text a {
+  color: #007BFF;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+body.dark-mode #source-code-text a {
+  color: #66b2ff;
+}
+
+#source-code-text a:hover {
+  text-decoration: underline;
+}
+
+.settings-frame {
+  text-align: center;
+  margin: 10px 0;
+}
+
+.settings-frame input {
+  margin-left: 10px;
+}
+
+/* ============================================= */
+/* ================= TABLES ==================== */
+/* ============================================= */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  border-radius: 8px; 
+  overflow: hidden;
+  background-color: #fff; 
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+table th {
+  background-color: #f4f4f4;
+  color: #333;
+  font-weight: bold;
+  text-transform: uppercase;
+  padding: 12px;
+  text-align: left;
+}
+
+table td {
+  padding: 10px;
+  text-align: left;
+}
+
+/* Zebra striping */
+table tr:nth-child(odd) {
+  background-color: #f9f9f9;
+}
+
+table tr:nth-child(even) {
+  background-color: #ffffff;
+}
+
+/* Hover effect */
+table tr:hover {
+  background-color: #f1f1f1;
+}
+
+/* Remove column lines */
+table tr td,
+table tr th {
+  border: none;
+}
+
+/* Remove outer border lines */
+table tr:first-child th {
+  border-top: none;
+}
+
+table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Dark mode tables */
+body.dark-mode table {
+  background-color: #252525;
+  box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode table th {
+  background-color: #444;
+  color: #e0e0e0;
+}
+
+body.dark-mode table td {
+  color: #ddd;
+}
+
+/* Zebra striping in dark mode */
+body.dark-mode table tr:nth-child(odd) {
+  background-color: #303030;
+}
+
+body.dark-mode table tr:nth-child(even) {
+  background-color: #252525;
+}
+
+/* Hover effect in dark mode */
+body.dark-mode table tr:hover {
+  background-color: #2a2a2a;
+}
+
+/* Responsive table for smaller screens */
+@media (max-width: 768px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  table::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  table::-webkit-scrollbar-thumb {
+    background-color: #ddd;
+    border-radius: 4px;
+  }
+
+  table::-webkit-scrollbar-thumb:hover {
+    background-color: #ccc;
+  }
+
+  /* Dark mode scrollbar */
+  body.dark-mode table::-webkit-scrollbar-thumb {
+    background-color: #555;
+  }
+
+  body.dark-mode table::-webkit-scrollbar-thumb:hover {
+    background-color: #666;
+  }
+}
+
+/* ============================================= */
+/* =============== BUTTON STYLES =============== */
+/* ============================================= */
+
+/* Shared button base (cta-link & toggle-button) */
+.cta-link,
+.toggle-button {
+  display: inline-block;
+  margin: 10px 5px;
+  padding: 10px 20px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: bold;
+  border-radius: 5px;
+  text-decoration: none;
+  transition: background-color 0.3s, transform 0.3s;
+}
+
+/* CTA (GitHub) button in default mode */
+.cta-link {
+  background-color: #6a1b9a;
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.cta-link:hover {
+  background-color: #5a1782;
+  transform: translateY(-2px);
+}
+
+/* Toggle button in default mode */
+.toggle-button {
+  background-color: #44405c;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-button:hover {
+  background-color: #30284d;
+  transform: translateY(-2px);
+}
+
+/* Dark mode overrides for CTA link */
+body.dark-mode .cta-link {
+  background-color: #9e7bd4;
+  color: #202020;
+}
+
+body.dark-mode .cta-link:hover {
+  background-color: #8465b6;
+}
+
+/* Dark mode overrides for toggle button */
+body.dark-mode .toggle-button {
+  background-color: #202020;
+  color: #9e7bd4;
+}
+
+body.dark-mode .toggle-button:hover {
+  background-color: #1c163d;
+}

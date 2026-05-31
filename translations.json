@@ -1,8 +1,8 @@
 {
   "en": {
     "translation": {
-      "title": "German Energy Market Predictive Analytics",
-      "subtitle": "Accurate Week-Ahead Forecasts for Renewable Energy, Load, and Prices",
+      "title": "Pan-European Energy Market Predictive Analytics",
+      "subtitle": "Accurate Week-Ahead Forecasts for Carbon Indicators, Generation, and Load",
       "description": "Empowering utilities, traders, and policymakers with actionable insights for optimized operations and sustainability.",
       "updated-daily-label": "Updated Daily:",
       "updated-daily-description": "Forecasts are refined using the latest energy, weather, and market data.",
@@ -11,12 +11,17 @@
       "onshore-forecast": "Onshore Wind Power Forecast",
       "solar-forecast": "Solar Power Forecast",
       "load-forecast": "Load Forecast",
+      "generation-forecast": "Generation Forecast",
+      "energy_mix_germany": "Germany: Carbon Intensity, Load & Energy Generation Mix",
+      "energy_mix_france": "France: Carbon Intensity, Load & Energy Generation Mix",
       "tso-area": "TSO Area:",
       "show-hide-description": "Show/Hide Description",
       "past-data-slider-label": "Amount of past data to show:",
       "offshore-power-label": "Offshore Wind Power",
       "offshore-power-label-mw": "Offshore Wind Power [MW]",
       "onshore-power-label-mw": "Onshore Wind Power [MW]",
+      "generation-mw": "Generation",
+      "load-mw": "Load",
       "load-label": "Load",
       "now-label": "Now",
       "last-forecast-label": "Last Forecast",
@@ -33,8 +38,8 @@
   },
   "de": {
     "translation": {
-      "title": "Prognosen für den deutschen Energiemarkt",
-      "subtitle": "Präzise Wochenprognosen für erneuerbare Energien, Last und Preise",
+      "title": "Pan-europäische Energiemarkt-Prädiktive Analytik",
+      "subtitle": "Genaue Wochenprognosen für Kohlenstoffindikatoren, Erzeugung und Last",
       "description": "Wir bieten Versorgungsunternehmen, Händlern und politischen Entscheidungsträgern verwertbare Erkenntnisse für optimierte Abläufe und Nachhaltigkeit.",
       "updated-daily-label": "Täglich aktualisiert:",
       "updated-daily-description": "Die Prognosen werden mit den neuesten Energie-, Wetter- und Marktdaten verfeinert.",
@@ -43,6 +48,10 @@
       "onshore-forecast": "Onshore-Windprognose",
       "solar-forecast": "Solarstrom-Prognose",
       "load-forecast": "Belastung-Prognose",
+      "generation-forecast": "Erzeugungsprognose",
+      "energy_mix": "Kohlenstoffintensität & Energiemix",
+      "energy_mix_germany": "Deutschland: CO2-Intensität, Belastung & Energiemix",
+      "energy_mix_france": "Frankreich: CO2-Intensität, Belastung & Energiemix",
       "load-label": "Belastung",
       "tso-area": "ÜNB-Bereich:",
       "show-hide-description": "Beschreibung anzeigen/ausblenden",
@@ -50,6 +59,8 @@
       "offshore-power-label": "Offshore-Windenergie",
       "offshore-power-label-mw": "Offshore-Windenergie [MW]",
       "onshore-power-label-mw": "Onshore-Windenergie [MW]",
+      "generation-mw": "Energieerzeugung",
+      "load-mw": "Belastung",
       "now-label": "Jetzt",
       "last-forecast-label": "Letzte Prognose",
       "past-fitted-label": "Vergangenheit Angepasst",
@@ -60,7 +71,6 @@
       "historic-data": "Historische Daten",
       "details-label": "Einzelheiten",
       "forecast-intro": "Die Prognose erneuerbarer Energien ist entscheidend für das Verständnis und die Gestaltung zukünftiger Energiemärkte. Durch die Nutzung von Daten aus einer Vielzahl von Wind- und Solaranlagen verwendet unser System einen automatisierten Ansatz, um die informativsten Merkmale (sowohl rohe als auch abgeleitete) für die genaue Vorhersage der Energieerzeugung zu identifizieren. Detaillierte Einblicke und Methoden finden Sie in den einzelnen Abschnitten unten."
-
     }
   }
 }

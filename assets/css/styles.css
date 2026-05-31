@@ -1,0 +1,1409 @@
+/* ============================================= */
+/* ================ BODY STYLES ================ */
+/* ============================================= */
+/* ==================== BODY & WRAPPER (unchanged from your snippet) ==================== */
+
+body {
+  font-family: 'Arial', sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f4f4f4; /* Light mode background */
+  color: #333; /* Light mode text color */
+  line-height: 1.6;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+body.dark-mode {
+  background-color: #121212; /* Dark mode background for the entire page */
+  color: #e0e0e0; /* Dark mode text color */
+}
+
+/* If you want an "A4 style" card look around each subpage, you can still use something like this: */
+.a4-wrapper {
+  /* You can remove or keep this;
+     if you keep it, you could place it around each subpage separately if you want them to each look like an A4 */
+  max-width: 210mm;
+  margin: 0 auto;
+  padding: 5mm;
+  background: white;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  border-radius: 5px;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+body.dark-mode .a4-wrapper {
+  background-color: #1e1e1e; /* Dark mode "paper" background */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
+}
+
+/* ==================== TOP NAVIGATION ==================== */
+.top-nav {
+  display: flex;
+  justify-content: center; /* Horizontally center the buttons */
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: #eee;
+  border-bottom: 1px solid #ccc;
+}
+
+body.dark-mode .top-nav {
+  background-color: #2a2a2a;
+  border-bottom: 1px solid #444;
+}
+
+.nav-toggle {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.nav-toggle input[type="checkbox"] {
+  margin-right: 0.5em;
+  transform: scale(1.2);
+}
+
+/* ==================== SUBPAGES CONTAINER ==================== */
+.subpages-container {
+  /* Flexible container that can wrap subpages side by side if there's space */
+  display: flex;
+  flex-wrap: wrap;
+  /* optional: align-items:flex-start to keep top aligned if different heights */
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+/* Each subpage gets a box/card. Adjust sizes as desired. */
+.subpage {
+  /* By default, hide subpages that are not "active" */
+  display: none;
+  flex: 1 1 500px;  /* grow to fill space, but at least 300px wide */
+  height: auto;    /* or some suitable height for your layout */
+  overflow-y: auto; /* each subpage scrolls independently */
+  box-sizing: border-box;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  color: #333;
+}
+
+body.dark-mode .subpage {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  border: 1px solid #444;
+}
+
+/* Only show the subpage if it has .active */
+.subpage.active {
+  display: block;
+}
+
+
+/* ============================================= */
+/* ================ HEADER STYLES ============== */
+/* ============================================= */
+.header-container {
+    display: flex;
+    flex-wrap: wrap; /* Allows wrapping for responsiveness */
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 1rem 2rem;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+    background-color: #f9f9f9;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+}
+
+body.dark-mode .header-container {
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    background-color: #2c2c2c;
+    color: #fff;
+}
+
+/* Left Section */
+.header-left {
+    flex: 1 1 auto;
+    max-width: 80%; /* Prevents it from taking excessive space */
+    padding-right: 1rem;
+}
+
+.header-title {
+    font-size: 2rem;
+    font-weight: bold;
+    line-height: 1.3;
+    margin: 0 0 0.5rem;
+}
+
+.header-subtitle {
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin: 0.3rem 0;
+}
+
+.header-description {
+    font-size: 1rem;
+    color: #666;
+    margin: 0.3rem 0;
+}
+
+.header-updates {
+    margin-top: 0.8rem;
+    font-size: 0.95rem;
+    color: #444;
+}
+
+body.dark-mode .header-description,
+body.dark-mode .header-updates {
+    color: #bbb;
+}
+
+/* Right Section */
+.header-right {
+    /*display: right;*/
+    flex-direction: column; /* Stacks items vertically */
+    align-items: flex-end; /* Aligns items to the right */
+    gap: 0.35rem; /* Adds slightly more spacing between items */
+    min-width: 140px; /* Ensures enough width for professional spacing */
+
+    padding: 0.2rem; /* Adds spacing inside the frame */
+    border: 0px solid rgba(0, 0, 0, 0.1); /* Subtle gray border for a clean appearance */
+    border-radius: 0px; /* Slightly rounded corners for a modern touch */
+    background-color: #ffffff; /* Neutral background for a professional look */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08); /* Soft shadow for depth */
+}
+
+/* Adjustments for dark mode */
+body.dark-mode .header-right {
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle border in dark mode */
+    background-color: #2c2c2c; /* Dark background */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); /* Slightly stronger shadow for contrast */
+}
+
+/* Button and link refinements for consistency */
+.cta-link {
+    font-size: 0.95rem;
+    font-weight: 600; /* Slightly heavier font for emphasis */
+    color: #0056b3; /* Professional dark blue */
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border: 1px solid #0056b3; /* Matches the text color */
+    border-radius: 4px; /* Slight rounding for a modern look */
+    transition: all 0.3s ease;
+}
+
+.cta-link:hover {
+    background-color: #0056b3; /* Solid blue on hover */
+    color: #fff; /* White text on hover */
+}
+
+.toggle-button {
+    font-size: 0.9rem;
+    font-weight: 500; /* Medium weight for readability */
+    padding: 0.4rem 1rem; /* Balanced padding for compactness */
+    border: 1px solid #ccc; /* Subtle border */
+    border-radius: 4px; /* Rounded corners for cohesion */
+    background-color: #f9f9f9; /* Light background */
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.toggle-button:hover {
+    background-color: #eaeaea; /* Slightly darker on hover */
+    border-color: #bbb; /* Adjust border color for hover state */
+}
+
+/* Dark mode for buttons */
+body.dark-mode .toggle-button {
+    background-color: #444;
+    color: #fff;
+    border: 1px solid #666; /* Subtle border for dark mode */
+}
+
+body.dark-mode .toggle-button:hover {
+    background-color: #555;
+    border-color: #888; /* Adjusted border color on hover */
+}
+
+
+/* =============== CONTROLS (TOP-RIGHT ON LARGE SCREENS) =============== */
+.header-controls {
+  flex: 0 0 auto;    /* Fixed width, won't stretch */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* Align controls to the right on wide screens */
+  gap: 0.5rem;
+  min-width: 150px;
+}
+
+/* The row (or column) of buttons: GitHub, Dark Mode, Language */
+.header-buttons {
+  display: flex;
+  flex-wrap: wrap;  /* Wrap if insufficient horizontal space */
+  gap: 0.5rem;
+  justify-content: flex-end; /* Buttons float to the right if wide enough */
+}
+
+/* Buttons styling */
+.cta-link {
+  background-color: #007bff;
+  color: #fff;
+  text-decoration: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: background-color 0.3s;
+}
+
+.cta-link:hover {
+  background-color: #0056b3;
+}
+
+.toggle-button {
+  background-color: #f0f0f0;
+  color: #333;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.3s;
+}
+
+.toggle-button:hover {
+  background-color: #e0e0e0;
+}
+
+body.dark-mode .toggle-button {
+  background-color: #3a3a3a;
+  color: #e0e0e0;
+}
+
+body.dark-mode .toggle-button:hover {
+  background-color: #555;
+}
+
+body.dark-mode .cta-link {
+  background-color: #3949ab;
+}
+
+body.dark-mode .cta-link:hover {
+  background-color: #303f9f;
+}
+
+.project-author {
+    font-size: 0.9em;
+    color: #6c757d; /* Subtle grey for text */
+    margin-top: 20px;
+    line-height: 1.5; /* Improves readability */
+}
+
+.project-author a {
+    text-decoration: none;
+    color: #0073b1; /* Professional blue color */
+    margin: 0 5px; /* Add slight spacing between links */
+    transition: color 0.3s ease;
+}
+
+.project-author a:hover {
+    color: #005582; /* Slightly darker blue on hover */
+    text-decoration: underline;
+}
+
+.project-author strong {
+    color: #000; /* Black to emphasize your name */
+}
+
+/********************************************
+  BUTTONS AREA
+*********************************************/
+
+/* Wrapper for the action buttons */
+.header-buttons {
+  display: flex;
+  flex-wrap: wrap;       /* Allow buttons to wrap into multiple lines if needed */
+  gap: 0.5rem;           /* Spacing between buttons */
+  justify-content: flex-end; /* Align buttons to the right */
+}
+
+/* GitHub link button */
+.header-buttons .cta-link {
+  background-color: #007bff;
+  color: #fff;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: background-color 0.3s;
+}
+
+.header-buttons .cta-link:hover {
+  background-color: #0056b3;
+}
+
+/* Dark mode toggle button */
+.toggle-button {
+  background-color: #f0f0f0;
+  color: #333;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.toggle-button:hover {
+  background-color: #e0e0e0;
+}
+
+
+
+/********************************************
+  DARK MODE STYLING
+*********************************************/
+
+body.dark-mode .header-updates {
+  color: #ccc;
+}
+
+body.dark-mode .cta-link {
+  background-color: #3949ab;
+}
+
+body.dark-mode .cta-link:hover {
+  background-color: #303f9f;
+}
+
+body.dark-mode .toggle-button {
+  background-color: #3a3a3a;
+  color: #e0e0e0;
+}
+
+body.dark-mode .toggle-button:hover {
+  background-color: #555;
+}
+
+/********************************************
+  RESPONSIVENESS
+*********************************************/
+
+/* Make header responsive for smaller screens */
+@media (max-width: 1100px) {
+  .header-container {
+    flex-direction: column;     /* stack header-left & header-right vertically */
+    align-items: flex-start;    /* align to the left */
+  }
+
+  .header-right {
+    flex-direction: row;       /* align buttons horizontally */
+    justify-content: flex-start; /* align to the left */
+    align-items: center;       /* vertically center-align buttons */
+    gap: 0.5rem;               /* spacing between buttons/links */
+    margin-top: 1rem;          /* add space from the text above */
+  }
+}
+
+/* On narrow screens, stack branding and controls */
+@media (max-width: 768px) {
+  header.header-container {
+    flex-direction: column; /* Stack everything vertically */
+    align-items: flex-start; /* Align to the left */
+  }
+
+  .header-controls {
+    align-items: flex-start; /* Align controls to the left as well */
+    text-align: left;
+  }
+
+  .header-buttons {
+    justify-content: flex-start; /* Align buttons to the left */
+  }
+}
+
+
+
+/* ============================================= */
+/* ========== PROJECT INFORMATION SECTION ========== */
+/* ============================================= */
+
+    #project-details {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    #project-details h3 {
+      color: #5e35b1;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+    #project-details p {
+      line-height: 1.6;
+    }
+
+    #project-details {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    #project-details h3 {
+      color: #5e35b1;
+      margin-top: 40px;
+      margin-bottom: 20px;
+    }
+    #project-details p {
+      line-height: 1.6;
+    }
+
+    /* Dark mode styles */
+    body.dark-mode #project-details {
+      background: #333;
+      color: #ddd;
+      box-shadow: 0 4px 10px rgba(255, 255, 255, 0.1);
+    }
+    body.dark-mode #project-details h3 {
+      color: #bb86fc;
+    }
+    body.dark-mode #project-details p {
+      color: #ccc;
+    }
+
+
+/* ============================================= */
+/* ========== API INFORMATION SECTION ========== */
+/* ============================================= */
+/* General styles for the API section */
+#api-content {
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  color: #333;
+  margin: 15px;
+}
+
+body.dark-mode #api-content {
+  color: #ddd;
+}
+
+/* Summary and headers */
+#api-content summary {
+  font-weight: bold;
+  font-size: 1.2em;
+  margin-bottom: 10px;
+}
+
+#api-content h3 {
+  font-size: 1.1em;
+  margin-top: 10px;
+  color: #5e35b1;
+}
+
+body.dark-mode #api-content h3 {
+  color: #bb86fc;
+}
+
+/* Syntax highlighting for Python code */
+pre {
+  background-color: #f4f4f4;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 5px;
+  overflow-x: auto;
+  font-family: Consolas, "Courier New", monospace;
+}
+
+body.dark-mode pre {
+  background-color: #2d2d2d;
+  border-color: #555;
+  color: #ddd;
+}
+
+pre code {
+  font-size: 0.95em;
+  color: #333;
+}
+
+/* Highlight keywords */
+.language-python .keyword {
+  color: #0070c1;
+  font-weight: bold;
+}
+
+/* Highlight comments */
+.language-python .comment {
+  color: #6a9955;
+  font-style: italic;
+}
+
+/* Highlight strings */
+.language-python .string {
+  color: #a31515;
+}
+
+/* Highlight numbers */
+.language-python .number {
+  color: #098658;
+}
+
+/* Highlight built-in functions */
+.language-python .builtin {
+  color: #795e26;
+  font-style: italic;
+}
+
+/* Highlight function names */
+.language-python .function {
+  color: #267f99;
+}
+
+/* Highlight variables */
+.language-python .variable {
+  color: #001080;
+}
+
+/* Highlight operators */
+.language-python .operator {
+  color: #d4a60f;
+}
+
+/* Highlight punctuation */
+.language-python .punctuation {
+  color: #808080;
+}
+
+
+
+/* ============================================= */
+/* ========== Pre-Renewables Forecast Intro ========== */
+/* ============================================= */
+
+.forecast-intro {
+  margin: 10px auto;
+  padding: 10px;
+  max-width: 800px; /* Center-align and limit width */
+  background-color: #f9f9f9; /* Light background for visibility */
+  border: 0px solid #ddd; /* Subtle border */
+  border-radius: 5px; /* Rounded edges for a polished look */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Light shadow for depth */
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #333;
+}
+
+/* Dark mode adjustments */
+body.dark-mode .forecast-intro {
+  background-color: #2e2e2e; /* Dark background */
+  border-color: #444; /* Darker border */
+  color: #e0e0e0; /* Light text */
+}
+
+
+/* ============================================= */
+/* ========== FORECAST SECTION STYLES ========== */
+/* ============================================= */
+
+/* Base forecast section styles
+.forecast-section {
+  margin-top: 5px;
+  padding: 5px;
+  background: #f9f9f9;
+  border: 0px solid #ddd;
+  border-radius: 0px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s, box-shadow 0.3s;
+}
+*/
+
+/* Hover effect
+.forecast-section:hover {
+  background-color: #fff;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+*/
+/* Dark mode overrides for forecast section
+body.dark-mode .forecast-section {
+  background: #202020;
+  border: 0px solid #555;
+  box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+}
+body.dark-mode .forecast-section:hover {
+  background: #2a2a2a;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.15);
+}
+
+/* ============================================= */
+/* ============ CONTROL AREA STYLES ============ */
+/* ============================================= */
+
+/* Base control area styles
+.control-area {
+  margin-top: 5px;
+  margin-left: 5px;
+  margin-right: 5px;
+  padding: 5px;
+  background: #f6f6f6;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  border: 0px solid #ccc;
+}
+body.dark-mode .control-area {
+  background: #252525;
+  border: 1px solid #444;
+  color: #d0d0d0;
+}
+*/
+/* ============================================= */
+/* ====== CHART DESCRIPTION (NESTED DETAILS) ==== */
+/* ============================================= */
+
+/* Base details styling */
+#chart1-description-details,
+#chart2-description-details {
+  margin-top: 10px;           /* Reduced vertical spacing */
+  padding: 5px;              /* Reduced padding */
+  border: 1px solid #ccc;    /* Softer border color */
+  border-radius: 4px;        /* Reduced border radius */
+   /*  background: #f9f9f9;       Slightly lighter background */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* Lighter and minimal shadow */
+  font-size: 0.95rem;        /* Slightly smaller font size */
+}
+
+/* Summary element styling */
+#chart1-description-details summary,
+#chart2-description-details summary {
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 1rem;           /* Clear and readable font size */
+  margin-bottom: 5px;        /* Tight spacing below */
+  color: #333;
+}
+
+/* Description container */
+#chart1-description-container,
+#chart2-description-container {
+  font-size: 0.9rem;         /* Smaller text for details */
+  color: #555;
+  margin-top: 5px;           /* Minimal space for readability */
+}
+
+/* Dark mode overrides */
+body.dark-mode #chart1-description-details,
+body.dark-mode #chart2-description-details {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  box-shadow: none;          /* Removed shadow for a cleaner look */
+  color: #d0d0d0;
+}
+
+body.dark-mode #chart1-description-details summary,
+body.dark-mode #chart2-description-details summary {
+  color: #f0f0f0;
+}
+
+body.dark-mode #chart1-description-container,
+body.dark-mode #chart2-description-container {
+  color: #bbbbbb;
+}
+
+
+/* ============================================= */
+/* ============ DARK MODE LABELS =============== */
+/* ============================================= */
+
+/* Adjust input labels in dark mode for readability */
+body.dark-mode label,
+body.dark-mode .controls-label {
+  color: #e0e0e0;
+}
+
+/* Dark mode input[type="range"] styling */
+body.dark-mode input[type="range"] {
+  background-color: #444;
+  border: 1px solid #666;
+}
+
+/* ============================================= */
+/* ================ OLD DETAILS ================ */
+/* ============================================= */
+
+/* Base styles for the details container */
+details {
+  margin: 5px 0; /* Add spacing between sections */
+  padding: 5px 10px; /* Create padding for better readability */
+  max-width: 800px; /* Center-align and limit width */
+  background: #fff; /* Light mode background */
+  border: 1px solid #ddd; /* Subtle border */
+  border-radius: 5px; /* Rounded corners for a modern look */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Softer shadow for depth */
+  transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease; /* Smooth transitions */
+}
+
+/* Styling the summary element */
+details summary {
+  max-width: 800px; /* Center-align and limit width */
+  font-size: 1.1rem; /* Slightly larger font size for headers */
+  font-weight: bold; /* Emphasize the chapter title */
+  cursor: pointer; /* Indicate interactivity */
+  margin-bottom: 5px; /* Add spacing between summary and content */
+  color: #444; /* Darker text for better contrast */
+  list-style: none; /* Remove default markers */
+  padding: 5px; /* Add some padding */
+  border-radius: 3px; /* Rounded corners */
+  transition: background-color 0.3s ease, color 0.3s ease; /* Smooth transitions */
+}
+
+/* Hover and focus styles for summary */
+details summary:hover,
+details summary:focus {
+  background: rgba(0, 0, 0, 0.05); /* Subtle highlight on hover */
+  color: #222; /* Slightly darker text */
+}
+
+/* Styling for expanded details */
+details[open] {
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15); /* Enhance shadow when expanded */
+  background: #f9f9f9; /* Slightly lighter background when open */
+}
+
+details[open] summary {
+  background: rgba(0, 0, 0, 0.03); /* Highlight for open summary */
+  color: #333; /* Adjust text color for open state */
+}
+
+/* Dark mode styles for details */
+body.dark-mode details {
+  background: #2e2e2e; /* Darker background for dark mode */
+  border-color: #444; /* Darker border */
+  color: #e0e0e0; /* Light text for readability */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); /* Adjust shadow for dark mode */
+}
+
+body.dark-mode details summary {
+  color: #ddd; /* Light text for summary */
+}
+
+body.dark-mode details[open] {
+  background: #383838; /* Slightly lighter background for expanded state */
+}
+
+body.dark-mode details summary:hover,
+body.dark-mode details summary:focus {
+  background: rgba(255, 255, 255, 0.1); /* Subtle highlight in dark mode */
+}
+
+/* Optional: Add an indicator (e.g., an arrow) */
+details summary::after {
+  content: "▼"; /* Default arrow */
+  font-size: 0.8rem;
+  margin-left: 10px;
+  transition: transform 0.3s ease; /* Smooth rotation for open state */
+}
+
+details[open] summary::after {
+  transform: rotate(180deg); /* Rotate arrow when expanded */
+}
+
+
+/* ============================================= */
+/* ========= CHART CONTAINER & CONTROLS ======== */
+/* ============================================= */
+
+.chart-container {
+  margin-top: 5px;
+  width: 100%; /* Ensure charts fit within their container */
+}
+
+.controls {
+  max-width: 800px; /* Center-align and limit width */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  justify-content: center;
+}
+
+.controls-label {
+  font-weight: bold;
+  font-size: 1rem;
+  margin-right: 10px; /* Merged repeated margin styles */
+}
+
+.controls-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.controls-buttons label {
+  display: inline-block;
+  padding: 5px 10px;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-align: center;
+  color: #333;
+  background: #f4f4f4;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s, border-color 0.3s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.controls-buttons label:hover {
+  background: #e0e0e0;
+  color: #000;
+  border-color: #ccc;
+  transform: translateY(-2px);
+}
+
+.controls-buttons input[type="checkbox"] {
+  display: none; /* Hide the checkbox */
+}
+
+/* Style for toggled buttons (checked) */
+.controls-buttons input[type="checkbox"]:checked + label {
+  background: linear-gradient(90deg, #8a2be2, #6a1bb9);
+  color: #fff;
+  border-color: #6a1bb9;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.controls-buttons label:active {
+  background: #6a1bb9;
+  color: #fff;
+  border-color: #5a1490;
+  transform: translateY(0);
+}
+
+/* Dark mode for controls buttons */
+body.dark-mode .controls-buttons label {
+  background: #333;
+  color: #e0e0e0;
+  border: 1px solid #555;
+  box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .controls-buttons label:hover {
+  background: #444;
+  color: #fff;
+  border-color: #666;
+}
+
+/* Specific styles for activated buttons */
+.controls-buttons input[type="checkbox"]:checked + label.btn-blue {
+  background: linear-gradient(90deg, #007bff, #0056b3); /* Blue */
+  color: #fff;
+  border-color: #0056b3;
+}
+
+.controls-buttons input[type="checkbox"]:checked + label.btn-green {
+  background: linear-gradient(90deg, #28a745, #1e7e34); /* Green */
+  color: #fff;
+  border-color: #1e7e34;
+}
+
+.controls-buttons input[type="checkbox"]:checked + label.btn-red {
+  background: linear-gradient(90deg, #dc3545, #a71d2a); /* Red */
+  color: #fff;
+  border-color: #a71d2a;
+}
+
+.controls-buttons input[type="checkbox"]:checked + label.btn-yellow {
+  background: linear-gradient(90deg, #ffc107, #d39e00); /* Yellow */
+  color: #fff;
+  border-color: #d39e00;
+}
+
+/* Specific styles for activated purple button */
+.controls-buttons input[type="checkbox"]:checked + label.btn-purple {
+  background: linear-gradient(90deg, #6f42c1, #5936a6); /* Purple */
+  color: #fff;
+  border-color: #5936a6;
+}
+
+/* Keep hover behavior shared */
+.controls-buttons label:hover {
+  background: #e0e0e0;
+  color: #000;
+  border-color: #ccc;
+  transform: translateY(-2px);
+}
+
+/* Shared activation and pressed state behavior */
+.controls-buttons label:active {
+  background: #6a1bb9;
+  color: #fff;
+  border-color: #5a1490;
+  transform: translateY(0);
+}
+
+
+/* Toggled buttons in dark mode */
+body.dark-mode .controls-buttons input[type="checkbox"]:checked + label {
+  background: linear-gradient(90deg, #8a2be2, #6a1bb9);
+  color: #fff;
+  border-color: #6a1bb9;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+body.dark-mode .controls-buttons label:active {
+  background: #6a1bb9;
+  color: #fff;
+  border-color: #5a1490;
+  transform: translateY(0);
+}
+
+/* Toggled blue button in dark mode */
+body.dark-mode .controls-buttons input[type="checkbox"]:checked + label.btn-blue {
+  background: linear-gradient(90deg, #0056b3, #003d80); /* Dark blue */
+  color: #fff;
+  border-color: #003d80;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+}
+
+/* Toggled green button in dark mode */
+body.dark-mode .controls-buttons input[type="checkbox"]:checked + label.btn-green {
+  background: linear-gradient(90deg, #1e7e34, #145622); /* Dark green */
+  color: #fff;
+  border-color: #145622;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+}
+
+/* Toggled red button in dark mode */
+body.dark-mode .controls-buttons input[type="checkbox"]:checked + label.btn-red {
+  background: linear-gradient(90deg, #a71d2a, #7d1520); /* Dark red */
+  color: #fff;
+  border-color: #7d1520;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+}
+
+/* Toggled yellow button in dark mode */
+body.dark-mode .controls-buttons input[type="checkbox"]:checked + label.btn-yellow {
+  background: linear-gradient(90deg, #d39e00, #a37700); /* Dark yellow */
+  color: #fff;
+  border-color: #a37700;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+}
+
+/* Toggled purple button in dark mode */
+body.dark-mode .controls-buttons input[type="checkbox"]:checked + label.btn-purple {
+  background: linear-gradient(90deg, #5936a6, #432681); /* Dark purple */
+  color: #fff;
+  border-color: #432681;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+}
+
+/* Shared dark mode active state */
+body.dark-mode .controls-buttons label:active {
+  background: #6a1bb9;
+  color: #fff;
+  border-color: #5a1490;
+  transform: translateY(0);
+}
+
+
+
+/* Hide CI areas by default */
+.apexcharts-area-series path.ci-hidden {
+  fill-opacity: 0 !important;
+  stroke: transparent !important;
+}
+
+/* Visible CI areas */
+.apexcharts-area-series path {
+  stroke: transparent !important; /* Maintain the appearance */
+}
+
+.chart-container path {
+  fill-opacity: 0.3 !important; /* Default opacity for visible areas */
+  stroke-width: 2px; /* Border thickness */
+}
+
+/* Adjust layout for print */
+@media print {
+  .controls {
+    max-width: 210mm; /* Fit within A4 width */
+    margin: 10px auto; /* Center-align for print */
+    gap: 0.2rem; /* Minimize gap for compact layout */
+  }
+
+  .controls-buttons label {
+    font-size: 0.75rem; /* Smaller font size for print */
+    padding: 4px 8px; /* Reduce button padding */
+  }
+
+  .slider-container input[type="range"] {
+    max-width: 200px; /* Reduce slider width for print */
+  }
+}
+
+/* ============================================= */
+/* ================= SLIDER ==================== */
+/* ============================================= */
+
+.slider-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.slider-container label {
+  font-weight: bold;
+}
+
+.slider-container input[type="range"] {
+  -webkit-appearance: none; /* Remove default styling */
+  width: 150px;
+  height: 5px;
+  background: linear-gradient(90deg, #d3bfff, #b091ee, #6a3db9);
+  border-radius: 5px;
+  outline: none;
+  transition: background 0.3s;
+  cursor: pointer;
+}
+
+.slider-container input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  background: #fff;
+  border: 2px solid #9370db;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.slider-container input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.slider-container input[type="range"]::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  background: #fff;
+  border: 2px solid #9370db;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.slider-container input[type="range"]:hover {
+  background: linear-gradient(90deg, #c2a7ff, #8459d6, #5a2fa9);
+}
+
+.slider-container input[type="range"]:focus::-webkit-slider-thumb {
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.slider-container input[type="range"]:focus::-moz-range-thumb {
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================= */
+/* ============ DISCLAIMER & SOURCE ============ */
+/* ============================================= */
+
+#disclaimer {
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: 40px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-top: 1px solid #ddd;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+body.dark-mode #disclaimer {
+  background: #333;
+  color: #e0e0e0;
+  border-color: #555;
+}
+
+#disclaimer a {
+  color: #007BFF;
+  text-decoration: none;
+}
+
+body.dark-mode #disclaimer a {
+  color: #66b2ff;
+}
+
+#disclaimer a:hover {
+  text-decoration: underline;
+}
+
+#source-code-text {
+  text-align: center;
+  margin-top: 5px;
+}
+
+#source-code-text a {
+  color: #007BFF;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+body.dark-mode #source-code-text a {
+  color: #66b2ff;
+}
+
+#source-code-text a:hover {
+  text-decoration: underline;
+}
+
+.settings-frame {
+  text-align: center;
+  margin: 10px 0;
+}
+
+.settings-frame input {
+  margin-left: 10px;
+}
+
+/* ============================================= */
+/* ================= TABLES ==================== */
+/* ============================================= */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+table th {
+  background-color: #f4f4f4;
+  color: #333;
+  font-weight: bold;
+  text-transform: uppercase;
+  padding: 12px;
+  text-align: left;
+}
+
+table td {
+  padding: 10px;
+  text-align: left;
+}
+
+/* Zebra striping */
+table tr:nth-child(odd) {
+  background-color: #f9f9f9;
+}
+
+table tr:nth-child(even) {
+  background-color: #ffffff;
+}
+
+/* Hover effect */
+table tr:hover {
+  background-color: #f1f1f1;
+}
+
+/* Remove column lines */
+table tr td,
+table tr th {
+  border: none;
+}
+
+/* Remove outer border lines */
+table tr:first-child th {
+  border-top: none;
+}
+
+table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Dark mode tables */
+body.dark-mode table {
+  background-color: #252525;
+  box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode table th {
+  background-color: #444;
+  color: #e0e0e0;
+}
+
+body.dark-mode table td {
+  color: #ddd;
+}
+
+/* Zebra striping in dark mode */
+body.dark-mode table tr:nth-child(odd) {
+  background-color: #303030;
+}
+
+body.dark-mode table tr:nth-child(even) {
+  background-color: #252525;
+}
+
+/* Hover effect in dark mode */
+body.dark-mode table tr:hover {
+  background-color: #2a2a2a;
+}
+
+/* Responsive table for smaller screens */
+@media (max-width: 768px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  table::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  table::-webkit-scrollbar-thumb {
+    background-color: #ddd;
+    border-radius: 4px;
+  }
+
+  table::-webkit-scrollbar-thumb:hover {
+    background-color: #ccc;
+  }
+
+  /* Dark mode scrollbar */
+  body.dark-mode table::-webkit-scrollbar-thumb {
+    background-color: #555;
+  }
+
+  body.dark-mode table::-webkit-scrollbar-thumb:hover {
+    background-color: #666;
+  }
+}
+
+/* ============================================= */
+/* =============== HEADER BUTTON STYLES =============== */
+/* ============================================= */
+
+/* Shared button base (cta-link & toggle-button) */
+.cta-link,
+.toggle-button {
+  display: inline-block;
+  margin: 5px 10px;
+  padding: 5px 10px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: bold;
+  border-radius: 5px;
+  text-decoration: none;
+  transition: background-color 0.3s, transform 0.3s;
+}
+
+/* CTA (GitHub) button in default mode */
+.cta-link {
+  padding:2px 5px;
+  background-color: #6a1b9a;
+  color: #fff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.cta-link:hover {
+  background-color: #5a1782;
+  transform: translateY(-2px);
+}
+
+
+/* Toggle button in default mode */
+.toggle-button {
+  background-color: #44405c;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-button:hover {
+  background-color: #30284d;
+  transform: translateY(-2px);
+}
+
+/* Dark mode overrides for CTA link */
+body.dark-mode .cta-link {
+  background-color: #9e7bd4;
+  color: #202020;
+}
+
+body.dark-mode .cta-link:hover {
+  background-color: #8465b6;
+}
+
+/* Dark mode overrides for toggle button */
+body.dark-mode .toggle-button {
+  background-color: #202020;
+  color: #9e7bd4;
+}
+
+body.dark-mode .toggle-button:hover {
+  background-color: #1c163d;
+}
+
+/* ============================================= */
+/* =============== ENERGY MIX =============== */
+/* ============================================= */
+
+.chart-stack-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.lineChart2-container,
+.lineChart-container,
+.stackedChart-container {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  display: block;
+  position: relative;
+}
+
+.lineChart2-container {
+  margin-bottom: -20px; /* Ensures tight stacking */
+}
+
+.lineChart-container {
+  margin-bottom: -10px; /* Ensures tight stacking */
+}
+
+.stackedChart-container {
+  margin-top: -10px; /* Ensures no gaps between charts */
+}
+
+
+/* For example, if your forecast sub-series is given a name containing "Forecast" */
+.apexcharts-series[data-series-name*="Forecast"] .apexcharts-line {
+  stroke-dasharray: 5 !important;
+}
