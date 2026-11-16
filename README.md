@@ -1,9 +1,14 @@
 # Predictive Analytics for the German Energy Market
 
-**Erratum (November 2026)**. The comparisons with TSO forecasts published from this project are withdrawn: the backtests used realised wind, solar and load as model inputs and reanalysis weather, and tuned, selected and reported on the same weeks. Details: [Substack](https://vsevolodnedora.substack.com/p/erratum-beating-the-tsos-was-not?r=4atbeg&utm_campaign=post&utm_medium=web&showWelcomeOnShare=true). 
+## Erratum (November 2026)
+
+The comparisons with TSO forecasts published from this project are withdrawn: the backtests used realised wind, solar and load as model inputs and reanalysis weather, and tuned, selected and reported on the same weeks. Details: [Substack](https://vsevolodnedora.substack.com/p/erratum-beating-the-tsos-was-not?r=4atbeg&utm_campaign=post&utm_medium=web&showWelcomeOnShare=true). 
 
 
-**Note: the project is currently archived. No active development will continue.**
+> **Note: the project is currently archived. No active development will continue.**
+
+
+---
 
 Live version: [Energy Market Analysis](https://vsevolodnedora.github.io/energy_market_analysis/)  
 <img src="data/sample_mwp.png" alt="Predictions displayed using ApexCharts" style="zoom:50%;" />
